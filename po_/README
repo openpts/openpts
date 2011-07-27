@@ -1,0 +1,40 @@
+
+NLS support files
+
+
+copy them to ./po/
+
+cd ..; ./bootstrap.sh
+
+After update the source code
+
+cd ..
+cd po
+
+make openpts.pot-update
+
+make update-po
+make
+
+cd ..
+make
+
+su
+make install
+
+LC_MESSAGES="ja_JP.UTF-8" /usr/sbin/ptscd -h
+
+
+
+
+Save to the Repository
+
+cd po_
+
+cp -u ../po/LINGUAS     ./
+cp -u ../po/openpts.pot ./
+cp -u ../po/POTFILES.in ./
+cp -u ../po/Makevars    ./
+cp -u ../po/ja.po       ./
+
+

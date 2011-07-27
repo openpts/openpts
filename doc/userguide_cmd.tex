@@ -1,0 +1,184 @@
+\lstset{frame=trbl}
+\lstset{language=}
+\lstset{commentstyle=\textit}
+\lstset{basicstyle=\small}
+
+\subsection{ptsc} 
+
+PTS collector.
+
+\begin{lstlisting}[style=help_message]
+Usage: ptsc [options] [command]
+
+Commands: (forgrand)
+  -i                    Initialize PTS collector
+  -t                    Self test (attestation)
+  -s                    Startup (selftest + timestamp)
+  -u                    Update the RM
+  -U                    Update the RM (auto)
+  -D                    Display the configuration
+  -m                    IF-M mode
+
+Miscellaneous:
+  -h                    Show this help message
+  -v                    Verbose mode. Multiple -v options increase the verbosity.
+
+Options:
+  -c configfile         Set configuration file. defalt is /etc/ptsc.conf
+  -P name=value         Set properties.
+  -R                    Remove RMs
+  -z                    Use the SRK secret to all zeros (20 bytes of zeros)
+\end{lstlisting}
+
+
+\subsection{openpts} 
+
+PTS verifier.
+
+\begin{lstlisting}[style=help_message]
+Usage: openpts [options] {-i [-f]|[-v]|-D} <target>
+       openpts -D
+
+Commands:
+  -i [-f]               Initialize [forcibly] the PTS verifier with the target(collector).
+  [-v]                  Verify target(collector) integrity against know measure.
+  -D                    Display the configuration (target/ALL)
+
+Miscellaneous:
+  -h                    Show this help message
+  -V                    Verbose mode. Multiple -V options increase the verbosity.
+
+Options:
+  -u                    Selects 'yes' as the the default answer when an update is available [no]
+  -l username           ssh username [ssh default]
+  -p port               ssh port number [ssh default]
+  -c configfile         Set configuration file [~/.openpts/openpts.conf]
+\end{lstlisting}
+
+\subsection{uml2dot} 
+
+Generate dot file from the UML State Diagram model.
+
+\begin{lstlisting}[style=help_message]
+Usage: uml2dot [options] umlfile
+
+Options
+   -o output	        Set output file (default is stdout)
+
+Example:
+$ uml2dot -o pcr0.dot pcr0.uml
+$ dot -Tpng pcr0.dot -o pcr0.png
+$ eog pcr0.png
+\end{lstlisting}
+
+\subsection{rm2dot} 
+
+Generate dot file from Reference Manifest (RM).
+Select pcr index since the RM may contains multiple FSMs for each PCRs. 
+
+\begin{lstlisting}[style=help_message]
+Usage: rm2dot [options] rmfile
+
+Options
+	-o output	set output file (default is stdout)
+	-p pcrindex	set PCR index
+	-l level	set snapshot level (0 or 1)
+
+Example:
+$ rm2dot -p 0 -o pcr0.dot rm.uml
+$ dot -Tpng pcr0.dot -o pcr0.png
+$ eog pcr0.png
+\end{lstlisting}
+
+\subsection{iml2text} 
+
+Dump the eventlog in text.
+It take out the eventlog from TSS or securityfs file directly.
+
+\begin{lstlisting}[style=help_message]
+Usage: iml2text [options]
+
+Options:
+  -i filename           Set binary eventlog file (at securityfs)
+  -p pcr_index          Select pcr (TSS)
+  -I mode               Select IMA's log format (Kernel 2.6.32:32)
+  -V                    Verify
+  -D                    DRTM
+  -E                    Enable endian conversion (BE->LE or LE->BE)
+  -h                    Show this help message
+
+
+Example:
+$ iml2text
+ Idx PCR       Type    Digest                                EventData
+-----------------------------------------------------------------------
+   0   0 0x00000008 1dfce7dde0cf13cfff102b1eb01875f752d5090c [BIOS:EV...
+   1   0 0x00000001 1c41801dd329198e50a3d98040230095693e49b3 [BIOS:EV...
+   2   0 0x00000001 16fb111792cb98a3de12f3abd0406fc04c7e5fca [BIOS:EV...
+   3   0 0x00000001 dd261ca7511a7daf9e16cb572318e8e5fbd22963 [BIOS:EV...
+<snip>
+\end{lstlisting}
+
+\subsection{iml2aide} 
+
+Convert IML to AIDE database.
+
+\begin{lstlisting}[style=help_message]
+Usage: iml2aide [option]
+
+Options:
+  -c filename           Set config file
+  -i filename           Set IMA IML file. default, get IML via TSS
+  -r filename           Set AIDE DB file as reference of fullpathname
+  -o filename           Set output file (AIDE DB format, gziped)
+  -w filename           Set output file (Ignore name list, plain text format)
+  -h                    Show this help message
+
+Example:
+$ src/iml2aide -c /etc/ptsc.conf -r /var/lib/aide/aide.db.new.gz \
+  -o /tmp/aide.db.gz
+  AIDE DB(ref) : 241826 entries (/var/lib/aide/aide.db.new.gz)
+  IML          : 5681 events (TSS)
+  AIDE DB      : 3986 entries (tests/data/Fedora12/aide.db.gz) 
+\end{lstlisting}
+
+
+\subsection{ir2text}
+
+Convert Integrity Report (IR) to text format or binary format (=IML).
+
+\begin{lstlisting}[style=help_message]
+Usage: ir2text [options]
+
+Options:
+  -i filename           Set IR file
+  -o filename           Set output file, else stdout
+  -P filename           Set PCR output file (option)
+  -b                    Binary, (Convert IR to IML)
+  -E                    Enable endian conversion (BE->LE or LE->BE)
+  -h                    Show this help message
+\end{lstlisting}
+
+\subsection{tboot2iml}
+
+Convert the tboot messages to IML.
+
+\begin{lstlisting}[style=help_message]
+Usage: tboot2iml [options]
+
+Options:
+  -i filename           txt-stat file to read (default is STDIN)
+  -g filename           grub.conf file to read (OPTION)
+  -p path               grub path (OPTION)
+  -o filename           Output to file (default is STDOUT)
+  -v                    Verbose message
+  -h                    Help
+
+Example:
+  # txt-stat >  txt-stat
+  # tboot2iml -i txt-stat >> binary_rtm_measurments
+
+\end{lstlisting}
+
+
+

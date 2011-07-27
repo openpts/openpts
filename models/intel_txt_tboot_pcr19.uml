@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="MS932"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/2.0.0/UML" xmi:id="213b909e-60be-11e0-a6b1-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="KmZFE1y0" name="">
+    <region xmi:id="282cc1fc-60be-11e0-8932-001f160c9c28" name="Intel TXT - tboot pcr19">
+    <!--  this model did not check the integrity but check the transition only. integrities are check by the policy -->
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+
+
+      <subvertex xmi:type="uml:State" xmi:id="DRTM_START" name="DRTM_START" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="DRTM_START_activity" name="resetPCR(19)"/>
+      </subvertex>
+
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_MODULE" name="EV_TBOOT_MODULE" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_MODULE_activity" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="DRTM_verified" name="DRTM_verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="DRTM_verified_activity" name="setAssertion(intel.txt.tboot.pcr.19.transition, valid)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+
+
+      <transition xmi:id="Start_DRTM_START_trans" visibility="public" kind="local" source="Start" target="DRTM_START"/>
+
+      <transition xmi:id="DRTM_START_EV_TBOOT_MODULE_trans" name="DRTM_START_EV_TBOOT_MODULE_trans" visibility="public" kind="local" source="DRTM_START" target="EV_TBOOT_MODULE" guard="DRTM_START_EV_TBOOT_MODULE_guard" >
+        <ownedRule xmi:id="DRTM_START_EV_TBOOT_MODULE_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="DRTM_START_EV_TBOOT_MODULE_spec" name="">
+            <body>eventtype == 0x00000111</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+      <transition xmi:id="EV_TBOOT_MODULE_loop" name="EV_TBOOT_MODULE_loop" visibility="public" kind="local" source="EV_TBOOT_MODULE" target="EV_TBOOT_MODULE" guard="EV_TBOOT_MODULE_loop_guard" >
+        <ownedRule xmi:id="EV_TBOOT_MODULE_loop_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_MODULE_loop_spec" name="">
+            <body>eventtype == 0x00000111</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+
+      <transition xmi:id="EV_TBOOT_MODULE_DRTM_verified_trans" name="EV_TBOOT_MODULE_DRTM_verified_trans" visibility="public" kind="local" source="EV_TBOOT_MODULE" target="DRTM_verified" guard="EV_TBOOT_MODULE_DRTM_verified_guard" >
+        <ownedRule xmi:id="EV_TBOOT_MODULE_DRTM_verified_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_MODULE_DRTM_verified_spec" name="">
+            <body>last == true</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+      <transition xmi:id="DRTM_verified_Final_trans" visibility="public" kind="local" source="DRTM_verified" target="Final"/>
+
+    </region>
+  </packagedElement>
+</uml:Model>

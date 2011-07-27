@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="7592c702-2775-11e0-a3fe-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="KjupaeY0" name="">
+    <region xmi:id="_3qn0YpSvEdy22t6WWvUZtA" name="bios">
+      <subvertex xmi:type="uml:State" xmi:id="PCR3_START" name="PCR3_START" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="PCR3_START_do" name="resetPCR(3)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR_3" name="EV_SEPARATOR_3" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="BIOS_Verified" name="BIOS_Verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="BIOS_Verified_do" name="setAssertion(bios.pcr.3.integrity, valid)"/>
+      </subvertex>
+      <transition xmi:id="Kk02jZs0" name="CRTM_START_trans" visibility="public" kind="local" source="Start" target="PCR3_START"/>
+      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="EV_SEPARATOR_3" target="BIOS_Verified"/>
+      <transition xmi:id="KoByXxb0" visibility="public" kind="local" source="BIOS_Verified" target="Final">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_3_trans" name="EV_SEPARATOR_3_trans" visibility="public" kind="local" source="PCR3_START" target="EV_SEPARATOR_3" guard="_3qn0aZSvEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_3qn0aZSvEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_3qn0apSvEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+    </region>
+  </packagedElement>
+</uml:Model>

@@ -1,0 +1,143 @@
+
+%define name            @PACKAGE@
+%define version         @VERSION@
+%define release         1
+
+Name:           %{name}
+Version:        %{version}
+Release:        %{release}
+Summary:        TCG Platform Trust Service (PTS) for emdedded devices
+
+Group:          Applications/System
+License:        CPL
+URL:            http://sourceforge.jp/projects/openpts/
+Source0:        %{name}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+BuildRequires:  autoconf automake libtool trousers-devel openssl-devel libxml2-devel libuuid-devel
+Requires:       trousers >= 0.3.6, openssl >= 1.0.0, libxml2, libuuid
+
+# libtnc only supported by Fedora 10-12, RHEL does not support libtnc
+%define with_tboot 0
+#%define with_libtnc 0
+
+%if 0%{?fedora} >= 14
+#BuildRequires: libtnc-devel
+Requires:      tboot libtnc
+%define with_tboot 1
+#%define with_libtnc 1
+%endif
+
+%description
+OpenPTS is an open-source package of Platform Trust Service (PTS)
+defined by Trusted Computing Group (TCG). Trusted Computing is a set of
+specifications set forth by the Trusted Computing Group (TCG).
+
+%prep
+%setup -q
+
+
+%build
+
+%configure --disable-static --prefix=/usr --libdir=%{_libdir} --with-tss --with-aide --enable-tnc \
+%if %{with_tboot}
+  --with-tboot \
+%endif
+#%if %{with_libtnc}
+#  --with-libtnc
+#%endif
+
+# DISABLE -j4 to build with libopenpts.so
+#make %{?_smp_mflags}
+make
+
+
+%install
+# This line keeps build machines from being affected
+[ "${RPM_BUILD_ROOT}" != "/" ] && [ -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT};
+
+#mkdir -p ${RPM_BUILD_ROOT}
+mkdir -p ${RPM_BUILD_ROOT}/%{_initrddir}
+cp dist/fedora.initrd.ptsc ${RPM_BUILD_ROOT}/%{_initrddir}/ptsc
+cp dist/ptsc.conf ${RPM_BUILD_ROOT}/%{_sysconfdir}/ptsc.conf
+#%if %{with_libtnc}
+cp dist/ptsv.conf ${RPM_BUILD_ROOT}/%{_sysconfdir}/ptsv.conf
+#%endif
+mkdir -p ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/models
+cp models/*.uml ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/models/
+
+mkdir -p ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tpm_emulator
+cp dist/tpm_emulator/README.rhel ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tpm_emulator/README
+cp dist/tpm_emulator/binary_bios_measurements ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tpm_emulator/
+cp dist/tpm_emulator/tcsd ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tpm_emulator/
+
+%if %{with_tboot}
+mkdir -p ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tboot
+cp dist/tboot/README.fedora15 ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tboot/README
+cp dist/tboot/ptsc.conf.fedora15 ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tboot/ptsc.conf
+cp dist/tboot/tcsd.conf.fedora15 ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tboot/tcsd.conf
+cp dist/tboot/tcsd.fedora15 ${RPM_BUILD_ROOT}/%{_prefix}/share/openpts/tboot/tcsd
+%endif
+
+make install DESTDIR=${RPM_BUILD_ROOT}
+
+
+%clean
+rm -rf ${RPM_BUILD_ROOT}
+
+%pre
+getent group ptsc >/dev/null || groupadd -r ptsc
+
+
+%files
+%defattr(-,root,root,-)
+%doc LICENSE README
+%attr(755, root, root) %{_sbindir}/ptsc
+%attr(755, root, root) %{_bindir}/openpts
+%attr(755, root, root) %{_bindir}/uml2dot
+%attr(755, root, root) %{_bindir}/iml2aide
+%attr(755, root, root) %{_bindir}/tpm_createkey
+%attr(755, root, root) %{_bindir}/tpm_readpcr
+%attr(755, root, root) %{_bindir}/tpm_extendpcr
+%attr(755, root, root) %{_bindir}/iml2text
+%attr(755, root, root) %{_bindir}/ir2text
+%attr(755, root, root) %{_bindir}/rm2dot
+%if %{with_tboot}
+%attr(755, root, root) %{_bindir}/tboot2iml
+%{_prefix}/share/openpts/tboot/*
+%endif
+%{_libdir}/libopenpts.la
+%{_libdir}/libopenpts*.so
+#%if %{with_libtnc}
+%{_libdir}/libopenpts_imc.la
+%{_libdir}/libopenpts_imc.so*
+%{_libdir}/libopenpts_imv.la
+%{_libdir}/libopenpts_imv.so*
+%config(noreplace) %attr(640, root, ptsc) %{_sysconfdir}/ptsv.conf
+#%endif
+%{_prefix}/share/openpts/models/*uml
+%{_prefix}/share/openpts/tpm_emulator/*
+%{_prefix}/share/locale/ja/LC_MESSAGES/openpts.mo
+%config(noreplace) %attr(640, root, ptsc) %{_sysconfdir}/ptsc.conf
+#%{_mandir}/man1/openpts*
+#%{_mandir}/man8/openpts*
+# Fedora/RHEL
+%{_initrddir}/ptsc
+
+
+%post -p /sbin/ldconfig
+
+
+%postun -p /sbin/ldconfig
+
+%changelog
+* Fri Jun 24 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.5
+- added TNC IMV/IMC, configure --enable-tnc
+- added libopenpts.so
+
+* Fri May 6 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.4
+* Thu Mar 10 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.3
+* Sun Jul 25 2010 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.0
+* Fri Mar 12 2010 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.0.1
+
+

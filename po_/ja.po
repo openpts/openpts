@@ -1,0 +1,26 @@
+# Japanese translations for openpts package.
+# Copyright (C) 2010 Free Software Foundation, Inc.
+# This file is distributed under the same license as the openpts package.
+#  <munetoh@users.sourceforge.jp>, 2010.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: openpts 0.2.2svn\n"
+"Report-Msgid-Bugs-To: openpts-users@lists.sourceforge.jp\n"
+"POT-Creation-Date: 2010-12-09 14:29+0900\n"
+"PO-Revision-Date: 2010-12-09 13:31+0900\n"
+"Last-Translator:  <munetoh@localhost.localdomain>\n"
+"Language-Team: Japanese\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: src/ptscd.c:683
+#, c-format
+msgid ""
+"OpenPTS Collector Daemon\n"
+"\n"
+msgstr ""
+"OpenPTS コレクターデーモン\n"
+"\n"

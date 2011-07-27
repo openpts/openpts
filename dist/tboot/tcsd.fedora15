@@ -1,0 +1,150 @@
+#!/bin/bash
+#
+# tcsd Init script for the TrouSerS TCG Core Services daemon
+#
+# chkconfig: - 90 10
+# description: TrouSerS server daemon
+
+### BEGIN INIT INFO
+# Provides: 
+# Required-Start: 
+# Required-Stop: 
+# Should-Start: 
+# Should-Stop: 
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Init script for TCSD
+# Description:	TrouSerS TCG Core Services daemon  
+### END INIT INFO
+
+exec="/usr/sbin/tcsd"
+prog="tcsd"
+config="/etc/tcsd.conf"
+PID_FILE="/var/run/tcsd.pid"
+INSMOD="/sbin/insmod"
+LSMOD="/sbin/lsmod"
+GREP="/bin/grep"
+TXTSTAT="/usr/sbin/txt-stat"
+TBOOT2IML="/usr/bin/tboot2iml"
+BIOS_IML_FILE="/sys/kernel/security/tpm0/binary_bios_measurements"
+TBOOT_STAT_FILE="/var/lib/tpm/txt-stat"
+TBOOT_IML_FILE="/var/lib/tpm/binary_tboot_measurements"
+IML_FILE="/var/lib/tpm/binary_rtm_measurements"
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+[ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+
+lockfile=/var/lock/subsys/$prog
+
+# Allow anyone to run status
+if [ "$1" = "status" -o "$1" = "rh_status" -o "$1" = "rh_status_q" ] ; then
+	$1 $prog
+	RETVAL=$?
+	exit $RETVAL
+fi
+
+# Check that we are root ... so non-root users stop here
+test $EUID = 0	||	exit 4
+
+load_drivers()
+{
+	for d in `echo /lib/modules/$(uname -r)/kernel/drivers/char/tpm/tpm_*`; do
+		$INSMOD $d
+		if test $? -eq 0; then
+			break;
+		fi
+	done
+}
+
+check_drivers()
+{
+	$LSMOD | $GREP tpm_
+}
+
+create_iml()
+{
+	test -x $TBOOT2IML || exit 7
+	test -x $TXTSTAT || exit 8
+	$TXTSTAT > $TBOOT_STAT_FILE && success || failure
+	$TBOOT2IML -g /boot/grub/grub.conf -p /boot -i $TBOOT_STAT_FILE -o $TBOOT_IML_FILE && success || failure
+	cp $BIOS_IML_FILE $IML_FILE
+	cat $TBOOT_IML_FILE >> $IML_FILE
+}
+
+start()
+{
+	test -x $exec || exit 5
+	test -f $config || exit 6
+	check_drivers || load_drivers || failure
+	create_iml || failure
+	echo -n $"Starting $prog: "
+	$exec $OPTIONS && success || failure
+	RETVAL=$?
+	echo
+	[ "$RETVAL" = 0 ] && touch $lockfile
+	return $RETVAL
+}
+
+stop()
+{
+	echo -n $"Stopping $prog: "
+	killproc $prog
+	RETVAL=$?
+	echo
+	[ "$RETVAL" = 0 ] && rm -f $lockfile
+	return $RETVAL
+}
+
+restart() {
+	stop
+	start
+}
+
+reload() {
+	restart
+}
+
+force_reload() {
+	restart
+}
+
+rh_status() {
+	# run checks to determine if the service is running or use generic status
+	status $prog
+}
+
+rh_status_q() {
+	rh_status >/dev/null 2>&1
+}
+
+
+case "$1" in
+	start)
+		rh_status_q && exit 0
+		$1
+		;;
+	stop)
+		rh_status_q || exit 0
+		$1
+		;;
+	restart)
+		$1
+		;;
+	reload)
+		rh_status_q || exit 7
+		$1
+		;;
+	force-reload)
+		force_reload
+		;;
+	condrestart|try-restart)
+		rh_status_q || exit 0
+		restart
+		;;
+	*)
+        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+        exit 2
+esac
+exit $?

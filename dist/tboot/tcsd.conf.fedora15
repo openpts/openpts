@@ -1,0 +1,4 @@
+# BIOS(SRTM) + tboot(DRTM)
+
+firmware_log_file = /var/lib/tpm/binary_rtm_measurements
+firmware_pcrs = 0,1,2,3,4,5,6,7,17,18,19

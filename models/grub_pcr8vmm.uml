@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="16414f5c-2776-11e0-8caf-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="Kk5bppv0" name="">
+    <region xmi:id="_VK5bYpSwEdy22t6WWvUZtA" name="grub">
+
+      <subvertex xmi:type="uml:State" xmi:id="FinalAction" name="FinalAction" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5bY5SwEdy22t6WWvUZtA" name="setGrubProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:State" xmi:id="Kkfd2Kq0" name="XenSmxSinitAC" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5bZJSwEdy22t6WWvUZtA" name="setGrubProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="CheckBIOS" name="Grub_PCR8_START" visibility="public"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="ModuleKernel" name="XenKernel" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5bZZSwEdy22t6WWvUZtA" name="setAssertion(linux.kernel.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="ModuleInitrd" name="XenInitrd" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5bZpSwEdy22t6WWvUZtA" name="setGrubProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="KoByf0q0" name="GRUB_Verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5bZ5SwEdy22t6WWvUZtA" name="setAssertion(ipl.integrity, valid)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="KoCze7W0" name="VMM_Exist" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5baJSwEdy22t6WWvUZtA" name="setAssertion(vmm, exist)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="OsEventSeparator8" name="OsEventSeparator8" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KernelXen" name="Xen" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_VK5baZSwEdy22t6WWvUZtA" name="setAssertion(xen.digest, digest)"/>
+      </subvertex>
+      <transition xmi:id="ModuleKernel_trans" name="ModuleKernel_trans" visibility="public" kind="local" source="KernelXen" target="ModuleKernel" guard="_VK5ba5SwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_VK5ba5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5bbJSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x1405</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Kkfdd7a0" visibility="public" kind="local" source="Kkfd2Kq0" target="KoCze7W0" guard="_VK5bbpSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_VK5bbpSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5bb5SwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Final_trans_fromXEN" name="Final_trans_fromXEN" visibility="public" kind="local" source="ModuleInitrd" target="KoCze7W0" guard="_VK5bcZSwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_VK5bcZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5bcpSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkfdUYa0" visibility="public" kind="local" source="ModuleInitrd" target="Kkfd2Kq0" guard="_VK5bdJSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_VK5bdJSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5bdZSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x1405</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="ModuleInitrd_trans" name="ModuleInitrd_trans" visibility="public" kind="local" source="ModuleKernel" target="ModuleInitrd" guard="_VK5bd5SwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_VK5bd5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5beJSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x1405</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KoByw0H0" visibility="public" kind="local" source="KoByf0q0" target="Final">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="KernelXen_trans" name="KernelXen_trans" visibility="public" kind="local" source="CheckBIOS" target="KernelXen" guard="_VK5be5SwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_VK5be5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5bfJSwEdy22t6WWvUZtA" name="">
+            <body>pcrindex == 8, eventtype == 0x1205</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="FinalAction" target="KoByf0q0"/>
+      <transition xmi:id="CheckBIOS_trans" name="CheckBIOS_trans" visibility="public" kind="local" source="Start" target="CheckBIOS"/>
+      <transition xmi:id="KoD00O40" visibility="public" kind="local" source="KoCze7W0" target="OsEventSeparator8">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="FinalAction_trans" name="FinalAction_trans" visibility="public" kind="local" source="OsEventSeparator8" target="FinalAction" guard="_VK5bgZSwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_VK5bgZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_VK5bgpSwEdy22t6WWvUZtA" name="">
+            <body>pcrindex == 8, eventtype == 0x1005</body>
+          </specification>
+        </ownedRule>
+      </transition>
+    </region>
+  </packagedElement>
+</uml:Model>

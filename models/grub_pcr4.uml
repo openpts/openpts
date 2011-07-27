@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="e7854fb0-2775-11e0-ad2c-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="Kk5bppv0" name="">
+    <region xmi:id="_H7LRwpSwEdy22t6WWvUZtA" name="grub">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:State" xmi:id="CheckBIOS" name="SetMBRReferenceDigest" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRxpSwEdy22t6WWvUZtA" name="setAssertion(ipl.mbr.masked.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="Stage1" name="stage1" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkNoOBi3" name="vstafs_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="Filesystem" name="e2fs_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="GrubEventSepatrator4" name="GrubEventSepatrator4" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="MBRMeasureForRVS" name="MBRMeasureForPVS" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRw5SwEdy22t6WWvUZtA" name="validateMBR()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="KoByf0q0" name="GRUB_PCR4_Verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRxJSwEdy22t6WWvUZtA" name="setAssertion(ipl.pcr.4.integrity, valid)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="KkNoJZv3" name="ufs2_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkORIrO0" name="iso9660_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkNnmHu3" name="fat_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkNo3UR3" name="jfs_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkAeJKA3" name="EltoritoMBRMeasureForPVS" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRxZSwEdy22t6WWvUZtA" name="validateEltoritoBootImage()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="KkNoTok3" name="xfs_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="L1fiHDv0" name="SetEltoritoHPReferenceDigest" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRx5SwEdy22t6WWvUZtA" name="setAssertion(ipl.eltorito.hp.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="Stage2" name="stage2" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="Stage15" name="stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkNo7XC3" name="minix_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkORPyQ0" name="reiserfs_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkAOFZH3" name="stage2_eltorito" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="KkNnqjc3" name="ffs_stage1_5" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="L1fiIOG0" name="SetEltoritoIBMReferenceDigest" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRyZSwEdy22t6WWvUZtA" name="setAssertion(ipl.eltorito.ibm.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="L1fi9oV0" name="SetEltoritoReferenceDigest" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRypSwEdy22t6WWvUZtA" name="setAssertion(ipl.eltorito.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <transition xmi:id="KkNqeUo0" visibility="public" kind="local" source="Stage15" target="KkNnqjc3" guard="_H7LRzJSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LRzJSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LRzZSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNrE9E0" visibility="public" kind="local" source="Stage15" target="KkNoJZv3" guard="_H7LRz5SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LRz5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR0JSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNrenS0" visibility="public" kind="local" source="KkNoJZv3" target="Stage2" guard="_H7LR0pSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR0pSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR05SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNrh3p0" visibility="public" kind="local" source="KkNoOBi3" target="Stage2" guard="_H7LR1ZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR1ZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR1pSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkOS5YI0" visibility="public" kind="local" source="KkORIrO0" target="Stage2" guard="_H7LR2JSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR2JSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR2ZSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkAeX2i0" visibility="public" kind="local" source="KkAeJKA3" target="GrubEventSepatrator4" guard="_H7LR25SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR25SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR3JSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNriie0" visibility="public" kind="local" source="KkNoTok3" target="Stage2" guard="_H7LR3pSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR3pSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR35SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNqiiO0" visibility="public" kind="local" source="Stage15" target="KkNo3UR3" guard="_H7LR4ZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR4ZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR4pSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNrp3X0" visibility="public" kind="local" source="KkNo3UR3" target="Stage2" guard="_H7LR5JSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR5JSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR5ZSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNqOw50" visibility="public" kind="local" source="Stage15" target="KkNnmHu3" guard="_H7LR55SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR55SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR6JSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Stage15_trans" name="Stage15_trans" visibility="public" kind="local" source="Stage1" target="Stage15" guard="_H7LR6pSwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_H7LR6pSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR65SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="L1fiZJe0" visibility="public" kind="local" source="KkAOFZH3" target="L1fi9oV0">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="KkNrC6D0" visibility="public" kind="local" source="Stage15" target="KkNo7XC3" guard="_H7LR7pSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR7pSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR75SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkOS2cb0" visibility="public" kind="local" source="Stage15" target="KkORPyQ0" guard="_H7LR8ZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR8ZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR8pSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="MBRMeasureForRVS_trans" name="MBRMeasureForRVS_trans" visibility="public" kind="local" source="Stage2" target="MBRMeasureForRVS" guard="_H7LR9JSwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_H7LR9JSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR9ZSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNraRI0" visibility="public" kind="local" source="KkNnqjc3" target="Stage2" guard="_H7LR95SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR95SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR-JSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkOS7hM0" visibility="public" kind="local" source="KkORPyQ0" target="Stage2" guard="_H7LR-pSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR-pSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR-5SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="CheckBIOS_trans" name="CheckBIOS_trans" visibility="public" kind="local" source="Start" target="CheckBIOS"/>
+      <transition xmi:id="Stage2_trans" name="Stage2_trans" visibility="public" kind="local" source="Filesystem" target="Stage2" guard="_H7LR_pSwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_H7LR_pSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR_5SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkAOp7P0" visibility="public" kind="local" source="Stage1" target="KkAOFZH3" guard="_H7LSAZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSAZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSApSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="GrubEventSepatrator4_trans" name="GrubEventSepatrator4_trans" visibility="public" kind="local" source="MBRMeasureForRVS" target="GrubEventSepatrator4" guard="_H7LSB5SwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_H7LSB5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSCJSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KoByw0H0" visibility="public" kind="local" source="KoByf0q0" target="Final">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="GrubEventSepatrator4" target="KoByf0q0"/>
+      <transition xmi:id="KkNrIkG0" visibility="public" kind="local" source="Stage15" target="KkNoTok3" guard="_H7LSDJSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSDJSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSDZSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkAOt5s0" visibility="public" kind="local" source="L1fiIOG0" target="KkAeJKA3" guard="_H7LSD5SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSD5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSEJSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkORzLD0" visibility="public" kind="local" source="Stage15" target="KkORIrO0" guard="_H7LSEpSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSEpSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSE5SwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNrc8O0" visibility="public" kind="local" source="KkNo7XC3" target="Stage2" guard="_H7LSFZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSFZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSFpSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="L1ficJd0" visibility="public" kind="local" source="L1fiHDv0" target="L1fiIOG0">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="KkNrYZ70" visibility="public" kind="local" source="KkNnmHu3" target="Stage2" guard="_H7LSGZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSGZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSGpSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkNrH4R0" visibility="public" kind="local" source="Stage15" target="KkNoOBi3" guard="_H7LSHJSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSHJSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSHZSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="L1fibHs0" visibility="public" kind="local" source="L1fi9oV0" target="L1fiHDv0">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="Filesystem_trans" name="Filesystem_trans" visibility="public" kind="local" source="Stage15" target="Filesystem" guard="_H7LSIJSwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_H7LSIJSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSIZSwEdy22t6WWvUZtA" name="">
+            <body>digest == //////////////////////////8=</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="_QnRkgKU4Ed-IkYbwMoppcQ" source="CheckBIOS" target="Stage1"/>
+    </region>
+  </packagedElement>
+</uml:Model>

@@ -1,0 +1,17 @@
+Source: openpts
+Section: unknown
+Priority: extra
+Maintainer: munetoh <munetoh@jp.ibm.com>
+# Canonical repo
+# Self build
+Build-Depends: debhelper (>= 7), trousers, tpm-tools, libxml2-dev, uuid-dev
+Standards-Version: 3.7.3
+Homepage: http://sourceforge.jp/projects/openpts/
+
+Package: openpts
+Architecture: any
+# Canonical repo
+# Self build
+Depends: ${shlibs:Depends}, ${misc:Depends}, trousers, tpm-tools, libxml2, uuid
+Description: An open source TCG Platform Trust Services
+ emdedded package include openpts daemon

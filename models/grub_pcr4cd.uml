@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="d30618e4-2775-11e0-bf1d-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="Kk5bppv0" name="">
+    <region xmi:id="_H7LRwpSwEdy22t6WWvUZtA" name="grub">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:State" xmi:id="CheckBIOS" name="ValidateMbrDigest" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRxpSwEdy22t6WWvUZtA" name="validateProperty(ipl.mbr.digest, base64)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="Stage1" name="stage1" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="ThinkCentreM55" name="ThinkCentreM55" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="ThinkCentreM55_do" name="setThinkCentreM55()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="stage2_eltorito" name="stage2_eltorito" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="EltoritoMBRMeasureForPVS" name="EltoritoMBRMeasureForPVS" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRxZSwEdy22t6WWvUZtA" name="validateEltoritoBootImage()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="GrubEventSepatrator4" name="GrubEventSepatrator4" visibility="public"/>
+      <subvertex xmi:type="uml:State" xmi:id="GRUB_PCR4_Verified" name="GRUB_PCR4_Verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_H7LRxJSwEdy22t6WWvUZtA" name="setAssertion(ipl.pcr.4.integrity, valid)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <transition xmi:id="KkAOp7P0" visibility="public" kind="local" source="Stage1" target="stage2_eltorito" guard="_H7LSAZSwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSAZSwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSApSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x0d, digest == base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="TCM55_trans" visibility="public" kind="local" source="Stage1" target="ThinkCentreM55">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="ThinkCentreM55_rule" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="ThinkCentreM55_spec" name="">
+            <body>eventtype == 0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="ThinkCentreM55_trans2" visibility="public" kind="local" source="ThinkCentreM55" target="GrubEventSepatrator4">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="ThinkCentreM55_rule2" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="ThinkCentreM55_spec2" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="CheckBIOS_trans" name="CheckBIOS_trans" visibility="public" kind="local" source="Start" target="CheckBIOS"/>
+      <transition xmi:id="Stage1_trans" name="Stage1_trans" visibility="public" kind="local" source="CheckBIOS" target="Stage1"/>
+      <transition xmi:id="KkAOt5s0" visibility="public" kind="local" source="stage2_eltorito" target="EltoritoMBRMeasureForPVS" guard="_H7LSD5SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LSD5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LSEJSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="KkAeX2i0" visibility="public" kind="local" source="EltoritoMBRMeasureForPVS" target="GrubEventSepatrator4" guard="_H7LR25SwEdy22t6WWvUZtA">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_H7LR25SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_H7LR3JSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="GrubEventSepatrator4" target="GRUB_PCR4_Verified"/>
+      <transition xmi:id="KoByw0H0" visibility="public" kind="local" source="GRUB_PCR4_Verified" target="Final">
+        <name xsi:nil="true"/>
+      </transition>
+    </region>
+  </packagedElement>
+</uml:Model>

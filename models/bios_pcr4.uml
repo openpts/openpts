@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="83a0554e-2775-11e0-80f9-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="KjupaeY0" name="">
+    <region xmi:id="_Gh7F4hy7Ed6jytZ7WXwL3w" name="bios">
+
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+
+      <subvertex xmi:type="uml:State" xmi:id="PCR4_START" name="PCR4_START" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_Gh8UAxy7Ed6jytZ7WXwL3w" name="resetPCR(4)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_ACTION_4A" name="EV_ACTION_PCR4A" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_GiAlcBy7Ed6jytZ7WXwL3w" name="addBIOSAction()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_BOOT_SERVICES_APPLICATION" name="EV_EFI_BOOT_SERVICES_APPLICATION" visibility="public"/>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR_4" name="EV_SEPARATOR_4" visibility="public"/>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_ACTION_4" name="EV_ACTION_PCR4" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_Gh8UABy7Ed6jytZ7WXwL3w" name="addBIOSAction()"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_IPL_11B" name="EV_IPL_11B" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_Gh8UAhy7Ed6jytZ7WXwL3w" name="setAssertion(ipl.mbr.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_IPL" name="EV_IPL" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_Gh87ERy7Ed6jytZ7WXwL3w" name="setAssertion(ipl.mbr.digest, digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_IPL_DELL" name="EV_IPL_DELL" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_Gh87EBy7Ed6jytZ7WXwL3w" name="setAssertion(ipl.mbr.digest, digest)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="BIOS_PCR4_Verified" name="BIOS_PCR4_Verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="_Gh8UARy7Ed6jytZ7WXwL3w" name="setAssertion(bios.pcr.4.integrity, valid)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+
+<!-- Added for Lenovo UEFI -->
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_ACTION" name="EV_EFI_ACTION" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_EFI_ACTION_doact" name="addBIOSAction()"/>
+      </subvertex>
+
+
+      <transition xmi:id="Kk04zG90" name="EV_IPL_11B_trans" visibility="public" kind="local" source="EV_ACTION_4" target="EV_IPL_11B" guard="_GiBMgRy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiBMgRy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiBMghy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x01</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Kk02jZs0" name="CRTM_START_trans" visibility="public" kind="local" source="Start" target="PCR4_START"/>
+      <transition xmi:id="EV_ACTION_4A_trans" name="EV_ACTION_4A_trans" visibility="public" kind="local" source="PCR4_START" target="EV_ACTION_4A" guard="_GiBMhRy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiBMhRy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiBMhhy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x05</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_4_trans_from3" name="EV_SEPARATOR_4_trans_from3" visibility="public" kind="local" source="PCR4_START" target="EV_SEPARATOR_4" guard="_GiBzkRy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiBzkRy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiBzkhy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Kk0510m0" name="IPL4_11B_HOLD_trans" visibility="public" kind="local" source="EV_IPL_11B" target="BIOS_PCR4_Verified"/>
+      <transition xmi:id="IPL4_HOLD_trans" name="IPL4_HOLD_trans" visibility="public" kind="local" source="EV_IPL" target="BIOS_PCR4_Verified"/>
+      <transition xmi:id="KoByXxb0" visibility="public" kind="local" source="BIOS_PCR4_Verified" target="Final">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="EV_ACTION_4_trans" name="EV_ACTION_4_trans" visibility="public" kind="local" source="EV_SEPARATOR_4" target="EV_ACTION_4" guard="_GiCaohy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiCaohy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiCaoxy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x05</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Lnjdj5B0" visibility="public" kind="local" source="PCR4_START" target="EV_EFI_BOOT_SERVICES_APPLICATION" guard="_GiCapRy7Ed6jytZ7WXwL3w">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_GiCapRy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiCaphy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x80000003</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="L2WSWe70" visibility="public" kind="local" source="EV_IPL_DELL" target="BIOS_PCR4_Verified">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="EV_ACTION_4_loop" name="EV_ACTION_4_loop" visibility="public" kind="local" source="EV_ACTION_4" target="EV_ACTION_4" guard="_GiDBshy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiDBshy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiDBsxy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x05</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_4_trans_fromA" name="EV_SEPARATOR_4_trans_fromA" visibility="public" kind="local" source="EV_ACTION_4A" target="EV_SEPARATOR_4" guard="_GiDBtRy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiDBtRy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiDBthy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="LnjdkPl0" visibility="public" kind="local" source="EV_EFI_BOOT_SERVICES_APPLICATION" target="EV_SEPARATOR_4" guard="_GiDowRy7Ed6jytZ7WXwL3w">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_GiDowRy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiDowhy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_IPL_trans" name="EV_IPL_trans" visibility="public" kind="local" source="EV_ACTION_4" target="EV_IPL" guard="_GiDoxBy7Ed6jytZ7WXwL3w">
+        <ownedRule xmi:id="_GiDoxBy7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiDoxRy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x0d</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="L2WVcPU0" visibility="public" kind="local" source="EV_ACTION_4" target="EV_IPL_DELL" guard="_GiEP0Ry7Ed6jytZ7WXwL3w">
+        <name xsi:nil="true"/>
+        <ownedRule xmi:id="_GiEP0Ry7Ed6jytZ7WXwL3w" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_GiEP0hy7Ed6jytZ7WXwL3w" name="">
+            <body>eventtype == 0x0c</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+<!-- Added for Lenovo UEFI -->
+      <transition  visibility="public" kind="local"
+        source="EV_SEPARATOR_4"
+        target="EV_EFI_ACTION"
+        xmi:id="EV_SEPARATOR_4_to_EV_EFI_ACTION"
+        name="EV_SEPARATOR_4_to_EV_EFI_ACTION"
+        guard="EV_SEPARATOR_4_to_EV_EFI_ACTION_guard">
+        <ownedRule xmi:id="EV_SEPARATOR_4_to_EV_EFI_ACTION_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" name=""
+            xmi:id="EV_SEPARATOR_4_to_EV_EFI_ACTION_spec">
+            <body>eventtype == 0x80000007</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+      <transition  visibility="public" kind="local"
+        source="EV_EFI_ACTION"
+        target="EV_ACTION_4"
+        xmi:id="EV_EFI_ACTION_to_EV_ACTION_4"
+        name="EV_EFI_ACTION_to_EV_ACTION_4"
+        guard="EV_EFI_ACTION_to_EV_ACTION_4_guard">
+        <ownedRule xmi:id="EV_EFI_ACTION_to_EV_ACTION_4_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" name=""
+            xmi:id="EV_EFI_ACTION_to_EV_ACTION_4_spec">
+            <body>eventtype == 0x05</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+
+    </region>
+  </packagedElement>
+</uml:Model>

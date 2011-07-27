@@ -1,0 +1,192 @@
+
+
+\subsection{Files}
+
+OpenPTS generates and uses many files as described below.
+Table \ref{table:ptsc:file} lists the files used by collector (ptsc command).
+Table \ref{table:openpts:file} lists the files used by verifier (openpts command).
+The verifier store the target infomation at the user's home directory.
+
+\begin{table}[h]
+\caption{Files - collector side, (ptsc command)}
+\label{table:ptsc:file}
+\begin{center}
+%\begin{tabular}{|l|l|}
+\begin{tabular}{ll}
+        \hline
+        File & Description  \\
+        \hline  \hline
+        /etc/ptsc.conf  &  configuration file of collector \\
+        \hline
+        /var/lib/openpts/uuid     &   uuid of this platform \\
+        \hline
+        /var/lib/openpts/rm\_uuid &   uuid of current manifest (=RM\_UUID)\\
+        \hline
+        /var/lib/openpts/newrm\_uuid &   uuid of next boot-cycle manifest (=NEWRM\_UUID) TBD\\
+        \hline
+        /var/lib/openpts/\{RM\_UUID\}/rm0.xml &  Reference Manifest (BIOS) \\
+        \hline
+        /var/lib/openpts/\{RM\_UUID\}/rm1.xml &  Reference Manifest (IPL and OS) \\
+        \hline
+        /var/lib/aide/aide.db.gz    &  AIDE database file \\
+        \hline
+        /tmp/.ptsc/openpts/\{VERIFIER\_UUID\}\_\{IR\_UUID\}.xml &  Integrity Reports of each attestation\\
+        \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[h]
+\caption{Files - verifier side (openpts command)}
+\label{table:openpts:file}
+\begin{center}
+%\begin{tabular}{|l|l|}
+\begin{tabular}{ll}
+        \hline
+        File & Description  \\
+        \hline  \hline
+        HOME/.openpts/openpts.conf &  configuration file of verifier\\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/target.conf &  configuration file of each target \\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/policy.conf &  validation policy \\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/ir.xml &  Integrity Report (XML) \\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/vr.properties &  target properties \\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/\{RM\_UUID\}/rm0.xml &  Reference Manifest (BIOS)  (XML)\\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/\{RM\_UUID\}/rm1.xml &  Reference Manifest (IPL and OS)  (XML)\\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/aide.db.gz &  AIDE database as Integrity Database \\
+        \hline
+        HOME/.openpts/\{COLLECTOR\_UUID\}/aide.ignore &  list of valid components not listed on AIDE database \\
+        \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+
+\clearpage
+\subsection{/etc/ptsc.conf} 
+
+\begin{table}[h]
+\caption{/etc/ptsc.conf}
+\label{table:ptsc:conf}
+\begin{center}
+\begin{tabular}{lll}
+    \hline
+    Name & Value & Description  \\
+    \hline  \hline
+    config.dir & /var/lib/openpts & Set location of ptsc data \\
+    \hline
+    srk.password.mode & known & SRK password is well known secret (20 bytes of zeros)\\
+                      & null  & SRK password is null,  SHA1("")\\
+    \hline
+    iml.mode & tss        & Get IML via TSS \\
+             & securityfs & Get IML from securityfs filesystem \\
+    \hline
+    runtime.iml.type & IMA32 &  kernel 2.6.32 \\
+    \hline
+    rm.num & 1 & Number of manifest.\\
+    & & 1: Platform only\\
+    & & 2: Platform and Runtime\\
+    \hline
+    rm.basedir & /var/lib/openpts/ & Dir for Manifests\\
+    ir.dir & /tmp/.ptsc & Dir for Integrity Reports\\
+    %ir.file & /var/lib/openpts/ir.xml & \\
+    uuid.file & /var/lib/openpts/uuid & UUID of Collector\\
+    rm.uuid.file & /var/lib/openpts/rm\_uuid & UUID of Manifest\\
+    newrm.uuid.file & /var/lib/openpts/newrm\_uuid & UUID of new Manifest\\
+    model.dir & /usr/share/openpts/models & Dir of validation models\\
+    \hline
+    rm.model.0.pcr.0 & bios\_pcr0.uml & validation model of BIOS PCR[0], CRTM\\
+    rm.model.0.pcr.1 & bios\_pcr1.uml & validation model of BIOS PCR[1]\\
+    rm.model.0.pcr.2 & bios\_pcr2.uml & validation model of BIOS PCR[2], OPTION ROM\\
+    rm.model.0.pcr.3 & bios\_pcr3.uml & validation model of BIOS PCR[3]\\
+    rm.model.0.pcr.4 & bios\_pcr4.uml & validation model of BIOS PCR[4], IPL\\
+    rm.model.0.pcr.5 & bios\_pcr5.uml & validation model of BIOS PCR[5]\\
+    rm.model.0.pcr.6 & bios\_pcr6.uml & validation model of BIOS PCR[6]\\
+    rm.model.0.pcr.7 & bios\_pcr7.uml & validation model of BIOS PCR[7]\\
+    \hline
+    rm.model.1.pcr.4 & grub\_pcr4hdd.uml & validation model of GRUB PCR[4], IPL\\
+    rm.model.1.pcr.5 & grub\_pcr5.uml & validation model of GRUB PCR[5], IPL data\\
+    rm.model.1.pcr.8 & grub\_pcr8.uml & validation model of GRUB PCR[8], OS images\\
+    \hline
+    rm.model.1.pcr.10 & ima\_pcr10.uml & validation model of Linux-IMA\\
+    \hline
+    rm.model.1.pcr.11 & openpts.uml & validation model of OpenPTS\\
+    \hline
+    platform.system.manufacturer & & \\
+    platform.system.productname & & \\
+    platform.system.version & & \\
+    platform.bios.version & & \\
+    \hline
+    runtime.vendor.name & redhat & \\
+    runtime.distro.name & rhel & \\
+    runtime.distro.version & 6 & \\
+    \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\clearpage
+\subsection{~/.openpts/openpts.conf} 
+
+\begin{table}[h]
+\caption{~/.openpts/openpts.conf}
+\label{table:openpts:conf}
+\begin{center}
+\begin{tabular}{lll}
+    \hline
+    Name & Value & Description  \\
+    \hline  \hline
+uuid.file & ./uuid & \\
+verifier.logging.dir & ./ & \\
+    \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{~/.openpts/UUID/target.conf} 
+
+\begin{table}[h]
+\caption{~/.openpts/UUID/target.conf}
+\label{table:target:conf}
+\begin{center}
+\begin{tabular}{lll}
+    \hline
+    Name & Value & Description  \\
+    \hline  \hline
+hostname & (hostname) & Target hostname\\
+port & 6678 & Target port\\
+\hline
+ssh.mode & on & Use SSH tunnel\\
+         & off & direct access (localhost)\\
+\hline
+ssh.username & (foo) & SSH account name\\
+ssh.port & (6680) & SSH tunneling port\\
+\hline
+target.uuid & & UUID string \\
+target.pubkey & (base64) & Publik Key \\
+\hline
+ima.validation.mode & none & \\
+\hline
+rm.num & 1 or 2 & Number of Manifest\\
+rm.basedir & ./ & \\
+rm.uuid.file & ./rm\_uuid & \\
+newrm.uuid.file & ./newrm\_uuid & \\
+oldrm.uuid.file & ./oldrm\_uuid & \\
+ir.file & ./ir.xml & \\
+prop.file & ./vr.properties & \\
+policy.file & ./policy.conf & \\
+verifier.logging.dir & ./ & \\
+\hline
+
+    \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+

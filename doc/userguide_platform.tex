@@ -1,0 +1,310 @@
+Unfortunately, There is no Linux distribution which configure the Trusted Platform well.
+
+
+\begin{table}[h]
+\caption{Linux distribution and TC support}
+\label{table:ptsc:file}
+\begin{center}
+%\begin{tabular}{|l|l|l|l|l|l|}
+\begin{tabular}{llllll}
+        \hline
+        OS        & Kernel & CONFIG\_IMA & IPL & SRTM & DRTM \\
+        \hline  \hline
+        Fedora 12        & 2.6.32 & Yes & Grub-0.97 & patch & NA \\
+        \hline
+        Fedora 13        & 2.6.34 & Yes & Grub-0.97 & patch & NA \\
+        \hline
+        Fedora 14        & 2.6.35 & Yes &      &       & tboot \\
+        \hline
+        Fedora 15        & 2.6.38 & Yes &      &       & tboot \\
+        \hline
+        RHEL 6.0         & 2.6.32 & Yes & Grub-0.97 &  & NA \\
+        \hline
+        Ubuntu 10.04 LTS & 2.6.32 & No  & Grub2 & NA & NA \\
+        \hline
+        Ubuntu 10.10     & 2.6.35 & No  & Grub2 & NA & OK \\
+        \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{RHEL 6.0 - SRTM}
+
+SRTM based Trusted Boot (BIOS, no UEFI) and IMA could be enabled.
+
+\subsubsection{GRUB-IMA} 
+
+Download source code "grub-0.97-68.el6.src.rpm" and patch.
+
+\begin{lstlisting}[style=console, linewidth = 170mm]
+$ su -c 'yum install ncurses-devel ncurses-static gnu-efi glibc-static \
+  glibc-devel-2.12-1.7.el6_0.3.i686 glibc-static-2.12-1.7.el6_0.3.i686'
+$ rpm -Uvh grub-0.97-68.el6.src.rpm
+$ cd ~/rpmbuild/SOURCES
+$ wget http://osdn.dl.sourceforge.jp/openpts/40294/grub-0.97-68.el6.ima-1.1.0.0.patch
+$ cd ~/rpmbuild/SPECS
+\end{lstlisting}
+
+Modify grub.spec file as follows.
+
+\begin{lstlisting}[style=source_code]
+Release: 68%{?dist}.ima
+<snip>
+Patch32: grub-0.97-68.el6.ima-1.1.0.0.patch
+<snip>
+%patch32 -p1
+<snip>
+%configure --sbindir=/sbin --disable-auto-linux-mem-opt \
+--enable-ima --datarootdir=%{_datadir}
+\end{lstlisting}
+
+Build the RPM and intall.
+
+\begin{lstlisting}[style=console, linewidth = 170mm]
+$ rpmbuild -ba grub.spec
+$ su -c 'rpm -ivh ../RPMS/x86_64/grub-0.97-68.el6.ima.x86_64.rpm'
+$ su -c 'grub-install /dev/sda'
+$ grep TCG /boot/grub/*
+Binary file /boot/grub/stage1 matches
+Binary file /boot/grub/stage2 matches
+\end{lstlisting}
+
+\subsubsection{Linux IMA} 
+
+Add option "ima=on" at the kernel line in /boot/grub/grub.conf file.
+If you have Intel TPM (Thinkpad X200, T400 etc), you also need additional options.
+Add tpm\_tis.itpm=1 tpm\_tis.force=1 tpm\_tis.interrupts=0 ima=on at the kernel line
+Set SELinux to permissive mode. System->Admin->SELinux management
+if you don't have /sys/kernel/security/ direcroty, please add following line to /etc/fstab
+
+\begin{lstlisting}[style=source_code]
+    * securityfs /sys/kernel/security securityfs rw 0 0 
+\end{lstlisting}
+
+\subsubsection{TrouSetS(TSS)}
+
+TrouSerS is provided by RedHat.
+However, you have to use the latest TrouSerS
+since trousers-0.3.4-4.el6.x86\_64 do not support the eventlog created by Linux-IMA.
+
+\begin{lstlisting}[style=source_code]
+$ git clone git://trousers.git.sourceforge.net/gitroot/trousers/trousers trousers-git
+$ cd trousers-git
+$ sh bootstrap.sh
+$ ./configure
+$ cd ..
+$ ln -s trousers-git trousers-0.3.6git
+$ tar zcvf ~/rpmbuild/SOURCES/trousers-0.3.6git.tar.gz ./trousers-0.3.6git/*
+$ rpmbuild -bb trousers-0.3.6git/dist/trousers.spec
+
+# rpm -ivh --force trousers-0.3.6git-1.x86_64.rpm
+\end{lstlisting}
+
+notes) You may need to fix the package dependancies in trousers.spec
+
+
+Modify /etc/tcsd.conf file as follows
+
+\begin{lstlisting}[style=source_code]
+firmware_log_file = /sys/kernel/security/tpm0/binary_bios_measurements
+kernel_log_file = /sys/kernel/security/ima/binary_runtime_measurements
+firmware_pcrs = 0,1,2,3,4,5,6,7,8
+kernel_pcrs = 10
+\end{lstlisting}
+
+notes) if you already taken the ownership and the system.data is missing. please copy the dummy system.data.
+
+\begin{lstlisting}[style=source_code]
+cp ./dist/dummy\_tss\_system.data /var/lib/tpm/system.data
+\end{lstlisting}
+
+Ok, enable tcsd daemon.
+
+\begin{lstlisting}[style=source_code]
+chkconfig tcsd on
+service tcsd start
+\end{lstlisting}
+
+
+\subsection{Fedora 12 - SRTM} 
+
+SRTM based Trusted Boot and IMA could be enabled.
+
+\subsubsection{GRUB-IMA} 
+
+Download source code and patch.
+
+\begin{lstlisting}[style=console, linewidth = 170mm]
+$ su -c 'yumdownloader --source grub'
+$ su -c 'yum-builddep grub-0.97-62.fc12.src.rpm'
+$ rpm -Uvh grub-0.97-62.fc12.src.rpm
+$ cd ~/rpmbuild/SOURCES
+$ wget http://osdn.dl.sourceforge.jp/openpts/40294/grub-0.97-62.fc12.ima-1.1.0.0.patch
+$ cd ~/rpmbuild/SPECS
+\end{lstlisting}
+
+Modify grub.spec file as follows.
+
+\begin{lstlisting}[style=source_code]
++Release: 62%{?dist}.ima
++Patch2: grub-0.97-62.fc12.ima-1.1.0.0.patch
++%patch2 -p1
++%configure --sbindir=/sbin --disable-auto-linux-mem-opt \
+--enable-ima --datarootdir=%{_datadir}
+\end{lstlisting}
+
+Build the RPM and intall.
+
+\begin{lstlisting}[style=console, linewidth = 170mm]
+$ rpmbuild -ba grub.spec
+$ su -c 'rpm -ivh ../RPMS/x86_64/grub-0.97-62.fc12.ima.x86_64.rpm'
+$ su -c 'grub-install /dev/sda'
+\end{lstlisting}
+
+\subsubsection{Linux IMA} 
+
+Add option "ima\_tcb=1" at the kernel line in /boot/grub/grub.conf file.
+
+If you have Intel TPM (Thinkpad X200, T400 etc), you also need additional options.
+
+Add tpm\_tis.itpm=1 tpm\_tis.force=1 tpm\_tis.interrupts=0 ima\_tcb=1 at the kernel line
+
+Set SELinux to permissive mode. System->Admin->SELinux management
+
+if you don't have /sys/kernel/security/ direcroty, please add following line to /etc/fstab
+
+\begin{lstlisting}[style=source_code]
+    * securityfs /sys/kernel/security securityfs rw 0 0 
+\end{lstlisting}
+
+\subsubsection{TrouSetS(TSS)}
+
+Modify /etc/tcsd.conf file as follows
+
+\begin{lstlisting}[style=source_code]
+firmware_log_file = /sys/kernel/security/tpm0/binary_bios_measurements
+kernel_log_file = /sys/kernel/security/ima/binary_runtime_measurements
+firmware_pcrs = 0,1,2,3,4,5,6,7,8
+kernel_pcrs = 10
+\end{lstlisting}
+
+\subsection{Fedora 15 - SRTM and DRTM} 
+
+The target platform must support Intel TXT.
+This example uses Lenovo Thinkpad X200.
+Note that this is experimental support 
+and configulation of the tboot may differ according to the hardware.
+
+\subsubsection{Configure tboot}
+
+tboot did not support well known secret against the ownership.
+\begin{lstlisting}[style=source_code]
+tpm_takeownership -z
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+# yum install tboot
+\end{lstlisting}
+Change /boot/grub/grub.conf
+\begin{lstlisting}[style=source_code]
+title Fedora (2.6.38.1-6.fc15.x86_64) tboot
+        root (hd0,0)
+        kernel /tboot.gz logging=serial,vga,memory vga_delay=5
+        module /vmlinuz-2.6.38.1-6.fc15.x86_64 ro root=/dev/mapper/vg_munetohx200f15-lv_root \
+        rd_LVM_LV=vg_munetohx200f15/lv_root rd_LVM_LV=vg_munetohx200f15/lv_swap rd_NO_LUKS \
+        rd_NO_MD rd_NO_DM LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 KEYTABLE=us selinux=0 \
+        rhgb quiet xdriver=vesa nomodeset 1
+        module /initramfs-2.6.38.1-6.fc15.x86_64.img
+        module /GM45_GS45_PM45_SINIT_21.BIN
+\end{lstlisting}
+Create LCP policy
+\begin{lstlisting}[style=source_code]
+# cd /root
+# lcp_mlehash -c "logging=serial,vga,memory vga_delay=5" /boot/tboot.gz > mle_hash
+# lcp_crtpol -t hashonly -m mle_hash -o lcp.pol
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ tb_polgen --create --type nonfatal vl.pol
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ tb_polgen --add --num 0 --pcr none --hash image --cmdline "ro \
+  root=/dev/mapper/vg_munetohx200f15-lv_root rd_LVM_LV=vg_munetohx200f15/lv_root \
+  rd_LVM_LV=vg_munetohx200f15/lv_swap rd_NO_LUKS rd_NO_MD rd_NO_DM \
+  LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 KEYTABLE=us selinux=0 rhgb quiet \
+  xdriver=vesa nomodeset 1" --image /boot/vmlinuz-2.6.38.1-6.fc15.x86_64 vl.pol
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ tb_polgen --add --num 1 --pcr 19 --hash image --cmdline "" --image \
+  /boot/initramfs-2.6.38.1-6.fc15.x86_64.img vl.pol
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ tpmnv_defindex -i 0x20000002 -s 8 -pv 0 -rl 0x07 -wl 0x07 -p TPM-password
+$ tpmnv_defindex -i owner -p TPM-password
+$ tpmnv_defindex -i owner -s 34 -pv 0x02 -p TPM-password
+$ tpmnv_defindex -i 0x20000001 -s 256 -pv 0x02 -p TPM-password
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ tpmnv_getcap
+  The response data is:
+  20 00 00 02 20 00 00 01 40 00 00 01 50 00 00 01 
+  50 00 00 02 10 00 00 01 
+
+  6 indices have been defined
+  list of indices for defined NV storage areas:
+  0x20000002 0x20000001 0x40000001 0x50000001 0x50000002 0x10000001
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ lcp_writepol -i owner -f lcp.pol -p TPM-password
+  Successfully write policy into index 0x40000001 
+\end{lstlisting}
+
+\begin{lstlisting}[style=source_code]
+$ lcp_writepol -i 0x20000001 -f vl.pol -p TPM-password
+  Successfully write policy into index 0x20000001
+\end{lstlisting}
+Reboot the system.
+
+\subsubsection{Configure openpts}
+
+Modify '/etc/tcsd.conf' to read this SRTM+DRTM IML
+\begin{lstlisting}[style=source_code]
+firmware_log_file = /var/lib/openpts/binary_rtm_measurements
+firmware_pcrs = 0,1,2,3,4,5,6,7,8,17,18,19
+\end{lstlisting}
+Replace tcsd init script.
+\begin{lstlisting}[style=source_code]
+# cp -b /usr/share/openpts/tboot/tcsd /etc/init.d/tcsd
+\end{lstlisting}
+
+Start TSS daemon
+\begin{lstlisting}[style=source_code]
+service tcsd start
+\end{lstlisting}
+Confirm the eventlog that contains events at PCR[17] to PCR[18]
+\begin{lstlisting}[style=source_code]
+$ iml2text
+\end{lstlisting}
+
+Modify ptsc.conf
+\begin{lstlisting}[style=source_code]
+service tcsd start
+\end{lstlisting}
+Initialize ptsc
+\begin{lstlisting}[style=source_code]
+# ptsc -i
+# ptsc -t
+\end{lstlisting}
+
+
+\subsection{Ubuntu 10.04} 
+
+SRTM based Trusted Boot covers BIOS only.
+You need to recompile the kernel to use the IMA.
+
+

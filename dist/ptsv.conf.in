@@ -1,0 +1,10 @@
+#
+# Config PTS verifier (IMV)
+#
+openpts.version=@VERSION@
+
+enrollment=auto
+verifier.logging.dir=/var/lib/openpts/verifier
+uuid.file=/var/lib/openpts/verifier/uuid
+config.dir=/var/lib/openpts/verifier
+

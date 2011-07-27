@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="MS932"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/2.0.0/UML" xmi:id="47f16ab6-60b8-11e0-9130-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="KmZFE1y0" name="">
+    <region xmi:id="03f9da00-60bd-11e0-924e-001f160c9c28" name="Intel TXT - tboot pcr17">
+    <!--  this model did not check the integrity but check the transition only. integrities are check by the policy -->
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+
+
+      <subvertex xmi:type="uml:State" xmi:id="DRTM_START" name="DRTM_START" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="DRTM_START_activity" name="resetPCR(17)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_SINIT_V6" name="EV_TBOOT_SINIT_V6" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_SINIT_V6_activity" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_SINIT_V7" name="EV_TBOOT_SINIT_V7" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_SINIT_V7_activity" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_STM_V6" name="EV_TBOOT_STM_V6" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_STM_V6_activity" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_UNKNOWN" name="EV_TBOOT_UNKNOWN" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_UNKNOWN_activity" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="DRTM_verified" name="DRTM_verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="DRTM_verified_activity" name="setAssertion(intel.txt.tboot.pcr.17.transition, valid)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+
+
+      <transition xmi:id="Start_DRTM_START_trans" visibility="public" kind="local" source="Start" target="DRTM_START"/>
+
+<!-- V6 -->
+      <transition xmi:id="DRTM_START_EV_TBOOT_SINIT_V6_trans" name="DRTM_START_EV_TBOOT_SINIT_V6_trans" visibility="public" kind="local" source="DRTM_START" target="EV_TBOOT_SINIT_V6" guard="DRTM_START_EV_TBOOT_SINIT_V6_guard" >
+        <ownedRule xmi:id="DRTM_START_EV_TBOOT_SINIT_V6_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="DRTM_START_EV_TBOOT_SINIT_V6_spec" name="">
+            <body>eventtype == 0x00000100</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+      <transition xmi:id="EV_TBOOT_SINIT_V6_EV_TBOOT_STM_V6_trans" name="EV_TBOOT_SINIT_V6_EV_TBOOT_STM_V6_trans" visibility="public" kind="local" source="EV_TBOOT_SINIT_V6" target="EV_TBOOT_STM_V6" guard="EV_TBOOT_SINIT_V6_EV_TBOOT_STM_V6_guard" >
+        <ownedRule xmi:id="EV_TBOOT_SINIT_V6_EV_TBOOT_STM_V6_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_SINIT_V6_EV_TBOOT_STM_V6_spec" name="">
+            <body>eventtype == 0x00000101</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+<!-- V7 -->
+      <transition xmi:id="DRTM_START_EV_TBOOT_SINIT_V7_trans" name="DRTM_START_EV_TBOOT_SINIT_V7_trans" visibility="public" kind="local" source="DRTM_START" target="EV_TBOOT_SINIT_V7" guard="DRTM_START_EV_TBOOT_SINIT_V7_guard" >
+        <ownedRule xmi:id="DRTM_START_EV_TBOOT_SINIT_V6_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="DRTM_START_EV_TBOOT_SINIT_V7_spec" name="">
+            <body>eventtype == 0x00000103</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+      <transition xmi:id="EV_TBOOT_SINIT_V7_EV_TBOOT_STM_V6_trans" name="EV_TBOOT_SINIT_V7_EV_TBOOT_STM_V6_trans" visibility="public" kind="local" source="EV_TBOOT_SINIT_V7" target="EV_TBOOT_STM_V6" guard="EV_TBOOT_SINIT_V7_EV_TBOOT_STM_V6_guard" >
+        <ownedRule xmi:id="EV_TBOOT_SINIT_V7_EV_TBOOT_STM_V6_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_SINIT_V7_EV_TBOOT_STM_V6_spec" name="">
+            <body>eventtype == 0x00000101</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+
+      <transition xmi:id="EV_TBOOT_STM_V6_EV_TBOOT_UNKNOWN_trans" name="EV_TBOOT_STM_V6_EV_TBOOT_UNKNOWN_trans" visibility="public" kind="local" source="EV_TBOOT_STM_V6" target="EV_TBOOT_UNKNOWN" guard="EV_TBOOT_STM_V6_EV_TBOOT_UNKNOWN_guard" >
+        <ownedRule xmi:id="EV_TBOOT_STM_V6_EV_TBOOT_UNKNOWN_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_STM_V6_EV_TBOOT_UNKNOWN_spec" name="">
+            <body>eventtype == 0x00000102</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_UNKNOWN_DRTM_verified_trans" visibility="public" kind="local" source="EV_TBOOT_UNKNOWN" target="DRTM_verified"/>
+      <transition xmi:id="DRTM_verified_Final_trans" visibility="public" kind="local" source="DRTM_verified" target="Final"/>
+
+    </region>
+  </packagedElement>
+</uml:Model>

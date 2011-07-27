@@ -1,0 +1,107 @@
+
+ OpenPTS
+ -------
+
+ Author Seiji Munetoh (munetoh@users.sourceforge.jp)
+
+ DESCRIPTION
+ -----------
+ OpenPTS is an open-source package of Platform Trust Service (PTS)
+ defined by Trusted Computing Group (TCG). Trusted Computing is a set of
+ specifications set forth by the Trusted Computing Group (TCG).  For more
+ information on the TCG and Trusted Computing please visit the Trusted
+ Computing Group website at:
+   http://www.trustedcomputinggroup.org.
+
+ The openpts package contains PTS commands which work with TSS (TrouSerS).
+ The openpts package is released under the Common Public License.
+
+
+ BUILD REQUIREMENTS
+ ----- ------------
+ Packages needed to build:
+
+  Redhat/Fedora
+    automake
+    autoconf
+    libtool
+    gettext gettext-devel
+    openssl openssl-devel
+    trousers trousers-devel
+    libxml2 libxml2-devel
+    libuuid libuuid-devel
+    libtnc libtnc-devel
+    check  (TBD, for unit testing)
+
+  Ubuntu/Debian
+    automake autoconf libtool cvs fakeroot debhelper
+    gettext
+    trousers libtspi-dev tpm-tools
+    libxml2 libxml2-dev
+    libuuid1 uuid-dev
+    check (TBD, for unit testing)
+
+    If libtnc is not available by package. build it from the source
+      http://sourceforge.net/projects/libtnc/files/
+      $ ./configure --prefix=/usr
+      $ make
+      $ sudo make install
+
+ BUILDING openpts
+ -------- ----------------
+ $ sh ./bootstrap.sh
+ $ ./configure --with-tss --with-aide --enable-tnc --prefix=/usr
+ $ make
+ # make install
+
+ By default the build will place everything in /usr/local. Issue
+   ./configure --help
+ to see how to install to a different location.
+
+ --with-aide      use AIDE as integrity database, (Fedora 12 and IMA)
+ --with-tss       build with tss
+ --enable-tnc     build TNC IMV/IMC libraries
+ --with-tboot     build with tboot support
+
+
+ BUILDING a OPENPTS RPM
+ -------- - ------- ---
+
+ # yum install rpmdevtools
+ $ rpmdev-setuptree
+
+ $ sh bootstrap.sh
+ $ ./configure
+ $ make rpmbuild-ba
+
+ BUILDING a OPENPTS DEB
+ -------- - ------- ---
+
+ $ sh bootstrap.sh
+ $ ./configure
+ $ make dpkg-buildpackage
+
+
+ RUNNING the OPENPTS as TNC IMC
+ ------- --- ------- -- --- ---
+
+ TBD
+
+
+ RUNNING the OPENPTS as TNC IMV
+ ------- --- ------- -- --- ---
+
+ TBD
+
+ MODIFY MODEL
+ ------ -----
+
+ Tool to update models/*.uml
+ - Any text editer :-P
+ - Eclipse MDT
+   http://www.eclipse.org/downloads/packages/eclipse-modeling-tools-includes-incubating-components/galileosr2
+   1. right click *.uml file
+   2. select "Initialize State Machine Diagram". it create *.umlstm file
+   3. select all, and "Daigram->Arrange->all" to relocate objects.
+
+

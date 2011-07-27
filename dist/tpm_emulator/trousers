@@ -1,0 +1,130 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:		tcsd
+# Required-Start:	$local_fs
+# Required-Stop:	$local_fs
+# Should-Start:
+# Should-Stop:
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	starts tcsd
+# Description:		tcsd belongs to the TrouSerS TCG Software Stack
+### END INIT INFO
+
+#
+# TCSD with TPM_Emulator
+#
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/sbin/tcsd
+NAME=tcsd
+DESC="Trusted Computing daemon"
+IMLFILE=/var/lib/openpts/binary_bios_measurements
+EXTEND=/usr/bin/tpm_extendpcr
+
+test -x "${DAEMON}" || exit 0
+
+set -e
+
+case "${1}" in
+	start_tpmd)
+		echo -n "Starting TPM Emulator Daemon: "
+		if [ ! -e /dev/tpm* ]
+		then
+			modprobe tpmd_dev
+		fi
+		start-stop-daemon --start --quiet --background --make-pid --pidfile /var/run/tpmd.pid --exec /usr/local/bin/tpmd -- -f ${DAEMON_OPTS2}
+		echo "tpmd."
+		;;
+
+	start_tcsd_pre)
+		echo "#" > /etc/tcsd.conf
+		echo -n "Starting ${DESC} (extend dummy events): "
+		start-stop-daemon --start --quiet --background --make-pid --pidfile /var/run/${NAME}.pid --exec ${DAEMON} -- -f ${DAEMON_OPTS}
+		echo "${NAME}."
+		sleep 1
+		${EXTEND} -I /var/lib/openpts/binary_bios_measurements
+		;;
+
+	stop_tcsd_pre)
+		echo -n "Stopping ${DESC} (create ptscd.conf): "
+		start-stop-daemon --stop --quiet --pidfile /var/run/${NAME}.pid --exec ${DAEMON}
+		echo "${NAME}."
+		;;
+
+	start_tcsd)
+		echo "firmware_log_file = /var/lib/openpts/binary_bios_measurements" >  /etc/tcsd.conf
+		echo "firmware_pcrs = 0,1,2,3,4,5,6,7,8" >> /etc/tcsd.conf
+		echo -n "Starting ${DESC}: "
+		start-stop-daemon --start --quiet --background --make-pid --pidfile /var/run/${NAME}.pid --exec ${DAEMON} -- -f ${DAEMON_OPTS}
+		echo "${NAME}."
+		;;
+
+	start)
+		"${0}" start_tpmd
+		sleep 1
+		"${0}" start_tcsd_pre
+		sleep 2
+		"${0}" stop_tcsd_pre
+		sleep 1
+		"${0}" start_tcsd
+		;;
+
+
+	stop_tpmd)
+		echo -n "Stopping TPM Emulator Daemon: "
+		start-stop-daemon --stop --quiet --pidfile /var/run/tpmd.pid --exec /usr/local/bin/tpmd
+		echo "tpmd."
+		;;
+
+	stop_tcsd)
+		echo -n "Stopping ${DESC}: "
+		start-stop-daemon --stop --quiet --pidfile /var/run/${NAME}.pid --exec ${DAEMON}
+		echo "${NAME}."
+		;;
+
+	stop)
+		"${0}" stop_tcsd
+		sleep 1
+		"${0}" stop_tpmd
+		;;
+
+	restart|force-reload)
+		"${0}" stop
+		sleep 1
+		"${0}" start
+		;;
+
+	status_tpmd)
+		if [ -f /var/run/tpmd.pid ]
+		then
+			echo "tpmd is running."
+		else
+			echo "tpmd is not running."
+			#exit 1
+		fi
+		;;
+
+	status_tcsd)
+		if [ -f /var/run/${NAME}.pid ]
+		then
+			echo "${NAME} is running."
+		else
+			echo "${NAME} is not running."
+			#exit 1
+		fi
+		;;
+
+	status)
+		"${0}" status_tcsd
+		sleep 1
+		"${0}" status_tpmd
+		;;
+
+	*)
+		echo "Usage: ${NAME} {start|stop|restart|force-reload|status}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

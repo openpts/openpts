@@ -1,0 +1,80 @@
+openpts (0.2.5) unstable; urgency=low
+
+  * scan by coverity
+  * PEN of OpenPTS has been assigned, the number is 38158 (0x00950E)
+  * Support IMV/IMC
+  * Added libopenpts.so, shared by all commands and IMV/IMC
+  * Refactoring IF-M (Share the code by Standalone and TNC)
+  * Added model for Lenovo UEFI
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Wed, 20 Jul 2011 12:00:00 +0900
+
+openpts (0.2.4) unstable; urgency=low
+
+  * tested on RHEL6 x86_64, Fedora 15 x86_64
+  * add tboot support
+  * changed IF-M standalone mode, SSH tunneling => SSH remote command execution
+  * deprecated ptscd daemon => ptsc
+  * added ptsc command
+  * added tpm_readpcr tpm_extendpcr commands
+  * added tboot2iml command to convert the tboot event msg to TCG eventlog
+  * update iml2text command
+  * added FSM models for tboot (PCR17-19) 
+  * added config flag 'tpm.quote.type=quote|quote2'
+  * rename config flag 'platform.model' => 'rm.model.0'
+  * rename config flag 'runtime.model' => 'rm.model.1'
+  * added config flag 'ir.dir' to set where the collector stores IRs
+  * added config flag 'ifm.timeout' to set the timeout of IF-M pipe through SSH
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Mon, 25 Apr 2011 17:00:00 +0900
+
+openpts (0.2.3) unstable; urgency=low
+
+  * added 'ptscd -t' - run selftest
+  * fixed bug around SSH tunnnel. (use target_conf to store the SSH conf)
+  * fixed pcr_select, quote in IR
+  * Use Quote2
+  * fixed fsm in RM (copy xmi_type attribute from UML)
+  * change OPENPTS_CAPABILITY message, added flags and version info
+  * support known secret of SRK, 'srk.passwork.mode=known'
+  * added tpm.resetdalock=on option to workaround x803 TPM error
+  * SVN rev. 268+
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Mon, 07 Mar 2011 15:00:42 +0900
+
+openpts (0.2.2) unstable; urgency=low
+
+  * added NLS support, gettext
+  * added reason capability for diagnostic
+  * added src/uuid.c
+  * update src/action.c
+  * supports multiple RM set, identified by version 1 UUID
+  * change the structure of configulation direcroty base on the UUID
+  * change the default port from 5556 to 6678
+  * SVN rev. 182
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Thu, 06 Jan 2011 15:30:53 +0900
+
+openpts (0.2.1) unstable; urgency=low
+
+  * added iml2text command
+  * update IF-M
+  * added src/snapshot.c
+  * tested on Ubuntu 10.04 LTS (attest BIOS only)
+  * tested by static code analyser
+  * tested by SPIKE fuzzer
+  * tested by valgrind
+  * SVN rev.112
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Mon, 08 Nov 2010 02:18:50 +0000
+
+openpts (0.2.0) unstable; urgency=low
+
+  * new codebase - fully written in C
+  * update FSM models
+  * tested on Linux 2.6.32 w/ IMA
+  * integration with AIDE (experimental)
+  * supports SSH tunneling of standalone IF-M
+  * SVN rev.44
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Wed, 25 Aug 2010 20:00:00 +0900

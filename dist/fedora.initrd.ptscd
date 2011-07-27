@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# Init file for the OpenPTS TCG Platform Trust Services collector daemon
+#
+# chkconfig: - 91 9
+# description: OpenPTS Collector Daemon
+#
+# processname: ptscd
+# config: /etc/ptscd.conf
+# pidfile: /var/run/ptscd.pid
+#
+#
+
+prog="ptscd"
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+# Allow anyone to run status
+if [ "$1" = "status" ] ; then
+	status $prog
+	RETVAL=$?
+	exit $RETVAL
+fi
+
+# Check that we are root ... so non-root users stop here
+test $EUID = 0  ||  exit 4
+
+RETVAL=0
+
+# Some variables to make the below more readable
+PTSCD=/usr/sbin/ptscd
+CONF_FILE=/etc/ptscd.conf
+PID_FILE=/var/run/ptscd.pid
+
+start()
+{
+	test -x $PTSCD || exit 5
+	#test -f /etc/openpts.conf || exit 6
+	echo -n $"Starting $prog: "
+	$PTSCD $OPTIONS start && success || failure
+	RETVAL=$?
+	[ "$RETVAL" = 0 ] && touch /var/lock/subsys/ptscd
+	echo
+}
+
+stop()
+{
+	echo -n $"Stopping $prog: "
+	killproc $prog
+	RETVAL=$?
+	[ "$RETVAL" = 0 ] && rm -f /var/lock/subsys/ptscd
+	echo
+}
+
+init()
+{
+	echo -n $"Initialize $prog: "
+	$PTSCD -i start && success || failure
+	echo
+}
+
+reload()
+{
+	echo -n $"Reloading $prog: "
+	killproc $prog -HUP
+	RETVAL=$?
+	echo
+}
+
+case "$1" in
+	init)
+		init
+		;;
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		#test -f /etc/openpts.conf  || exit 6
+		stop
+		start
+		;;
+	reload|force-reload)
+		reload
+		;;
+	condrestart|try-restart)
+		if [ -f /var/lock/subsys/openpts ] ; then
+			restart
+		fi
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|restart|reload|force-reload|condrestart|try-restart|status}"
+		RETVAL=3
+esac
+exit $RETVAL
+
+
+#

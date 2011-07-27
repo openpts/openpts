@@ -1,0 +1,50 @@
+#
+# Integrity measure policy
+#
+#
+# PROC_SUPER_MAGIC
+dont_measure fsmagic=0x9fa0
+# dont_appraise fsmagic=0x9fa0
+#
+# SYSFS_MAGIC
+dont_measure fsmagic=0x62656572
+# dont_appraise fsmagic=0x62656572
+#
+# DEBUGFS_MAGIC
+dont_measure fsmagic=0x64626720
+# dont_appraise fsmagic=0x64626720
+#
+# TMPFS_MAGIC
+dont_measure fsmagic=0x01021994
+# dont_appraise fsmagic=0x01021994
+#
+# SECURITYFS_MAGIC
+dont_measure fsmagic=0x73636673
+# dont_appraise fsmagic=0x73636673
+#
+# SELINUXFS_MAGIC
+dont_measure fsmagic=0xf97cff8c
+# dont_appraise fsmagic=0xf97cff8c
+#
+# var_log_t files
+dont_measure obj_type=var_log_t
+# dont_appraise obj_type=var_log_t
+#
+# auditd_log_t files
+dont_measure obj_type=auditd_log_t
+# dont_appraise obj_type=auditd_log_t
+#
+# Don't measure files touched by AIDE  
+# Fedora12
+#   unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 root 28862 20.3  0.1 30492 3396 pts/0 D+ 19:49   0:01 aide -i
+#     update AIDE policy e.g. "system_u:system_r:aide_t"
+# for now
+dont_measure subj_type=unconfined_t
+# dont_appraise obj_type=unconfined_t
+#
+#
+measure func=FILE_MMAP mask=MAY_EXEC
+measure func=BPRM_CHECK mask=MAY_EXEC
+# measure func=FILE_CHECK mask=MAY_READ uid=0
+measure func=PATH_CHECK mask=MAY_READ uid=0
+# appraise owner=0

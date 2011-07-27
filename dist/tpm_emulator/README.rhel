@@ -1,0 +1,169 @@
+
+OpenPTS with TPM_Emulator
+-------------------------
+
+1. Introduction
+---------------
+
+For debug/test perpose. you can use TPM Emulator.
+It is usefull to test the OpenPTS functionalities without reboot the system.
+
+Files:
+  README.rhel               this file
+  binary_bios_measurements  dummy IML (ThinkpadT60)
+  tcsd                      special init.d script (RHEL/Fedora)
+
+
+Reference:
+  http://tpm-emulator.berlios.de/documentation.html
+
+
+2. Fedora/RHEL Setup
+--------------------
+
+Build/Install TPM Emulator
+
+    # yum install gmp-devel trousers tpm-tools subversion cmake kernel-devel
+    $ svn checkout svn://svn.berlios.de/tpm-emulator/trunk tpm-emulator
+    $ cd tpm-emulator
+    $ ./build.sh
+    # make -C ./build install
+
+
+Setup TPM
+
+    Disable tpm_tis driver
+
+    /boot/grub/grub.conf
+    kernel tpm_tis=0
+
+    reboot
+
+    # modprobe tpmd_dev
+    # ls -l /dev/tpm*
+    crw-rw---- 1 root tss  10, 224 Mar 24 06:21 /dev/tpm
+    lrwxrwxrwx 1 root root       3 Mar 24 06:21 /dev/tpm0 -> tpm
+
+    # tpmd -d clear
+    tpmd.c:389: Info: starting TPM Emulator daemon (1.2.0.7-461)
+    tpmd.c:93: Info: parsing options
+    tpmd.c:100: Debug: debug mode enabled
+    tpmd.c:144: Debug: startup mode = 'clear'
+    tpmd.c:197: Info: installing signal handlers
+    tpmd.c:219: Info: daemonizing process
+
+
+    # tcsd
+
+    $ tpm_version
+      TPM 1.2 Version Info:
+      Chip Version:        1.2.0.7
+      Spec Level:          2
+      Errata Revision:     1
+      TPM Vendor ID:       ETHZ
+      TPM Version:         01010000
+      Manufacturer Info:   4554485a
+
+
+    $ tpm_takeownership -y -z
+
+    Kill tcsd and tpmd
+
+
+Build/Install OpenPTS
+
+    $ ./bootstrap.sh
+    $ ./configure
+    $ make rpmbuild-ba
+    # rpm -ivh  ../rpmbuild/RPMS/x86_64/openpts-0.2.4svn-1.x86_64.rpm
+
+Setup init.d
+
+    $ cd /usr/share/openpts/tpm_emulator
+    # mkdir -p /var/lib/openpts/
+    # cp binary_bios_measurements  /var/lib/openpts/binary_bios_measurements
+    # cp /etc/init.d/tcsd /etc/init.d/tcsd.orig
+    # cp tcsd  /etc/init.d/tcsd
+
+    # service tcsd start
+
+    if init.d script does not work well.
+
+    # tpmd
+    # echo "#" > /etc/ptscd
+    # tcsd
+    # tpm_extendpcr -I /var/lib/openpts/binary_bios_measurements
+
+    kill tcsd
+
+    # echo "firmware_log_file = /var/lib/openpts/binary_bios_measurements" > /etc/tcsd.conf
+    # echo "firmware_pcrs = 0,1,2,3,4,5,6,7,8" >> /etc/tcsd.conf
+
+    # tcsd
+
+    check
+
+    # tpm_readpcr -k
+    PCR-00: 91 3B D8 A3 CC 3A 2E C6 73 6C FE 32 57 70 83 1A 5A 53 A3 0D
+    PCR-01: D5 7D D1 86 A1 94 F9 ED E9 0D 8B 62 2D 4A 8E F0 5A 6D 40 B5
+    PCR-02: 53 DE 58 4D CE F0 3F 6A 7D AC 1A 24 0A 83 58 93 89 6F 21 8D
+    PCR-03: 3A 3F 78 0F 11 A4 B4 99 69 FC AA 80 CD 6E 39 57 C3 3B 22 75
+    PCR-04: E8 2D A7 CE D9 48 71 F9 F2 F1 65 FE C2 15 12 89 29 B6 3F EB
+    PCR-05: AD 09 32 5A B3 77 10 B2 34 96 18 CB F9 72 2C 8F 0E E0 81 0F
+    PCR-06: 58 5E 57 9E 48 99 7F EE 8E FD 20 83 0C 6A 84 1E B3 53 C6 28
+    PCR-07: 3A 3F 78 0F 11 A4 B4 99 69 FC AA 80 CD 6E 39 57 C3 3B 22 75
+    PCR-08: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    <snip>
+    PCR-23: FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+
+    # iml2text
+    <snip>
+      81   6 0x00000004 d9be6524a5f5047db5866813acf3277892a7a30a [BIOS:EV_SEPARATOR, ffffffff]
+      82   7 0x00000004 d9be6524a5f5047db5866813acf3277892a7a30a [BIOS:EV_SEPARATOR, ffffffff]
+
+Setup OpenPTS Collector
+
+    # ptscd -i 
+    Sign key  location          : SYSTEM
+    Generate uuid               : cde94338-50ae-11e0-847c-fefdade69d74 
+    Generate UUID (for RM)      : ce7e3362-50ae-11e0-847c-fefdade69d74 
+    level 0 Reference Manifest  : /var/lib/openpts//ce7e3362-50ae-11e0-847c-fefdade69d74/rm0.xml
+
+    ptscd is successfully initialized!
+
+    # ptscd -t
+    selftest - OK
+
+    # ptscd
+
+Setup OpenPTS Verifier
+
+    $ openpts -i localhost
+    /home/foo/.openpts is missing. create [Y/n]:Y
+    Target            : localhost
+    Collector UUID    : cde94338-50ae-11e0-847c-fefdade69d74
+    Manifest UUID     : ce7e3362-50ae-11e0-847c-fefdade69d74
+    manifest[0]       : /home/foo/.openpts/cde94338-50ae-11e0-847c-fefdade69d74//ce7e3362-50ae-11e0-847c-fefdade69d74/rm0.xml
+    configulation     : /home/foo/.openpts/cde94338-50ae-11e0-847c-fefdade69d74/target.conf
+    validation policy : /home/foo/.openpts/cde94338-50ae-11e0-847c-fefdade69d74/policy.conf
+
+    $ openpts localhost
+    Target            : localhost
+    Collector UUID    : cde94338-50ae-11e0-847c-fefdade69d74 (date: 2011-03-17-15:54:13)
+    Manifest UUID     : ce7e3362-50ae-11e0-847c-fefdade69d74 (date: 2011-03-17-15:54:14)
+    port              : 6678 (localhost)
+    policy file       : /home/foo/.openpts/cde94338-50ae-11e0-847c-fefdade69d74/policy.conf
+    property file     : /home/foo/.openpts/cde94338-50ae-11e0-847c-fefdade69d74/vr.properties
+    integrity         : valid
+
+    $ iml2text
+    <snip>
+      82   7 0x00000004 d9be6524a5f5047db5866813acf3277892a7a30a [BIOS:EV_SEPARATOR, ffffffff]
+      83  11 0x00000080 654359cdf37f34fc6baaae4aa4c7772ca325fa62 [OpenPTS:EV_COLLECTOR_START[56]]
+
+
+EOF
+
+
+
+

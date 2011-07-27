@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Init file for the IMA 
+#
+# chkconfig: - 00 93
+# description: IMA
+#
+# config: /etc/measure.selinux
+
+
+msg_prefix="IMA: "
+echo "parm = $1"
+case "$1" in
+   *start)
+        ;;
+   *stop)
+        ;;
+   *)
+        echo $"Usage: $0 {start | stop}"
+        exit 1
+        ;;
+esac
+
+if [ "$1" = "start" ] ; then
+        echo $"Starting $msg_prefix "
+
+        # securityfs must be enabled and mounted
+        SECURITYFS=`mount | grep securityfs`
+        if [ $? == 1 ]; then
+                SECURITYFS=/sys/kernel/security
+                `mount -t securityfs securityfs $SECURITYFS`
+                if [ $? == 1 ]; then
+                        echo "$msg_prefix Cannot execute test as "
+                              "securityfs not enabled in kernel"
+                        exit 1
+                fi
+        fi
+        echo 'securityfs: ' $SECURITYFS
+        SECURITYFS=`echo $SECURITYFS |  sed 's/securityfs on //' | sed 's/ type .*//'`
+        IMA_POLICY=$SECURITYFS/ima/policy
+        echo 'IMA_POLICY:'  $IMA_POLICY
+
+        # LSM specific policy
+        LSM_POLICY=/etc/measure.selinux
+        #LSM_POLICY=/etc/measure.smack
+
+        if [ ! -f $LSM_POLICY ]; then
+                echo "LSM specific policy does not exist"
+                exit 1
+        fi
+
+        if [ ! -f $IMA_POLICY ]; then
+                echo "$msg_prefix security/ima/policy does not exist"
+                exit 1
+        fi
+
+        exec 4>$IMA_POLICY
+        if [ $? != 0 ]; then
+                echo "$msg_prefix open failed: security/ima/policy"
+                exit 1
+        else
+                cat $LSM_POLICY | while read line ; do
+                        if [ "${line:0:1}" != "#" ] ; then
+                                echo $line
+                                echo $line >&4
+                        fi
+                done
+                echo "$msg_prefix security/ima/policy updated"
+        fi
+fi
+
+if [ "$1" = "stop" ] ; then
+        echo 'stop'
+        `umount securityfs`
+fi
+echo 'exiting'
+exit 0
+

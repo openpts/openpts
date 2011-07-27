@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# Init file for the OpenPTS TCG Platform Trust Services collector
+#
+# chkconfig: - 91 9
+# description: OpenPTS Collector
+#
+# processname: ptscd
+# config: /etc/ptscd.conf
+# pidfile: /var/run/ptscd.pid
+#
+#
+
+prog="ptsc"
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+# Allow anyone to run status
+if [ "$1" = "status" ] ; then
+	status $prog
+	RETVAL=$?
+	exit $RETVAL
+fi
+
+# Check that we are root ... so non-root users stop here
+test $EUID = 0  ||  exit 4
+
+RETVAL=0
+
+# Some variables to make the below more readable
+PTSC=/usr/sbin/ptsc
+CONF_FILE=/etc/ptsc.conf
+
+start()
+{
+	test -x $PTSC || exit 5
+	#test -f /etc/ptsc.conf || exit 6
+	echo -n $"Starting $prog: "
+	$PTSC -s $OPTIONS start && success || failure
+	echo
+}
+
+init()
+{
+	echo -n $"Initialize $prog: "
+	$PTSC -i start && success || failure
+	echo
+}
+
+update()
+{
+	echo -n $"Update $prog: "
+	$PTSC -u start && success || failure
+	echo
+}
+
+
+case "$1" in
+	init)
+		init
+		;;
+	start)
+		start
+		;;
+	update)
+		update
+		;;
+	*)
+		echo $"Usage: $0 {init|start|update|status}"
+		RETVAL=3
+esac
+exit $RETVAL
+
+
+#

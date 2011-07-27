@@ -1,0 +1,86 @@
+
+
+%\lstset{language=bash}
+%\lstset{commentstyle=\textit}
+%\lstset{basicstyle=\footnotesize}
+%\lstset{frame=tRBl}
+%\lstset{framesep=5pt}
+
+\subsection{Linux RPM package} 
+
+Install required packages to build.
+
+\begin{lstlisting}[style=console]
+# yum install libtool trousers-devel openssl-devel libxml2-devel libuuid-devel sqlite-devel
+\end{lstlisting}
+
+Build RPM pcakage od OpenPTS.
+
+\begin{lstlisting}[style=console]
+$ sh bootstrap.sh
+$ ./configure
+$ make rpmbuild-ba
+$ rpm -qlp ~/rpmbuild/RPMS/x86\_64/openpts-0.2.4-1.x86\_64.rpm
+/etc/ptsc.conf
+/etc/rc.d/init.d/ptsc
+/usr/bin/iml2aide
+/usr/bin/iml2text
+/usr/bin/openpts
+/usr/bin/rm2dot
+/usr/bin/tpm_createkey
+/usr/bin/uml2dot
+<snip>
+\end{lstlisting}
+
+\subsection{Linux DEB package} 
+
+Ubuntu does not support IMA.
+
+\begin{lstlisting}[style=console]
+$ sh bootstrap.sh
+$ ./configure
+$ make dpkg-buildpackage
+$ dpkg-deb --contents ../openpts_0.2.4_i386.deb
+<snip>
+\end{lstlisting}
+
+%\lstset{language=bash}
+%\lstset{commentstyle=\textit}
+%\lstset{basicstyle=\footnotesize}
+%\lstset{frame=tRBl}
+%\lstset{framesep=5pt}
+
+\subsection{User's Guide} 
+
+User's guide is written in Latex.
+Install the latex environments before generate the document.
+\begin{lstlisting}[style=console]
+# yum install texlive texlive-latex dvipdfmx
+\end{lstlisting}
+Generate PDF.
+\begin{lstlisting}[style=console]
+$ cd doc
+$ make ug
+$ evince userguide.pdf
+\end{lstlisting}
+
+\subsection{Design document} 
+
+\begin{lstlisting}[style=console]
+$ cd models
+$ make png
+$ cd ..
+$ cd doc
+$ make hldd
+$ evince desgin.pdf
+\end{lstlisting}
+
+\subsection{API document} 
+
+\begin{lstlisting}[style=console]
+$ cd doc
+$ make lldd
+$ firefox apidoc_html/index.html
+\end{lstlisting}
+
+

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="a204c9ca-2775-11e0-93ee-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="KjupaeY0" name="">
+    <region xmi:id="_BLo3opSwEdy22t6WWvUZtA" name="bios">
+      <subvertex xmi:type="uml:State" xmi:id="PCR7_START" name="PCR7_START" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="PCR7_START_do" name="resetPCR(7)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR_7" name="EV_SEPARATOR_7" visibility="public"/>
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:State" xmi:id="BIOS_PCR7_Verified" name="BIOS_PCR7_Verified" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="BIOS_PCR7_Verified_do" name="setAssertion(bios.pcr.7.integrity, valid)"/>
+      </subvertex>
+
+      <transition xmi:id="Kk02jZs0" name="CRTM_START_trans" visibility="public" kind="local" source="Start" target="PCR7_START"/>
+      <transition xmi:id="EV_SEPARATOR_7_trans" name="EV_SEPARATOR_7_trans" visibility="public" kind="local" source="PCR7_START" target="EV_SEPARATOR_7" guard="_BLo3p5SwEdy22t6WWvUZtA">
+        <ownedRule xmi:id="_BLo3p5SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_BLo3qJSwEdy22t6WWvUZtA" name="">
+            <body>eventtype == 0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="EV_SEPARATOR_7" target="BIOS_PCR7_Verified"/>
+      <transition xmi:id="KoByXxb0" visibility="public" kind="local" source="BIOS_PCR7_Verified" target="Final">
+        <name xsi:nil="true"/>
+      </transition>
+    </region>
+  </packagedElement>
+</uml:Model>

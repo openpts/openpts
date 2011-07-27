@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="a31b529c-2776-11e0-991b-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="update_pkg" name="">
+    <region xmi:id="update_reg" name="update">
+
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+
+      <subvertex xmi:type="uml:State" xmi:id="Init" name="Init" visibility="public">
+        <!-- TODO pcr_index is depend on the target platform configulation  -->
+        <doActivity xmi:type="uml:Activity" xmi:id="Init_do" name="resetPCR(11)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:State" xmi:id="Stop" name="Stop" visibility="public"/>
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_COLLECTOR_START" name="EV_COLLECTOR_START" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_COLLECTOR_START_do" name="startCollector()"/>
+      </subvertex>
+
+
+      <subvertex xmi:type="uml:State" xmi:id="EV_FILE_SCAN" name="EV_FILE_SCAN" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_FILE_SCAN_do" name="scanFile()"/>
+      </subvertex>
+
+
+      <subvertex xmi:type="uml:State" xmi:id="End" name="End" visibility="public">
+        <doActivity xmi:type="uml:Activity" xmi:id="End_do" name="setAssertion(update.integrity, valid)"/>
+      </subvertex>
+
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+
+      <transition xmi:id="Start_to_Init" visibility="public" kind="local" source="Start" target="Init"/>
+
+      <transition xmi:id="Init_to_EV_COLLECTOR_START" visibility="public" kind="local" source="Init" target="EV_COLLECTOR_START" guard="Init_to_EV_COLLECTOR_START_guard">
+        <ownedRule xmi:id="Init_to_EV_COLLECTOR_START_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="Init_to_EV_COLLECTOR_START_spec" name="">
+            <body>eventtype == 0x080</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+      <transition xmi:id="EV_COLLECTOR_START_to_Stop" visibility="public" kind="local" source="EV_COLLECTOR_START" target="Stop"/>
+
+
+      <transition xmi:id="Stop_to_EV_FILE_SCAN" visibility="public" kind="local" source="Stop" target="EV_FILE_SCAN" guard="Stop_to_EV_FILE_SCAN_guard">
+        <ownedRule xmi:id="Stop_to_EV_FILE_SCAN_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="Stop_to_EV_FILE_SCAN_spec" name="">
+            <body>eventtype == 0x084</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_FILE_SCAN_to_Stop" visibility="public" kind="local" source="EV_FILE_SCAN" target="Stop"/>
+
+
+      <transition xmi:id="Stop_to_End" visibility="public" kind="local" source="Stop" target="End" guard="Stop_to_End_guard">
+        <ownedRule xmi:id="Stop_to_End_guard" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="Stop_to_End_spec" name="">
+            <body>last == true</body>
+          </specification>
+        </ownedRule>
+      </transition>
+
+
+      <transition xmi:id="End_to_Final" visibility="public" kind="local" source="End" target="Final"/>
+
+    </region>
+  </packagedElement>
+</uml:Model>

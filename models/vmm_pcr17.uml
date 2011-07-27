@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="MS932"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/2.0.0/UML" xmi:id="e172a4dc-2776-11e0-89b6-001f160c9c28">
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="KmZFE1y0" name="">
+    <region xmi:id="_algC4pSwEdy22t6WWvUZtA" name="VMM">
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final" incoming="L1vIA4Z0"/>
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start" outgoing="CheckOption_trans"/>
+      <subvertex xmi:type="uml:State" xmi:id="CheckOption" name="CheckDRTM" visibility="public" outgoing="L1uziUL0" incoming="CheckOption_trans">
+        <doActivity xmi:type="uml:Activity" xmi:id="_algC45SwEdy22t6WWvUZtA" name="verifyVMM()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="L1vI6D93" name="Dummy" visibility="public" outgoing="L1vIA4Z0" incoming="L1uziUL0"/>
+      <transition xmi:id="L1vIA4Z0" visibility="public" kind="local" target="Final" source="L1vI6D93">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="L1uziUL0" visibility="public" kind="local" target="L1vI6D93" source="CheckOption">
+        <name xsi:nil="true"/>
+      </transition>
+      <transition xmi:id="CheckOption_trans" name="CheckOption_trans" visibility="public" kind="local" target="CheckOption" guard="_algC55SwEdy22t6WWvUZtA" source="Start">
+        <ownedRule xmi:id="_algC55SwEdy22t6WWvUZtA" name="">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="_algC6JSwEdy22t6WWvUZtA" name="">
+            <body>pcrindex == 17</body>
+          </specification>
+        </ownedRule>
+      </transition>
+    </region>
+  </packagedElement>
+</uml:Model>

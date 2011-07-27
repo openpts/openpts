@@ -1,0 +1,356 @@
+
+Integration with Intel TXT - tboot 
+----------------------------------
+
+OpenPTS version 0.2.4
+Tue Apr  5 09:35:39 JST 201
+
+1. Overview
+-----------
+
+    To validate the DRTM by tboot using PTS, we need an eventlog of tboot
+    measurements. However tboot-20101005 did not support TCG style eventlog.
+    We provide 'tboot2iml' utility which is a tool to convert current toot log
+    to TCG style eventlog.
+
+
+References:
+
+    http://www.sf.net/projects/tboot
+
+    http://www.intel.com/technology/security/
+    -> malware redection ->
+
+    Intel(R) TXT MLE Developers Manual  -- Missing
+
+    Intel TXT  Software Development Guide 12/2009
+
+    Intel® Trusted Execution
+    Technology – Launch Control Policy
+    Linux Tools User Manual
+
+    Policy v1 - < 2009 Weybridge(Q35?), Montevina(GM45), McCreary(Q45)
+    Policy v2 - 2008 < 
+
+    /usr/share/doc/tboot-20101005/README
+
+
+Setup the IML (plan):
+
+    # cd /var/lib/openpts/
+    # cat /sys/kernel/security/tpm/binary_tboot_measurments > binary_rtm_measurments
+    # txt-stat >  txt-stat
+    # tboot2iml -i txt-stat >> binary_rtm_measurments
+
+    Modify tcsd.conf to read this SRTM+DRTM IML
+    ---
+    firmware_log_file = /var/lib/openpts/binary_rtm_measurements
+    firmware_pcrs = 0,1,2,3,4,5,6,7,8,17,18,19
+    ---
+
+    service tcsd start
+    service ptsc start
+
+
+Test bed:
+
+    Hardware                        os                 SINIT module
+    ----------------------------------------------------------------------------
+    ThinkpadX200(7457-49J)   Fedora15(x86_64)   GM45_GS45_PM45_SINIT_21.BIN
+    ----------------------------------------------------------------------------
+
+
+2. Fedora15 Setup
+--------------------
+
+Trousers(TSS) - 0.3.6 or GIT
+
+    # rpm -q trousers
+    trousers-0.3.4-3.fc14.x86_64
+
+    http://sourceforge.net/projects/trousers/
+
+    git clone git://trousers.git.sourceforge.net/gitroot/trousers/trousers
+
+    configure.in
+    ---
+    CFLAGS="$CFLAGS -I../include \
+	    -DTCSD_DEFAULT_PORT=${TCSD_DEFAULT_PORT} -DTSS_VER_MAJOR=${TSS_VER_MAJOR} \
+	    -DTSS_VER_MINOR=${TSS_VER_MINOR} -DTSS_SPEC_MAJOR=${TSS_SPEC_MAJOR} \
+	    -DTSS_SPEC_MINOR=${TSS_SPEC_MINOR} -Wno-unused-but-set-variable"
+    ---
+
+    $ sh bootstrap.sh
+    $ ./configure --enable-debug --prefix=/usr
+    $ make
+    # make install
+
+    # service tcsd restart
+
+TPM_takeownership
+
+
+    tpm_takeownership -z
+
+    Do not set "-y". must set the owner password, TPM-password 
+
+
+Install tboot
+
+    # yum install tboot
+
+
+Setup tboot
+
+
+Change /boot/grub/grub.conf:
+
+
+---
+title Fedora (2.6.38.1-6.fc15.x86_64) tboot
+        root (hd0,0)
+        kernel /tboot.gz logging=serial,vga,memory vga_delay=5
+        module /vmlinuz-2.6.38.1-6.fc15.x86_64 ro root=/dev/mapper/vg_munetohx200f15-lv_root rd_LVM_LV=vg_munetohx200f15/lv_root rd_LVM_LV=vg_munetohx200f15/lv_swap rd_NO_LUKS rd_NO_MD rd_NO_DM LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 KEYTABLE=us selinux=0 rhgb quiet xdriver=vesa nomodeset 1
+        module /initramfs-2.6.38.1-6.fc15.x86_64.img
+        module /GM45_GS45_PM45_SINIT_21.BIN
+---
+
+
+Create LCP policy:
+
+    # cd /root
+    # lcp_mlehash -c "logging=serial,vga,memory vga_delay=5" /boot/tboot.gz > mle_hash
+    # lcp_crtpol -t hashonly -m mle_hash -o lcp.pol
+
+
+Create Verified Launch policy:
+
+    # tb_polgen --create --type nonfatal --verbose vl.pol
+    params:
+	     cmd = 2
+	     policy_type = 0
+	     policy_control = 1
+	     mod_num = -1
+	     pcr = -1
+	     hash_type = -1
+	     pos = 0
+	     cmdline = 
+	     image_file = 
+	     elt_file = 
+	     policy_file = vl.pol
+    reading existing policy file vl.pol...
+    fopen failed, errno No such file or directory
+    writing new policy file...
+    policy:
+	     version: 2
+	     policy_type: TB_POLTYPE_CONT_NON_FATAL
+	     hash_alg: TB_HALG_SHA1
+	     policy_control: 00000001 (EXTEND_PCR17)
+	     num_entries: 0
+
+
+
+
+    Kernel image ->  vl.pol[0]
+    --------------------------
+
+    # tb_polgen --add --num 0 --pcr none --hash image --cmdline "ro root=/dev/mapper/vg_munetohx200f15-lv_root rd_LVM_LV=vg_munetohx200f15/lv_root rd_LVM_LV=vg_munetohx200f15/lv_swap rd_NO_LUKS rd_NO_MD rd_NO_DM LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 KEYTABLE=us selinux=0 rhgb quiet xdriver=vesa nomodeset 1" --image /boot/vmlinuz-2.6.38.1-6.fc15.x86_64 --verbose vl.pol
+    params:
+	     cmd = 3
+	     policy_type = -1
+	     policy_control = 1
+	     mod_num = 0
+	     pcr = 255
+	     hash_type = 1
+	     pos = 0
+	     cmdline = ro root=/dev/mapper/vg_munetohx200f15-lv_root rd_LVM_LV=vg_munetohx200f15/lv_root rd_LVM_LV=vg_munetohx200f15/lv_swap rd_NO_LUKS rd_NO_MD rd_NO_DM LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 KEYTABLE=us selinux=0 rhgb quiet xdriver=vesa nomodeset 1
+	     image_file = /boot/vmlinuz-2.6.38.1-6.fc15.x86_64
+	     elt_file = 
+	     policy_file = vl.pol
+    reading existing policy file vl.pol...
+    policy:
+	     version: 2
+	     policy_type: TB_POLTYPE_CONT_NON_FATAL
+	     hash_alg: TB_HALG_SHA1
+	     policy_control: 00000001 (EXTEND_PCR17)
+	     num_entries: 0
+    adding new policy entry for mod_num 0 (pcr: 255, hash_type: 1)
+    hashing command line "ro root=/dev/mapper/vg_munetohx200f15-lv_root rd_LVM_LV=vg_munetohx200f15/lv_root rd_LVM_LV=vg_munetohx200f15/lv_swap rd_NO_LUKS rd_NO_MD rd_NO_DM LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 KEYTABLE=us selinux=0 rhgb quiet xdriver=vesa nomodeset 1"...
+    hash is...b1 be 67 e4 19 45 ca 8a 37 92 58 6a a8 a4 ec 9e 38 b8 c2 04 
+    hashing image file /boot/vmlinuz-2.6.38.1-6.fc15.x86_64...
+    hash is...eb a8 6a 80 d8 91 8d ea 58 5e d8 a5 16 ec e7 43 62 0c e8 37 
+    cummulative hash is...d2 5c 5b 18 2a 9a 62 ce 15 e4 6d 08 91 9d 4e fc 1b 7c fc ad 
+    writing new policy file...
+    policy:
+	     version: 2
+	     policy_type: TB_POLTYPE_CONT_NON_FATAL
+	     hash_alg: TB_HALG_SHA1
+	     policy_control: 00000001 (EXTEND_PCR17)
+	     num_entries: 1
+	     policy entry[0]:
+		     mod_num: 0
+		     pcr: none
+		     hash_type: TB_HTYPE_IMAGE
+		     num_hashes: 1
+		     hashes[0]: d2 5c 5b 18 2a 9a 62 ce 15 e4 6d 08 91 9d 4e fc 1b 7c fc ad 
+
+
+    Initrd image ->  vl.pol[1]
+    --------------------------
+
+    # tb_polgen --add --num 1 --pcr 19 --hash image --cmdline "" --image /boot/initramfs-2.6.38.1-6.fc15.x86_64.img --verbose vl.pol
+    params:
+	     cmd = 3
+	     policy_type = -1
+	     policy_control = 1
+	     mod_num = 1
+	     pcr = 19
+	     hash_type = 1
+	     pos = 0
+	     cmdline = 
+	     image_file = /boot/initramfs-2.6.38.1-6.fc15.x86_64.img
+	     elt_file = 
+	     policy_file = vl.pol
+    reading existing policy file vl.pol...
+    policy:
+	     version: 2
+	     policy_type: TB_POLTYPE_CONT_NON_FATAL
+	     hash_alg: TB_HALG_SHA1
+	     policy_control: 00000001 (EXTEND_PCR17)
+	     num_entries: 1
+	     policy entry[0]:
+		     mod_num: 0
+		     pcr: none
+		     hash_type: TB_HTYPE_IMAGE
+		     num_hashes: 1
+		     hashes[0]: d2 5c 5b 18 2a 9a 62 ce 15 e4 6d 08 91 9d 4e fc 1b 7c fc ad 
+    adding new policy entry for mod_num 1 (pcr: 19, hash_type: 1)
+    hashing command line ""...
+    hash is...da 39 a3 ee 5e 6b 4b 0d 32 55 bf ef 95 60 18 90 af d8 07 09 
+    hashing image file /boot/initramfs-2.6.38.1-6.fc15.x86_64.img...
+    hash is...0d 91 df a0 16 39 23 2e ce 1a cf 40 4a fb 0d 20 5f d3 6f 60 
+    cummulative hash is...0f 93 a8 2c 3b 3b 20 30 98 61 39 a2 03 2e 38 23 73 3f c6 42 
+    writing new policy file...
+    policy:
+	     version: 2
+	     policy_type: TB_POLTYPE_CONT_NON_FATAL
+	     hash_alg: TB_HALG_SHA1
+	     policy_control: 00000001 (EXTEND_PCR17)
+	     num_entries: 2
+	     policy entry[0]:
+		     mod_num: 0
+		     pcr: none
+		     hash_type: TB_HTYPE_IMAGE
+		     num_hashes: 1
+		     hashes[0]: d2 5c 5b 18 2a 9a 62 ce 15 e4 6d 08 91 9d 4e fc 1b 7c fc ad 
+	     policy entry[1]:
+		     mod_num: 1
+		     pcr: 19
+		     hash_type: TB_HTYPE_IMAGE
+		     num_hashes: 1
+		     hashes[0]: 0f 93 a8 2c 3b 3b 20 30 98 61 39 a2 03 2e 38 23 73 3f c6 42 
+
+
+Setup TPM NV
+
+    $ tpmnv_getcap
+    The response data is:
+    20 00 00 02 20 00 00 01 50 00 00 01 50 00 00 02 
+    10 00 00 01 
+    5 indices have been defined
+    list of indices for defined NV storage areas:
+    0x20000002 0x20000001 0x50000001 0x50000002 0x10000001
+
+    $ tpmnv_relindex -h
+
+    Usage: tpmnv_relindex -i index -p passwd [-h]
+    -i index value: uint32/string.
+	    INDEX_LCP_DEF:0x50000001 or "default",
+	    INDEX_LCP_OWN:0x40000001 or "owner",
+	    INDEX_AUX:0x50000002 or "aux"
+    -p password: string. 
+    -h help. Will print out this help message.
+
+    tpmnv_relindex -i 0x10000001 -p TPM-password
+
+    $ tpmnv_relindex -i 0x20000002 -p TPM-password
+    Successfully released index 0x20000002 
+
+    $ tpmnv_getcap
+    The response data is:
+    20 00 00 01 50 00 00 01 50 00 00 02 10 00 00 01 
+    4 indices have been defined
+    list of indices for defined NV storage areas:
+    0x20000001 0x50000001 0x50000002 0x10000001
+
+    tpmnv_relindex -i 0x20000001 -p TPM-password
+
+
+
+Define tboot error TPM NV index:
+
+    # tpmnv_defindex -i 0x20000002 -s 8 -pv 0 -rl 0x07 -wl 0x07 -p TPM-password
+
+    Tspi_NV_DefineSpace failed failed: Unknown (0x08313b)
+
+    Command DefIndex failed:
+	    TSS API failed
+
+
+Define LCP and Verified Launch policy indices:
+
+    # tpmnv_defindex -i owner -p TPM-password
+    Haven't input permission value, use default value 0x2
+    Haven't input data size, use default value 54
+    Tspi_NV_DefineSpace failed failed: No space to load key (0x0811)
+
+    Command DefIndex failed:
+	    TSS API failed
+
+    # tpmnv_defindex -i owner -s 34 -pv 0x02 -p TPM-password
+    Successfully defined index 0x40000001 as permission 0x2, data size is 34 
+
+
+    # tpmnv_defindex -i 0x20000001 -s 256 -pv 0x02 -p TPM-password
+    Successfully defined index 0x20000001 as permission 0x2, data size is 256 
+
+    # tpmnv_getcap
+    The response data is:
+    20 00 00 02 20 00 00 01 40 00 00 01 50 00 00 01 
+    50 00 00 02 10 00 00 01 
+
+    6 indices have been defined
+    list of indices for defined NV storage areas:
+    0x20000002 0x20000001 0x40000001 0x50000001 0x50000002 0x10000001
+
+
+Write LCP and Verified Launch policies to TPM:
+
+    # lcp_writepol -i owner -f lcp.pol -p TPM-password
+    Successfully write policy into index 0x40000001 
+
+    # lcp_writepol -i 0x20000001 -f vl.pol -p TPM-password
+    Successfully write policy into index 0x20000001
+
+
+Reboot
+
+    # txt-stat
+
+    # cd /var/lib/openpts/
+    # cat /sys/kernel/security/tpm/binary_tboot_measurments > binary_rtm_measurments
+    # txt-stat >  txt-stat
+    # tboot2iml -i txt-stat >> binary_rtm_measurments
+
+    Modify /etc/tcsd.conf to read this SRTM+DRTM IML
+    ---
+    firmware_log_file = /var/lib/openpts/binary_rtm_measurements
+    firmware_pcrs = 0,1,2,3,4,5,6,7,8,17,18,19
+    ---
+
+    service tcsd start
+    service ptsc start
+
+
+
+

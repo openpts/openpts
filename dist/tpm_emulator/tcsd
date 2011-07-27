@@ -1,0 +1,197 @@
+#!/bin/bash
+#
+# Init file for the TrouSerS TCG Core Services daemon
+#
+# with TPM_emulator
+#
+#
+# chkconfig: - 90 10
+# description: TrouSerS server daemon
+#
+# processname: tcsd
+# config: /etc/tcsd.conf
+# pidfile: /var/run/tcsd.pid
+#
+# Return values according to LSB for all commands but status:
+# 0 - success
+# 1 - generic or unspecified error
+# 2 - invalid or excess argument(s)
+# 3 - unimplemented feature (e.g. "reload")
+# 4 - insufficient privilege
+# 5 - program is not installed
+# 6 - program is not configured
+# 7 - program is not running
+#
+
+prog="tcsd"
+
+prog2="tpmd"
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+# Allow anyone to run status
+if [ "$1" = "status" ] ; then
+	status $prog
+	RETVAL=$?
+	exit $RETVAL
+fi
+
+# Check that we are root ... so non-root users stop here
+test $EUID = 0  ||  exit 4
+
+# pull in sysconfig settings
+test -f /etc/sysconfig/tcsd  && . /etc/sysconfig/tcsd
+
+RETVAL=0
+
+# Some variables to make the below more readable
+TCSD=/usr/sbin/tcsd
+PID_FILE=/var/run/tcsd.pid
+INSMOD=/sbin/insmod
+LSMOD=/sbin/lsmod
+GREP=/bin/grep
+
+TPMD=/usr/local/bin/tpmd
+IMLFILE=/var/lib/openpts/binary_bios_measurements
+EXTEND=/usr/bin/tpm_extendpcr
+
+load_drivers()
+{
+	#for d in `echo /lib/modules/$(uname -r)/kernel/drivers/char/tpm/tpm_*`
+	#do
+	#$INSMOD $d
+	#if test $? -eq 0; then
+	#	return 0
+	#fi
+	#done
+	#return 1
+    modprobe tpmd_dev
+    return 0
+}
+
+check_drivers()
+{
+	tmp=`$LSMOD | $GREP tpmd_ 2> /dev/null`
+	if [ "x$tmpd" != "x" ] ; then
+		return 0
+	fi
+	return 1
+}
+
+start_tpmd()
+{
+	test -x $TPMD || exit 5
+    modprobe -r tpmd_dev
+	check_drivers || load_drivers || exit 1
+	if [ ! -f /var/lock/subsys/tpmd ] ; then
+		echo -n $"Starting $prog2: "
+		#daemon $prog2 "-d clear "
+		daemon $TPMD "-d "
+		RETVAL=$?
+		echo
+		if test $RETVAL = 0 ; then
+			touch /var/lock/subsys/tpmd
+		fi
+	fi
+}
+stop_tpmd()
+{
+	echo -n $"Stopping $prog2: "
+	killproc $prog2
+	RETVAL=$?
+	echo
+	rm -f /var/lock/subsys/tpmd
+}
+
+conf0()
+{
+	echo "#" > /etc/tcsd.conf
+}
+
+
+conf1()
+{
+	echo "firmware_log_file = /var/lib/openpts/binary_bios_measurements" >  /etc/tcsd.conf
+	echo "firmware_pcrs = 0,1,2,3,4,5,6,7,8" >> /etc/tcsd.conf
+}
+
+extend()
+{
+	$EXTEND -I /var/lib/openpts/binary_bios_measurements
+}
+
+
+start()
+{
+	test -x $TCSD || exit 5
+	test -f /etc/tcsd.conf || exit 6
+	check_drivers || load_drivers || exit 1
+	if [ ! -f /var/lock/subsys/tcsd ] ; then
+		echo -n $"Starting $prog: "
+		daemon $prog "$OPTIONS "
+		RETVAL=$?
+		echo
+		if test $RETVAL = 0 ; then
+			touch /var/lock/subsys/tcsd
+		fi
+	fi
+}
+
+stop()
+{
+	echo -n $"Stopping $prog: "
+	killproc $prog
+	RETVAL=$?
+	echo
+	rm -f /var/lock/subsys/tcsd
+}
+
+restart(){
+	test -f /etc/tcsd.conf  || exit 6
+	stop
+	stop_tpmd
+
+	start_tpmd
+	sleep 1
+	conf0
+	start
+	sleep 2
+	extend
+	stop
+	conf1
+	start
+}
+
+case "$1" in
+	start)
+		start_tpmd
+		sleep 1
+		conf0
+		start
+		sleep 2
+		extend
+		stop
+		conf1
+		start
+		;;
+	stop)
+		stop
+		stop_tpmd
+		;;
+	restart)
+		restart
+		;;
+	reload|force-reload)
+		restart
+		;;
+	condrestart|try-restart)
+		if [ -f /var/lock/subsys/tcsd ] ; then
+			restart
+		fi
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|restart|reload|force-reload|condrestart|try-restart|status}"
+		RETVAL=2
+esac
+exit $RETVAL

@@ -1,0 +1,330 @@
+% usersguide.tex
+%
+%   make ug
+%   evince userguide.pdf
+%
+
+\documentclass[10pt,a4paper]{article}
+
+% same w/ Doxygen
+%\documentclass[a4paper]{book}
+\usepackage{a4wide}
+\usepackage{makeidx}
+\usepackage{fancyhdr}
+%\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{textcomp}
+\usepackage{alltt}
+\usepackage{times}
+\usepackage[utf8]{inputenc}
+
+
+% Listing for bash 
+%   http://en.wikibooks.org/wiki/LaTeX/Packages/Listings
+% Ubuntu texlive-latex-recommended package
+%   /usr/share/texmf-texlive/tex/latex/listings
+% Fedora texlive-texmf-latex-2007-34.fc12.noarch package
+%   /usr/share/texmf/tex/latex/listings/
+\usepackage{listings}
+
+% Color?
+%\usepackage{color}
+
+%\makeindex
+\setcounter{tocdepth}{3}
+\renewcommand{\footrulewidth}{0.4pt}
+
+
+\usepackage[dvipdfm]{graphicx, color}
+%\usepackage{mediabb}
+
+\usepackage{url}
+% http://en.wikibooks.org/wiki/LaTeX/Hyperlinks
+%\usepackage{hyperref}
+
+% source code
+% http://www.jorgemarsal.com/blog/2009/06/08/source-code-snippets-in-latex/
+\usepackage{listings}
+\definecolor{gray92}{gray}{.92}
+\definecolor{gray88}{gray}{.88}
+\definecolor{gray75}{gray}{.75}
+\definecolor{gray45}{gray}{.45}
+ 
+\lstdefinestyle{source_code}
+{
+numbers=none,
+%stepnumber=5, 
+%basicstyle=\normalsize, 
+basicstyle=\footnotesize, 
+captionpos = b, %bottom 
+keywordstyle=\color[rgb]{0,0,1}, 
+commentstyle=\color[rgb]{0.133,0.545,0.133}, 
+stringstyle=\color[rgb]{0.627,0.126,0.941}, 
+backgroundcolor=\color{gray92}, 
+frame=lrtb, 
+framerule=0.5pt, 
+%linewidth = \textwidth 
+linewidth = 170mm,
+}
+
+\lstdefinestyle{help_message}
+{
+numbers=none,
+%stepnumber=5,
+%basicstyle=\normalsize, 
+basicstyle=\footnotesize, 
+captionpos = b, %bottom 
+keywordstyle=\color[rgb]{0,0,1},
+commentstyle=\color[rgb]{0.133,0.545,0.133}, 
+stringstyle=\color[rgb]{0.627,0.126,0.941}, 
+backgroundcolor=\color{gray92}, 
+frame=lrtb, 
+framerule=0.5pt, 
+%linewidth = \textwidth 
+linewidth=170mm,
+%framexleftmargin=-5mm
+%framesep=10mm,
+}
+
+
+\lstdefinestyle{console} 
+{ 
+numbers=none,
+%basicstyle=\bf\ttfamily,
+basicstyle=\bf\footnotesize, 
+backgroundcolor=\color{gray92},
+%backgroundcolor=\color{gray88},
+frame= lrtb, 
+framerule=0.5pt, 
+%linewidth=\textwidth, 
+linewidth=170mm,
+}
+
+
+% size
+\setlength{\textwidth}{170mm}
+\setlength{\oddsidemargin}{-10mm}
+\setlength{\evensidemargin}{-10mm}
+\setlength{\topmargin}{-10mm}
+
+\begin{document} 
+
+\begin{titlepage}
+\vspace*{7cm}
+\begin{center}
+{\Large Open Platform Trust Services (OpenPTS)\\User's Guide\\[1ex]\large Version 0.2.4}\\
+\vspace*{1cm}
+{\large Seiji Munetoh}\\
+\vspace*{0.5cm}
+{\small May 6, 2011}\\
+%{\small \today}\\
+\vspace*{2.0cm}
+{\small Copyright @ 2011 IBM Corporation. All rights reserved}\\
+{\small Mailing list for comments: openpts-users@lists.sourceforge.jp}\\
+{\small Web access (preferred): http://sourceforge.jp/projects/openpts}\\
+\end{center}
+\end{titlepage}
+
+%\clearemptydoublepage
+\pagenumbering{roman}
+
+\tableofcontents
+
+\clearpage 
+%\clearemptydoublepage
+\pagenumbering{arabic}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Purpose} 
+
+The purpose of this User's Guide is to provide a description of
+the usage of Open Platform Trust Services (OpenPTS).
+
+\subsection{Scope} 
+
+System administrator and developer of Trusted Platform.
+
+\subsection{Architecture}
+
+Figure \ref{fig:openpts-architecture} shows brief overview of OpenPTS architecture.
+OpenPTS is used by both collector (target platform) and verifier sides.
+Collector side, 'ptsc' command manages the integrity of target platform.
+Verifier side, 'openpts' command is used to validate the target platform by remote attestation.
+The protocol between ptsc and openpts is based on TCG IF-M protocol.
+OpenPTS uses SSH between collector and verifier to secure the remote attestation.
+This figure shows stand-alone operation mode.
+OpenPTS supports IMC and IMV interfaces for TNC (Trusted Network Connect).
+
+% pdftops -eps OpenPTS-fig-architecture.pdf
+\begin{figure}[hb!p]
+  \begin{center}
+    \includegraphics[width=15cm]{OpenPTS-fig-architecture.eps}
+  \end{center}
+  \caption{OpenPTS - Architecture (Standalone Mode)}
+  \label{fig:openpts-architecture}
+\end{figure}
+
+
+
+\clearpage
+\subsection{Operations}
+
+Figure \ref{fig:openpts-dataflow} shows how OpenPTS manage the integrity.
+OpenPTS uses a model which describe the behavior of transitive trust chain of target platform.
+The model is Finite State Machine (FSM) written by UML state diagram.
+OpenPTS uses this model to parse the integrity measurement log (IML)
+and generate the reference manifest (RM).
+
+The behavior model just describe the general behavior of transitive trust chain and is used to generate RM and integrity report (IR).
+OpenPTS supports generic model of x86(PC) platform.
+The binary model contains actual digest value of target and used to validate the IML.
+
+By using the model, we can translate the binary measurement (hash value) into security properties.
+%hen, translated properties are validated by given policies to get the final result,
+%VALID/INVALID/UNKNOWN.
+Therefore we can use a policy to validate the property.
+This provides a flexible management of target platform.
+Finally, we get the validation result, VALID/INVALID/UNKNOWN.
+
+
+% pdftops -eps OpenPTS-fig-dataflow.pdf
+\begin{figure}[hb!p]
+  \begin{center}
+    \includegraphics[width=15cm]{OpenPTS-fig-dataflow.eps}
+  \end{center}
+  \caption{OpenPTS - Integrity Management Flow}
+  \label{fig:openpts-dataflow}
+\end{figure}
+
+\subsection{Limitation}
+
+\begin{itemize}
+\item AIDE and TNC integration is still under development.
+\item Need to apply the patch to TrouSerS (TSS) to handle eventlog properly.
+\item 
+There is no interoperability of standalone IF-M mode between version 0.2.3 and 0.2.4
+since we had changed this operation from version 0.2.4.
+Version 0.2.3 used ptscd daemon and SSH tunnel.
+This was deprecated since the management of SSH tunnel did not scale.
+Now we use simple SSH remote command execution.
+The IF-M go through the pipe between collector(ptsc command) and verifier(openpts command) protected by SSH.
+\end{itemize} 
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{Use case 1. Standalone Remote Attestation}
+\input{userguide_uc1}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\clearpage
+%\section{Usecase 2. Common Remote Attestation - TBD}
+%\input{userguide_uc2}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%In this use case we use common Integrity Database to validate the IMA measurment.
+%Version 0.2.2 did not support this usecase. It will be supported in the later version.
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{OpenPTS Commands Usage} 
+\input{userguide_cmd}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{OpenPTS Configuration Files} 
+\input{userguide_config}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{Configulation of Trusted Platform}
+\input{userguide_platform}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{Build OpenPTS}
+\input{userguide_build}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Common errors and problems} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{tpm\_takeownership failed (0x0008)} 
+
+\begin{lstlisting}[style=source_code]
+Tspi_TPM_TakeOwnership failed: 0x00000008 - layer=tpm, code=0008 (8), 
+The TPM target command has been disabled
+\end{lstlisting}
+
+Your TPM already taken the ownership. 
+If you don't know the owner password, you have to clear the TPM.
+To clear the TPM, Your PC needs cold boot, then enter the BIOS menu and clear the TPM.
+
+\subsection{Key generation failed} 
+
+\begin{lstlisting}[style=source_code]
+ERROR: Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x2020
+Your key storage of tcsd is damaged or missing. 
+\end{lstlisting}
+
+Check the key storage file "/var/lib/tpm/system.data"
+If the size is zero, your install TSS after someone take the ownership.
+If you know the owner password. you can recover the storage file.
+
+\begin{lstlisting}[style=source_code]
+ # cp /XXX/dummy_tss_system.data /var/lib/tpm/system.data
+ # service tcsd restart
+\end{lstlisting}
+
+\subsection{validation failed - POLICY-L010}
+\begin{lstlisting}[style=source_code]
+Reasons
+    0 [POLICY-L010] tpm.quote.pcr.10 is Zjw44Y9jXCBbf8cRurxgzOwspQo=, not K2ruQ8H5ieZWI57wrUguMe6erPo=
+\end{lstlisting}
+
+PCR10 is changeed by IMA, comment out the policy file, 
+'~/.openpts/\{UUID\}/policy.conf'
+
+\begin{lstlisting}[style=source_code]
+tpm.quote.pcr.8=rKefmpUQOPKHX6zoIQn+5vnpr0E=
+# tpm.quote.pcr.10=K2ruQ8H5ieZWI57wrUguMe6erPo=
+bios.pcr0.integrity=valid
+\end{lstlisting}
+
+\subsection{TPM reports 0x803 Error}
+This is TPM\_DEFEND\_LOCK\_RUNNING error. Your TPM is defending against dictionary attacks.
+And can be cleared by 'tpm\_resetdalock' command with owner secret.
+However some TPM assert this flag without attack. the workaround is,
+\begin{itemize}
+\item take TPM owenweship with -y (known-secret) option.
+\item add 'tpm.resetdalock=on' in /etc/ptsc.conf
+\end{itemize}
+
+\end{document}

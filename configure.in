@@ -1,0 +1,334 @@
+#
+# Makefile.am
+#
+# This file is part of the OpenPTS project.
+#
+# The Initial Developer of the Original Code is International
+# Business Machines Corporation. Portions created by IBM
+# Corporation are Copyright (C) 2010 International Business
+# Machines Corporation. All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the Common Public License as published by
+# IBM Corporation; either version 1 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Common Public License for more details.
+#
+# You should have received a copy of the Common Public License
+# along with this program; if not, a copy can be viewed at
+# http://www.opensource.org/licenses/cpl1.0.php.
+#
+
+AC_INIT(openpts, 0.2.5, openpts-users@lists.sourceforge.jp)
+
+# use pkg-config
+# check /usr/lib64/pkgconfig/
+PKG_PROG_PKG_CONFIG
+
+PTS_SPEC_MAJOR=0
+PTS_SPEC_MINOR=0
+PTS_VER_MAJOR=2
+PTS_VER_MINOR=5
+OPENPTS_PCR_INDEX=11
+
+AC_CONFIG_AUX_DIR([.])
+
+AC_CONFIG_MACRO_DIR([m4])
+AC_CANONICAL_TARGET
+AM_INIT_AUTOMAKE([foreign 1.6])
+
+AC_CANONICAL_HOST
+#AM_GNU_SOURCE
+
+DEBUG=""
+AC_MSG_CHECKING([for debug-enabled build])
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [create a debug build that outputs debug messages]),
+ [if test "$enableval" = "yes"; then
+    DEBUG="yes"
+    AC_MSG_RESULT([yes])
+  else
+    DEBUG="no"
+    AC_MSG_RESULT([no])
+  fi],
+ [DEBUG="no"
+  AC_MSG_RESULT([no])])
+
+# If the user has not set CFLAGS, do something appropriate
+test_CFLAGS=${CFLAGS+set}
+if test "$test_CFLAGS" != set; then
+    if test "$DEBUG" == "yes"; then
+        CFLAGS="-O0 -g -DDEBUG"
+    else
+        CFLAGS="-g -O2"
+    fi
+elif test "$DEBUG" == "yes"; then
+    CFLAGS="$CFLAGS -O0 -g -DDEBUG"
+fi
+
+# TNC support (default off)
+AC_ARG_ENABLE(
+  tnc,
+  AC_HELP_STRING([--enable-tnc], [create a IMC/IMV libraries for TNC]),
+  TNC="yes")
+
+AM_CONDITIONAL(OPENPTS_BUILD_LIBTNC, [test "x$TNC" == "xyes"])
+
+
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_LIBTOOL
+
+CFLAGS="$CFLAGS \
+        -DPTS_VER_MAJOR=${PTS_VER_MAJOR} -DPTS_VER_MINOR=${PTS_VER_MINOR} \
+        -DPTS_SPEC_MAJOR=${PTS_SPEC_MAJOR} -DPTS_SPEC_MINOR=${PTS_SPEC_MINOR} \
+        -DOPENPTS_PCR_INDEX=${OPENPTS_PCR_INDEX}"
+
+
+AC_CHECK_PROGS(COPY, cp)
+AC_CHECK_PROGS(ECHO, echo)
+AC_CHECK_PROGS(MKDIR, mkdir)
+AC_CHECK_PROGS(RM, rm)
+
+# NLS
+# /usr/share/aclocal/gettext.m4
+AM_GNU_GETTEXT_VERSION([0.17])
+AM_GNU_GETTEXT([external])
+
+# Arch specific stuff
+# set -m64 CFLAG option for 64bit platforms
+case $target in
+    *ppc64* | *powerpc64* | *x86_64* | *s390x*)
+        CFLAGS="$CFLAGS -m64"
+        ;;
+    *)
+        ;;
+esac
+
+# set OS def
+# TODO add other OSs
+case $target in
+    *linux*)
+        linux=yes
+        AC_DEFINE(HAVE_DAEMON, [1], [have daemon()])
+        AC_DEFINE(HAVE_VSYSLOG, [1], [have vsyslog()])
+        AC_DEFINE(HAVE_SENDFILE, [1], [have vsyslog()])
+        ;;
+    *aix*)
+        aix=yes
+        ;;
+    *solaris*)
+        solaris=yes
+        ;;
+    *)
+        ;;
+esac
+AM_CONDITIONAL(LINUX, [test "x$linux" = xyes])
+AM_CONDITIONAL(AIX, [test "x$aix" = xyes])
+AM_CONDITIONAL(SOLARIS, [test "x$solaris" = xyes])
+
+
+# PKG_CHECK_MODULES(prefix, list-of-modules, action-if-found, action-if-not-found)
+
+# OpenSSL, libcrypto-0.9.X
+#   RHRL6, this set -L/usr/lib6464 :-(
+#     Fix 
+#        /usr/lib64/pkgconfig/openssl.pc
+#        /usr/lib64/pkgconfig/libcrypto.pc
+#        /usr/lib64/pkgconfig/libssl.pc
+#     https://bugzilla.redhat.com/show_bug.cgi?id=605585
+#   Solaris 11 express pkg-config - NA
+PKG_CHECK_MODULES(
+    [LIBCRYPTO],
+    [libcrypto >= 0.9],
+    [AC_DEFINE(HAVE_LIBCRYPTO, [1], [Use LIBCRYPTO])],
+    [AC_MSG_ERROR([libcrypto not found.])]
+)
+AC_SUBST(LIBCRYPTO_CFLAGS)
+AC_SUBST(LIBCRYPTO_LIBS)
+
+# libxml2
+PKG_CHECK_MODULES(
+    [LIBXML2],
+    [libxml-2.0 >= 2.6.0],
+    [AC_DEFINE(HAVE_LIBXML2, [1], [Use LIBXML2])],
+    [AC_MSG_ERROR([libxml-2.0 not found.])]
+)
+AC_SUBST(LIBXML2_CFLAGS)
+AC_SUBST(LIBXML2_LIBS)
+
+# libuuid or libc uuid 
+PKG_CHECK_MODULES(
+    [LIBUUID],
+    [uuid >= 2.0.0],
+    [AM_CONDITIONAL([HAVE_LIBUUID], [true])],
+    [AC_MSG_WARN([libuuid not found. use libc uuid and wrapper])
+     AM_CONDITIONAL([HAVE_LIBUUID], [false])]
+)
+AC_SUBST(LIBUUID_CFLAGS)
+AC_SUBST(LIBUUID_LIBS)
+
+# libtspi
+
+# AC_ARG_WITH ( package , help-string , [ action-if-given ], [ action-if-not-given ]):
+
+# TSS support  (default off, verifier does not requires TSS library?)
+#   RHEL6 missing by pkg-config, use AC_CHECK_LIB
+#        /usr/include/tss
+#   AIX
+#        /usr/include/trousers
+#
+AC_ARG_WITH([tss],
+    [AC_HELP_STRING([--with-tss], [use TSS])],
+    [
+        PKG_CHECK_MODULES(
+            [LIBTSPI],
+            [trousers >= 0.3.4],
+            [
+                AC_DEFINE(HAVE_TSS, [1], [Use TSS])
+                AC_SUBST(TSS_CFLAGS)
+                AC_SUBST(TSS_LIBS)
+            ], [
+                AC_MSG_WARN([libtspi(trousers) not found by pkg-config.])
+                AC_CHECK_LIB(tspi, Tspi_Context_Create,
+                [
+                    if test "x$aix" = xyes; then
+                        TSS_CFLAGS=-I/usr/include/tss
+                    else
+                        TSS_CFLAGS="-I/usr/include/trousers -I/usr/include/tss"
+                    fi
+                    TSS_LIBS=-ltspi
+                    AC_SUBST(TSS_CFLAGS)
+                    AC_SUBST(TSS_LIBS)
+                ], [
+                    AC_MSG_ERROR([libtspi(trousers) not found])
+                ])
+            ]
+        )
+        AC_CHECK_HEADER(trousers/tss.h, [],
+            [AC_MSG_ERROR([trousers(tss) header not found: trousers/tss.h])]
+        )
+    ], [
+        # set CFLAGS for build - TODO depend TSS or not
+        if test "x$aix" = xyes; then
+            TSS_CFLAGS=-I/usr/include/tss
+        else
+            TSS_CFLAGS="-I/usr/include/trousers -I/usr/include/tss"
+        fi
+        AC_SUBST(TSS_CFLAGS)
+    ]
+)
+AM_CONDITIONAL(OPENPTS_BUILD_TSS, [test "x$with_tss" == "xyes"])
+
+
+# AIDE support  (default off, option)
+#   Linux Only?
+AC_ARG_WITH([aide],
+    [AC_HELP_STRING([--with-aide], [use AIDE])])
+AM_CONDITIONAL(OPENPTS_BUILD_AIDE, [test "x$with_aide" == "xyes"])
+
+
+# SQLite support for AIDE
+#   RHEL6 supports pkg-config
+AC_ARG_WITH([sqlite],
+    [AC_HELP_STRING([--with-sqlite], [use SQLite])],
+    [
+        PKG_CHECK_MODULES(
+            [SQLITE],
+            [sqlite3 >= 3.6.0],
+            [
+                AC_DEFINE(HAVE_SQLITE, [1], [Use SQLITE])
+                AC_SUBST(SQLITE_CFLAGS)
+                AC_SUBST(SQLITE_LIBS)
+            ], [
+                AC_MSG_ERROR([sqlite2 not found by pkg-config.])
+            ]
+        )
+    ])
+AM_CONDITIONAL(OPENPTS_BUILD_SQLITE, [test "x$with_sqlite" == "xyes"])
+
+
+# PostgreSQL support for AIDE
+#   RHEL6, missing by pkg-config
+AC_ARG_WITH([pq],
+    [AC_HELP_STRING([--with-pq], [use PostgreSQL])],
+    [
+        LIBPQ_LIBS=-lpq
+        AC_SUBST(LIBPQ_LIBS)
+    ])
+AM_CONDITIONAL(OPENPTS_BUILD_PQ, [test "x$with_pq" == "xyes"])
+
+
+# Auto RM Update (default off, option)
+AC_ARG_WITH([aru],[AC_HELP_STRING([--with-aru], [use Auto RM Update])])
+AM_CONDITIONAL(OPENPTS_BUILD_AUTO_RM_UPDATE, [test "x$with_aru" == "xyes"])
+
+
+# tboot(Intel TXT) support  (default off, option)
+#   Linux Only?
+AC_ARG_WITH([tboot],
+    [AC_HELP_STRING([--with-tboot], [support tboot])])
+AM_CONDITIONAL(OPENPTS_BUILD_TBOOT, [test "x$with_tboot" == "xyes"])
+
+
+# NLS use catgets
+AC_ARG_WITH([catgets],
+    [AC_HELP_STRING([--with-catgets], [use catgets for NLS])],
+    [
+        AC_CHECK_HEADER(nl_types.h,
+            [AC_DEFINE(HAVE_CATGETS, [1], [Use CATGETS])],
+            [AC_MSG_ERROR([catgets header not found: nl_types.h])])
+    ]
+)
+AM_CONDITIONAL(OPENPTS_BUILD_CATGETS, [test "x$with_catgets" == "xyes"])
+
+
+
+AC_HEADER_STDC
+
+AC_C_CONST
+AC_C_INLINE
+
+AC_SYS_LONG_FILE_NAMES
+
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
+AC_TYPE_UID_T
+
+
+
+
+# Doc 
+AM_CONDITIONAL(BUILD_DOCS, test "x$build_doc" = "xyes")
+
+# 
+if test "$CC" = "xlc"; then
+    CFLAGS="$CFLAGS -qcpluscmt"
+else
+    CFLAGS="$CFLAGS -Wall -Werror -Wreturn-type -Wsign-compare"
+fi
+
+AC_CONFIG_FILES(Makefile  \
+        po/Makefile.in    \
+        m4/Makefile       \
+        include/Makefile  \
+        src/Makefile      \
+        doc/Makefile      \
+        doc/doxygen.conf  \
+        models/Makefile   \
+        dist/openpts.spec \
+        dist/ptsc.conf    \
+        dist/ptsv.conf    \
+        man/Makefile      \
+        man/man1/Makefile \
+        man/man3/Makefile \
+        man/man8/Makefile)
+
+AC_OUTPUT
+
