@@ -80,7 +80,7 @@
  */
 AIDE_METADATA * newAideMetadata() {
     AIDE_METADATA *metadata;
-    metadata = malloc(sizeof(AIDE_METADATA));
+    metadata = (AIDE_METADATA *) malloc(sizeof(AIDE_METADATA));
     if (metadata == NULL) {
         ERROR("no memory\n");
         return NULL;
@@ -426,6 +426,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                     sep = strstr(ptr, " ");
                     if (sep == NULL) {
                         ERROR("bad data, %s\n", buf);
+                        freeAideMetadata(md);
                         return -1;
                     } else {
                         *sep = 0;  // set \0

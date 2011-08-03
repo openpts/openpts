@@ -52,7 +52,8 @@ void writeLog(int priority, const char *format, ...) {
     /* remove \n */
     len = strlen(format);
     if (format[len - 1] == '\n') {
-        format2 = malloc(len + 1);  // +1 space
+        // format2 = malloc(len + 1);  // +1 space
+        format2 = (char *) malloc(len);
         memcpy(format2, format, len - 1);
         format2[len - 1] = 0;
         format = format2;

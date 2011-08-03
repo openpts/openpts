@@ -904,7 +904,9 @@ int writeEvent(FILE *fp, TSS_PCR_EVENT *event) {
     rc = fwrite((BYTE *)&event->eventType, 1, 4, fp);      // Event type
     rc = fwrite(event->rgbPcrValue, 1, 20, fp);   // PCR
     rc = fwrite((BYTE *)&event->ulEventLength, 1, 4, fp);  // EventData length
-    rc = fwrite(event->rgbEvent, 1, event->ulEventLength, fp);  // EventData
+    if ((event->rgbEvent != NULL) && (event->ulEventLength > 0)) {
+        rc = fwrite(event->rgbEvent, 1, event->ulEventLength, fp);  // EventData
+    }
     return rc;
 }
 

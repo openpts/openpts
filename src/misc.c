@@ -67,7 +67,7 @@ char * smalloc(char *str) {
     len = (int)strlen(str);
 
     /* malloc */
-    out = malloc(len + 1);
+    out = (char *) malloc(len + 1);
     if (out == NULL) {
         ERROR("smalloc - no memory\n");
         return NULL;
@@ -490,13 +490,19 @@ int makeDir(char *dirname) {
             break;
         case EEXIST:
             /* already exist */
-            lstat(dirname, &st);
-            if ((st.st_mode & S_IFMT) != S_IFDIR) {
-                ERROR("directory, %s is not a directory %x %x\n", dirname, (st.st_mode & S_IFMT), S_IFDIR);
-                rc = PTS_INTERNAL_ERROR;
+            rc = lstat(dirname, &st);
+            if (rc == 0) {
+                if ((st.st_mode & S_IFMT) != S_IFDIR) {
+                    ERROR("directory, %s is not a directory %x %x\n",
+                        dirname, (st.st_mode & S_IFMT), S_IFDIR);
+                    rc = PTS_INTERNAL_ERROR;
+                } else {
+                    // OK
+                    rc = PTS_SUCCESS;
+                }
             } else {
-                // OK
-                rc = PTS_SUCCESS;
+                ERROR("lstat(%s) failed, errno=%d\n", dirname, errno);
+                rc = PTS_FATAL;
             }
             break;
         case EFAULT:

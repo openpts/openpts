@@ -899,6 +899,7 @@ int enroll(
     // TODO free
     // read_tlv->value -= 16; // TODO
     freePtsTlv(read_tlv);
+    read_tlv = NULL;
 
     /* get the Reference Manifest from target(collector) */
 
@@ -1162,6 +1163,7 @@ int verifier(
 
     /* C->V  D-H nonce param res ---------------------------------- */
     freePtsTlv(read_tlv);
+    read_tlv = NULL;
 
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
@@ -1222,6 +1224,8 @@ int verifier(
 
     /* C->V IR ------------------------------------------------------------ */
     freePtsTlv(read_tlv);
+    read_tlv = NULL;
+
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
         ERROR("REQUEST_INTEGRITY_REPORT was failed, check the collector");
