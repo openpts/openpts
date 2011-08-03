@@ -1,0 +1,12 @@
+apidoc_html
+apidoc_latex
+
+*.bb
+*.aux
+*.toc
+*.log
+*.out
+*.dvi
+*.pdf
+*.conf
+images
