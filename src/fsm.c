@@ -743,8 +743,9 @@ int addFsmTransition(
     return PTS_INTERNAL_ERROR;
 }
 
+#if 0
 /**
- * get Event String (malloc)
+ * get Event String (malloc) - obsolete function
  */
 char *getEventString(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     // int len;
@@ -771,6 +772,7 @@ char *getEventString(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     return buf;
 }
+#endif
 
 /**
  * get counter(int) value from property

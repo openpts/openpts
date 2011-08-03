@@ -1992,7 +1992,8 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     }
 }
 
-
+#if 0
+// obsolete functions
 /**
  * \brief print event of selected PCR index
  * \return num of event
@@ -2056,6 +2057,7 @@ int printIml(OPENPTS_CONTEXT * ctx) {
 
     return rc;
 }
+#endif
 
 #if 0
 // TODO REMOVE
