@@ -26,9 +26,11 @@
  * \brief Base64 Encode/Decode
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-01-22 SM
+ * cleanup 2011-08-17 SM
  *
  * http://en.wikipedia.org/wiki/Base64
+ *
+ * 2011-08-17 SM - encodebase64 & decodeBase64  - alloc output buffer
  */
 
 #include <stdio.h>
@@ -38,9 +40,12 @@
 #include <openpts.h>
 
 /**
-  * calc base64 size 
-  */
-int base64size(int len) {
+ * calc base64 size
+ *
+ * string(or binary data) => base64 string + 1
+ * Output is actual string size + 1 (for \0)
+ */
+int _sizeofBase64Encode(int len) {
     /* check */
     if (len <  0) return 0;
     if (len == 0) return 1;
@@ -49,9 +54,26 @@ int base64size(int len) {
 }
 
 /**
-  * Encode BYTE[] to Base64 string
-  */
-int encodeBase64(unsigned char *out, unsigned char * in, int len) {
+ * calc original data size from base64 string size
+ *
+ * This is rough estimation.
+ * Output is actual string size (+1 or +2) + 1 (for \0)
+ *
+ */
+int _sizeofBase64Decode(int len) {
+    /* check */
+    if (len <  0) return 0;
+    if (len == 0) return 1;
+
+    return (len / 4 * 3) + 1;
+}
+
+
+
+/**
+ * Encode BYTE[] to Base64 string
+ */
+int _encodeBase64(char *out, unsigned char * in, int len) {
     int ptr1 = 0;
     int ptr2 = 0;
 
@@ -112,10 +134,42 @@ int encodeBase64(unsigned char *out, unsigned char * in, int len) {
         }
     }
 
+    /* add \0 at the end of buffer */
     out[ptr2] = 0;
+
     return ptr2;
 }
+/**
+ * Encode BYTE[] to Base64 string
+ *
+ * @param  *in     buffer of input data
+ * @param  inlen   length
+ * @raram  *outlen size of output
+ * @return *out    Base64 string, malloc new buffer
+ */
+char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
+    char *out;
+    int len2;
 
+    *outlen = _sizeofBase64Encode(inlen);
+    out = (char *) malloc(*outlen);
+    if (out == NULL) {
+        ERROR("no memory");
+        *outlen = 0;
+        return NULL;
+    }
+    memset(out,0,*outlen);
+
+    len2 = _encodeBase64(out, in, inlen);
+    if (len2 > *outlen) {
+        ERROR("fatal error");
+        free(out);
+        *outlen = 0;
+        return NULL;
+    }
+
+    return out;
+}
 
 /**
   * return length - TBD
@@ -141,13 +195,15 @@ unsigned char trans(unsigned char in) {
 /**
   * Decode Base64 string to BYTE[]
   *
+  * caller must provide the buffer
+  *
   * return size of BYTE[] array
   */
-int decodeBase64core(unsigned char *out, unsigned char * in, int len) {
-    int ptr1 = 0;
-    int ptr2 = 0;
+int _decodeBase64core(unsigned char *out, char * in, int len) {
+    int ptr1 = 0; // in
+    int ptr2 = 0; // out
     int len2;
-    unsigned char * in2;
+    char * in2;
 
     /* check */
     if (out ==NULL) {
@@ -206,17 +262,24 @@ int decodeBase64core(unsigned char *out, unsigned char * in, int len) {
         }
     }
 
-    // DEBUG("base64 [%s] > [%s]\n",in, out);
-    // not here, binnary data is also decoded  out[ptr2]=0;  // put \0
+
+    /* Anyway, add \0 at the end of buffer */
+    // TODO("out[%d] = 0\n", ptr2);
+    out[ptr2] = 0;
+
     return ptr2;
 }
 
 
 /**
- * remove space CR
+ * remove space & CR in Base64 string
+ *
+ * @param  *in   Base64 string buffer
+ * @param  *len  size of buffer, before and after
+ * @return       new Base64 string buffer (malloced)
  */
-unsigned char * removeCR(unsigned char *in, int *len) {
-    unsigned char *out;
+char * _removeCR(char *in, int *len) {
+    char *out;
     int i;
     int j = 0;
 
@@ -231,31 +294,74 @@ unsigned char * removeCR(unsigned char *in, int *len) {
             /* skip */
             // DEBUG("SP\n");
         } else {
+            /* valid data */
             out[j]=in[i];
             j++;
         }
     }
 
     *len = j;
+    // note)
+    // if there are no skip, it return same buffer
+    // if there are skip, out[j] is 0, since memset(0) before
 
     return out;
 }
 
 /**
-  * Decode Base64(with CRLF) string to BYTE[] 
+  * Decode Base64(with CRLF) string to BYTE[]
   *
-  * return size of BYTE[] array
+  * @param *out
+  * @param *in
+  * @param *len
+  * @return size of BYTE[] array
   */
-int decodeBase64(unsigned char *out, unsigned char * in, int len) {
+int _decodeBase64(unsigned char *out, char * in, int len) {
     int rc;
-    unsigned char * in2;
+    char * in2;
     int len2 = len;
 
-    in2 = removeCR(in, &len2);
+    in2 = _removeCR(in, &len2);
 
-    rc = decodeBase64core(out, in2, len2);
+    rc = _decodeBase64core(out, in2, len2);
 
     free(in2);
 
     return rc;
+}
+
+/**
+ * Decode Base64(with CRLF) string to BYTE[]
+ *
+ * @param  *in     buffer of base64 string
+ * @param  inlen   length
+ * @raram  *outlen size of BYTE[] array from base64 string, malloced size is bigger then this
+ * @return *out    malloc new buffer
+ */
+unsigned char *decodeBase64(char * in, int inlen, int *outlen) {
+    unsigned char *out;
+    int len1;
+    int len2;
+
+    len1 = _sizeofBase64Decode(inlen);
+    out = (unsigned char *) malloc(len1);
+    if (out == NULL) {
+        ERROR("no memory");
+        *outlen = 0;
+        return NULL;
+    }
+    memset(out,0,len1);
+
+    len2 = _decodeBase64(out, in, inlen);
+    if (len2 > len1) {
+        ERROR("fatal error");
+        free(out);
+        *outlen = 0;
+        return NULL;
+    }
+
+    /* return actial data size created from base64 */
+    *outlen = len2;
+
+    return out;
 }

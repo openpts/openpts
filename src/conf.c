@@ -351,6 +351,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     int len;
     char *path;
     char *filename2 = NULL;  // fullpath
+    int buf_len;
 
     DEBUG("readPtsConfig()            : %s\n", filename);
 
@@ -798,19 +799,18 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             }
             /* PUBKEY */
             if (!strncmp(name, "target.pubkey", 13)) {
-                // TODO used by two
                 if (conf->pubkey != NULL) {
-                    // DEBUG("realloc conf->pubkey\n");  // TODO realloc happen
                     free(conf->pubkey);
                 }
-
-                conf->pubkey = malloc(strlen(value));  // TODO too big:-P
-                rc = decodeBase64(conf->pubkey, (BYTE *)value, strlen(value));
-                if (rc < 0) {
-                    ERROR("read PUBKEY fail rc=%d\n", rc);
+                conf->pubkey = decodeBase64(
+                    (char *)value,
+                    strlen(value),
+                    &buf_len);
+                if (conf->pubkey == NULL) {
+                    ERROR("decodeBase64");
                     conf->pubkey_length = 0;
                 } else {
-                    conf->pubkey_length = rc;
+                    conf->pubkey_length = buf_len;
                     DEBUG("pubkey length              : %d\n", conf->pubkey_length);
                 }
             }
@@ -958,8 +958,12 @@ int writeTargetConf(OPENPTS_CONFIG *conf, PTS_UUID *uuid, char *filename) {
 
     if (conf->pubkey_length > 0) {
         char *buf;  // TODO
-        buf = malloc(1000);
-        encodeBase64((unsigned char *)buf, (unsigned char *)conf->pubkey, conf->pubkey_length);
+        int buf_len;
+
+        buf = encodeBase64(
+            (unsigned char *)conf->pubkey,
+            conf->pubkey_length,
+            &buf_len);
         fprintf(fp, "target.pubkey=%s\n", buf);  // base64
         free(buf);
     }

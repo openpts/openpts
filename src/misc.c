@@ -126,7 +126,10 @@ char * snmalloc(char *str, int len) {
 }
 
 /**
- * get string
+ * get NEW string buffer
+ *
+ *  snmalloc2("ABCDEF", 2,3) => "CDE"
+ *
  *
  * @param buf input
  * @param offset
@@ -375,8 +378,14 @@ char *getHexString(BYTE *bin, int size) {
     buf = malloc(size * 2 + 1);
     ptr = buf;
     for (i = 0; i < size; i++) {
-        len = snprintf(ptr, sizeof(ptr), "%02x", bin[i]);
-        ptr += len;
+        //len = snprintf(ptr, sizeof(ptr), "%02x", bin[i]);
+        len = snprintf(ptr, 3, "%02x", bin[i]);
+        if (len != 2) {
+            ERROR("FATAL");
+            free(buf);
+            return NULL;
+        }
+        ptr += 2; //len;
     }
 
     return buf;

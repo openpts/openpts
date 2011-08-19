@@ -24,7 +24,7 @@
  * \brief Convert binary IML file to plaintext
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-25
- * cleanup 2011-05-31 SM
+ * cleanup 2011-08-17 SM
  *
  * show eventlog (get though TSS)
  *
@@ -260,7 +260,8 @@ void fprintEventData(
         UINT32 type,
         BYTE*  digest) {
     char buf[BUFSIZE];
-    char b64buf[BUFSIZE];
+    char *b64buf; //[BUFSIZE];
+    int b64buf_len;
     int i;
 
     if (len < BUFSIZE) {
@@ -717,11 +718,18 @@ EventData
                 for (i = 0; i < (int)len; i++) {
                     fprintf(fp, "%02x", (BYTE)buf[i]);
                 }
-                encodeBase64(
-                    (unsigned char *)b64buf,
-                    (unsigned char *)buf, len);
-                fprintf(fp, ", base64(%s)", b64buf);
-                fprintf(fp, "]");
+                b64buf = encodeBase64(
+                    //(unsigned char *)b64buf,
+                    (unsigned char *)buf,
+                    len,
+                    &b64buf_len);
+                if (b64buf == NULL) {
+                    ERROR("encodeBase64 fail");
+                } else {
+                    fprintf(fp, ", base64(%s)", b64buf);
+                    fprintf(fp, "]");
+                    free(b64buf);
+                }
             } else {
                 fprintf(fp, "[Unknown Event:size=%d] ", len);
             }

@@ -761,11 +761,8 @@ UINT32 freadUint32(FILE * stream, int endian);
 OPENPTS_PCR_EVENT_WRAPPER * newEventWrapper();
 
 /* base64.c */
-int base64size(int len);
-int encodeBase64(unsigned char *out, unsigned char * in, int len);
-int decodeBase64(unsigned char *out, unsigned char * in, int len);
-int decodeBase64core(unsigned char *out, unsigned char * in, int len);
-
+char *encodeBase64(unsigned char * in, int inlen, int *outlen);
+unsigned char *decodeBase64(char * in, int inlen, int *outlen);
 
 /* fsm.c */
 // TODO refectoring

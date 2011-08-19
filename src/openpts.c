@@ -406,7 +406,7 @@ int main(int argc, char *argv[]) {
         if (checkDir(target_conf_dir) == PTS_SUCCESS) {
             initialized++;  // 1->2
         } else {
-            ERROR("%s is missing", target_conf_dir);
+            ERROR("target_conf_dir, %s is missing", target_conf_dir);
         }
     }
 

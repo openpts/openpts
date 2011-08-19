@@ -249,7 +249,8 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
 
     if (!strcmp(value, "digest")) {
         /* if value = digest, base64 -> set digest as value */
-        char b64digest[SHA1_BASE64_DIGEST_SIZE+1];
+        char *buf;
+        int buf_len;
 
         /* check */
         if (eventWrapper == NULL) {
@@ -257,12 +258,16 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
             return 0;  // PTS_INTERNAL_ERROR;
         }
 
-        encodeBase64((unsigned char *)b64digest, (unsigned char *)eventWrapper->event->rgbPcrValue, SHA1_DIGEST_SIZE);
-        b64digest[SHA1_BASE64_DIGEST_SIZE] = 0;
-
-        value = b64digest;
-
-        setProperty(ctx, name, value);  // TODO
+        buf = encodeBase64(
+            (unsigned char *)eventWrapper->event->rgbPcrValue,
+            SHA1_DIGEST_SIZE,
+            &buf_len);
+        if (buf == NULL) {
+            ERROR("encodeBase64 fail");
+            return PTS_FATAL;
+        }
+        setProperty(ctx, name, buf);  // TODO
+        free(buf);
     } else if (!strcmp(value, "eventdata")) {
         TSS_PCR_EVENT *event;
         char * str;

@@ -239,7 +239,7 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
     return read_tlv;
 
   error:
-    if (read_msg != NULL) free(read_msg);
+    // if (read_msg != NULL) free(read_msg);
     if (read_tlv != NULL) freePtsTlv(read_tlv);
     return NULL;
 }

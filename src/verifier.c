@@ -86,10 +86,12 @@ int verifierHandleCapability(
     OPENPTS_UUID *verifier_uuid = NULL;
     int rc = 0;
     int i;
-    char * collector_dir = NULL;
-    char * rm_dir = NULL;
     OPENPTS_CONFIG *target_conf = NULL;
     OPENPTS_CONFIG *conf = NULL;
+    // local buffer
+    char * collector_dir = NULL;
+    char * rm_dir = NULL;
+
 
     /**/
     conf = ctx->conf;
@@ -349,9 +351,11 @@ int verifierHandleCapability(
         }
     }
 
-    return PTS_SUCCESS;
+    rc = PTS_SUCCESS;
 
   close:
+    if (rm_dir != NULL) free(rm_dir);
+    if (collector_dir != NULL) free(collector_dir);
 
     return rc;
 }
@@ -1045,7 +1049,10 @@ int enroll(
     }
 
     /* save target conf */
-    writeTargetConf(target_conf, target_conf->uuid->uuid, target_conf->config_file);  // ctx.c
+    writeTargetConf(
+        target_conf,
+        target_conf->uuid->uuid,
+        target_conf->config_file);  // conf.c
 
     /* OK */
     rc = PTS_SUCCESS;
@@ -1088,8 +1095,8 @@ int verifier(
     /* TLV/PTS */
     PTS_IF_M_Attribute *read_tlv = NULL;
     OPENPTS_CONFIG *conf;
-    char * collector_dir = NULL;
-    char * rm_dir = NULL;
+    // char * collector_dir = NULL;
+    // char * rm_dir = NULL;
     OPENPTS_IF_M_Capability *cap;
 
     DEBUG("verifier() - start\n");
@@ -1276,8 +1283,8 @@ int verifier(
   out:
     /* free */
     if (read_tlv != NULL) freePtsTlv(read_tlv);
-    if (collector_dir != NULL) free(collector_dir);
-    if (rm_dir != NULL) free(rm_dir);
+    // if (collector_dir != NULL) free(collector_dir);
+    // if (rm_dir != NULL) free(rm_dir);
     if ((rc == PTS_VERIFY_FAILED) && (mode == 1)) {
         DEBUG("verifier() - update the policy");
         rc = PTS_SUCCESS;

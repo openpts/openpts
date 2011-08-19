@@ -847,7 +847,7 @@ TNC_IMV_API TNC_Result TNC_IMV_SolicitRecommendation(
 
 
     if (result == OPENPTS_RESULT_VALID) {
-        TODO("verifier() result      : VALID");
+        DEBUG("verifier() result      : VALID");
         str            = (TNC_BufferReference)"valid";
         recommendation = TNC_IMV_ACTION_RECOMMENDATION_ALLOW;
         evaluation     = TNC_IMV_EVALUATION_RESULT_COMPLIANT;

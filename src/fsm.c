@@ -373,6 +373,7 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
     int len;
     int rc = 0;
     BYTE *buf;
+    int buf_len;
 
     DEBUG_CAL("getDigestFlag -");
 
@@ -431,27 +432,20 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
         } else {
             /* Binary Model */
             /* Base64 str -> BYTE[] */
-            buf = (BYTE *) malloc(SHA1_DIGEST_SIZE + 1);
+            buf = decodeBase64(
+                (char *)loc,
+                SHA1_BASE64_DIGEST_SIZE,
+                &buf_len);
             if (buf == NULL) {
-                ERROR("no memory");
-                return -1;
-            }
-
-            // TODO(munetoh) get len, "<"
-            rc = decodeBase64(buf, (unsigned char *)loc, SHA1_BASE64_DIGEST_SIZE);
-            if (rc == SHA1_DIGEST_SIZE) {
-                // TODO(munetoh) digest size change by alg
-                // this code is SHA1 only
-                *digest = buf;
-                *digest_size = rc;
-                return 1;
-            } else {
-                ERROR("getDigestFlag() - decodeBase64() was failed \n");
-                free(buf);
+                ERROR("decodeBase64 fail");
                 *digest = NULL;
                 *digest_size = 0;
                 return -1;
             }
+            *digest = buf;
+            // TODO buf_len >= SHA1_DIGEST_SIZE
+            *digest_size = SHA1_DIGEST_SIZE;
+            return 1;
         }
     }
 }

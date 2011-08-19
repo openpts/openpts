@@ -459,11 +459,14 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                     case AIDE_ITEM_SHA1:   // base64
                         if (!is_null) {
                             sha1_b64_ptr = ptr;
-                            md->sha1 = malloc(SHA1_DIGEST_SIZE + 8);
-                            len = decodeBase64(
-                                md->sha1,
-                                (unsigned char *)ptr,
-                                SHA1_BASE64_DIGEST_SIZE);
+                            md->sha1 = decodeBase64(
+                                (char *)ptr,
+                                SHA1_BASE64_DIGEST_SIZE,
+                                &len);
+                            if (md->sha1 == NULL) {
+                                ERROR("decodeBase64 fail");
+                                goto close;
+                            }
                             if (len != SHA1_DIGEST_SIZE) {
                                 ERROR("bad SHA1 size %d  %s\n", len, ptr);
                                 // printf("base64 [%s] => [", ptr);
@@ -474,11 +477,14 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                         break;
                     case AIDE_ITEM_SHA256:  // base64
                         if (!is_null) {
-                            md->sha256 = malloc(SHA256_DIGEST_SIZE);
-                            len = decodeBase64(
-                                md->sha256,
-                                (unsigned char *)ptr,
-                                SHA256_BASE64_DIGEST_SIZE);
+                            md->sha256 = decodeBase64(
+                                (char *)ptr,
+                                SHA256_BASE64_DIGEST_SIZE,
+                                &len);
+                            if (md->sha256 == NULL) {
+                                ERROR("decodeBase64 fail");
+                                goto close;
+                            }
                             if (len != SHA256_DIGEST_SIZE) {
                                 ERROR("bad SHA256 size %d\n", len);
                                 printf("base64 [%s] => [", ptr);
@@ -491,11 +497,14 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                         break;
                     case AIDE_ITEM_SHA512:  // base64
                         if (!is_null) {
-                            md->sha512 = malloc(SHA512_DIGEST_SIZE);
-                            len = decodeBase64(
-                                md->sha512,
-                                (unsigned char *)ptr,
-                                SHA512_BASE64_DIGEST_SIZE);
+                            md->sha512 = decodeBase64(
+                                (char *)ptr,
+                                SHA512_BASE64_DIGEST_SIZE,
+                                &len);
+                            if (md->sha512 == NULL) {
+                                ERROR("decodeBase64 fail");
+                                goto close;
+                            }
                             if (len != SHA512_DIGEST_SIZE) {
                                 ERROR("bad SHA512 size %d\n", len);
                                 printf("base64 [%s] => [", ptr);
@@ -561,7 +570,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
             // ignore printf("??? [%s]\n", buf);
         }  // if
     }  // while
-
+ close:
     gzclose(fp);
     DEBUG("loadAideDatabaseFile - has %d entries\n", ctx->metadata_num);
     DEBUG("loadAideDatabaseFile - done\n");
@@ -816,8 +825,9 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     TSS_PCR_EVENT *event;
     char *name;
     int rc = 0;
+    char *buf;
+    int buf_len;
 #ifdef CONFIG_SQLITE
-    BYTE b64[SHA1_BASE64_DIGEST_SIZE+1];
 #else
     AIDE_METADATA *md;
 #if AIDE_CHBY_LIST
@@ -825,8 +835,7 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
 #else
     ENTRY e;
     ENTRY *ep;
-    BYTE b64[SHA1_BASE64_DIGEST_SIZE+1];
-#endif
+#endif  //  AIDE_CHBY_LIST
 #endif  //  CONFIG_SQLITE
 
     // DEBUG("checkEventByAide - start\n");
@@ -862,10 +871,16 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     /* OK, let's find the HIT */
 #ifdef CONFIG_SQLITE
     /* base64 */
-    encodeBase64(b64, event->rgbEvent, 20);
-    b64[SHA1_BASE64_DIGEST_SIZE] = 0;
-
-    rc = verifyBySQLite(ctx, (char*)b64);
+    buf = encodeBase64(
+            event->rgbEvent,
+            20
+            &buf_len);
+    if (buf == NULL) {
+        ERROR("encodeBase64 fail");
+        return -1;
+    }
+    rc = verifyBySQLite(ctx, (char*)buf);
+    free(buf);
 
     if (rc == OPENPTS_RESULT_VALID) {
         /* hit */
@@ -904,10 +919,15 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     DEBUG_FSM("checkFileByAide - MISS\n");
 #else  // hashtable
 
-    encodeBase64(b64, event->rgbEvent, 20);
-    b64[SHA1_BASE64_DIGEST_SIZE] = 0;
-
-    e.key = (char *) b64;  // size?
+    buf = encodeBase64(
+            event->rgbEvent,
+            20,
+            &buf_len);
+    if (buf == NULL) {
+        ERROR("encodeBase64 fail");
+        return -1;
+    }
+    e.key = (char *) buf;  // size?
     e.data = NULL;  // just initialized for static analysys
 
     // before (list)
@@ -1112,7 +1132,8 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
     OPENPTS_SNAPSHOT *ss;
     OPENPTS_PCR_EVENT_WRAPPER *eventWrapper;
     TSS_PCR_EVENT *event;
-    unsigned char buf[128];  // TODO(munetoh)
+    char *buf;
+    int buf_len;
     char *aide_filename = NULL;
     int len;
 
@@ -1149,7 +1170,6 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
 
     // for (i = 0; i < ctx->eventNum; i++) {
     for (i = 0; i < ctx->ss_table->event_num; i++) {  // TODO ss->event_num?
-        memset(buf, 0, sizeof(buf));
         // DEBUG("SM DEBUG event %p\n",event);
 
         if (event == NULL) {
@@ -1188,8 +1208,16 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
         }
 
         /* digest */
-        encodeBase64(buf, (unsigned char *)event->rgbEvent, SHA1_DIGEST_SIZE);
+        buf = encodeBase64(
+            (unsigned char *)event->rgbEvent,
+            SHA1_DIGEST_SIZE,
+            &buf_len);
+        if (buf == NULL) {
+            ERROR("encodeBase64 fail");
+            goto close;
+        }
         gzprintf(fp, "%s \n", buf);
+        free(buf);
 
         // printf("%d %s\n", i, buf);
 
@@ -1233,7 +1261,8 @@ int writeReducedAidbDatabase(AIDE_CONTEXT *ctx, char *filename) {
     AIDE_METADATA *md;
     int i;
     int cnt = 0;
-    unsigned char buf[128];  // TODO(munetoh)
+    char *buf;
+    int buf_len;
 
     DEBUG("writeReducedAidbDatabase %s\n", filename);
 
@@ -1263,10 +1292,17 @@ int writeReducedAidbDatabase(AIDE_CONTEXT *ctx, char *filename) {
 
         if (md->status == OPENPTS_AIDE_MD_STATUS_HIT) {
             // printf("+");
-            memset(buf, 0, sizeof(buf));
-            encodeBase64(buf, (unsigned char *)md->sha1, SHA1_DIGEST_SIZE);
+            buf = encodeBase64(
+                (unsigned char *)md->sha1,
+                SHA1_DIGEST_SIZE,
+                &buf_len);
+            if (buf == NULL) {
+                ERROR("encodeBase64 fail");
+                return -1;
+            }
             gzprintf(fp, "%s ", md->name);
             gzprintf(fp, "%s \n", buf);
+            free(buf);
             cnt++;
         }
 

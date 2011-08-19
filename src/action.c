@@ -198,29 +198,32 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
     switch (event_id) {
         case 0x0001:
             {
-                char *b64;
-                int len;
+                char *buf;
+                int buf_len;
+
                 /* SMBIOS */
                 // bios.smbios=base64()
                 ctx->conf->smbios_length = event_length;
                 ctx->conf->smbios = &event->rgbEvent[8];
 
                 /* base64 */
-                b64 = malloc(base64size(ctx->conf->smbios_length));
-                // TODO check null
-                len = encodeBase64(
-                        (unsigned char *)b64,
+                buf = encodeBase64(
+                        //(unsigned char *)b64,
                         (unsigned char *)ctx->conf->smbios,
-                        ctx->conf->smbios_length);
-
-                if (len > BUF_SIZE) {
-                    ERROR("SMBIOS size = %d\n", len);  // Thinkpad X200 => 3324
+                        ctx->conf->smbios_length,
+                        &buf_len);
+                if (buf == NULL) {
+                    ERROR("encodeBase64 fail");
+                    return PTS_FATAL;
+                }
+                if (buf_len > BUF_SIZE) {
+                    ERROR("SMBIOS size = %d\n", buf_len);  // Thinkpad X200 => 3324
                     updateProperty(ctx, "bios.smbios", "too big");
                 } else {
-                    updateProperty(ctx, "bios.smbios", b64);
+                    updateProperty(ctx, "bios.smbios", buf);
                 }
                 // rc = 0;
-                free(b64);
+                free(buf);
             }
             break;
         default:
@@ -306,8 +309,8 @@ int validateEltoritoBootImage(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *e
  */
 int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     TSS_PCR_EVENT *event;
-    char b64digest[SHA1_BASE64_DIGEST_SIZE + 1];
     char *buf;
+    int buf_len;
 
     // DEBUG("setModuleProperty - NA\n");
 
@@ -325,10 +328,16 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
     }
 
     /* kernel.initrd.digest = PCR => B64 digest */
-    encodeBase64((unsigned char *)b64digest, (unsigned char *)event->rgbPcrValue, SHA1_DIGEST_SIZE);
-    b64digest[SHA1_BASE64_DIGEST_SIZE] = 0;
-
-    updateProperty(ctx, "kernel.initrd.digest", b64digest);
+    buf = encodeBase64(
+        (unsigned char *)event->rgbPcrValue,
+        SHA1_DIGEST_SIZE,
+        &buf_len);
+    if (buf == NULL) {
+        ERROR("encodeBase64 fail");
+        return PTS_INTERNAL_ERROR;
+    }
+    updateProperty(ctx, "kernel.initrd.digest", buf);
+    free(buf);
 
     // updateProperty(ctx, "kernel.initrd.filename", (char*)event->rgbEvent);
     /* add \n */
@@ -625,7 +634,6 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
 #ifdef CONFIG_AIDE
     TSS_PCR_EVENT *event;
 #endif
-    // char b64digest[SHA1_BASE64_DIGEST_SIZE+1];
 
     DEBUG_CAL("validateImaMeasurement - start\n");
 
@@ -646,7 +654,8 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
     if (ctx->conf->ima_validation_mode == OPENPTS_VALIDATION_MODE_AIDE) {
         int rc = 0;
         char *name;
-        char b64digest[SHA1_BASE64_DIGEST_SIZE+1];
+        char *buf;
+        int buf_len;
 
         rc = checkEventByAide(ctx->aide_ctx, eventWrapper);
 
@@ -665,9 +674,16 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
 #ifdef CONFIG_SQLITE
             // TODO no md,
 #else
-            encodeBase64((unsigned char *)b64digest, (unsigned char *)md->sha1, SHA1_DIGEST_SIZE);
-            b64digest[SHA1_BASE64_DIGEST_SIZE] = 0;
-            updateImaProperty(ctx, md->name, b64digest, "valid");
+            buf = encodeBase64(
+                (unsigned char *)md->sha1,
+                SHA1_DIGEST_SIZE,
+                &buf_len);
+            if (buf == NULL) {
+                ERROR("encodeBase64 fail");
+                return PTS_INTERNAL_ERROR;
+            }
+            updateImaProperty(ctx, md->name, buf, "valid");
+            free(buf);
 #endif
             eventWrapper->status = OPENPTS_RESULT_VALID;
             free(name);
@@ -682,10 +698,18 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
             // DEBUG("validateImaMeasurement w/ AIDE - MISS name=[%s]\n", name);
             // updateProperty(ctx, buf, "invalid");
             ctx->ima_unknown++;
-            encodeBase64((unsigned char *)b64digest, (unsigned char *)event->rgbEvent, SHA1_DIGEST_SIZE);
-            b64digest[SHA1_BASE64_DIGEST_SIZE] = 0;
-            updateImaProperty(ctx, name, b64digest, "unknown");  // action.c
+            buf = encodeBase64(
+                (unsigned char *)event->rgbEvent,
+                SHA1_DIGEST_SIZE,
+                &buf_len);
+            if (buf == NULL) {
+                ERROR("encodeBase64 fail");
+                return PTS_INTERNAL_ERROR;
+            }
+            updateImaProperty(ctx, name, buf, "unknown");  // action.c
             eventWrapper->status = OPENPTS_RESULT_UNKNOWN;
+            free(buf);
+
             /* add to */
             {
                 char *hex;
@@ -846,15 +870,29 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
     /* Error */
     // printout the example IR data to create the test case
     {
-        unsigned char b64[256];
+        char *buf;
+        int buf_len;
 
         if (start == NULL) {
             start = malloc(sizeof(OPENPTS_EVENT_COLLECTOR_START));
+            if (start == NULL) {
+                ERROR("no memory");
+                return PTS_INTERNAL_ERROR;
+            }
         }
         printHex("OPENPTS_EVENT_COLLECTOR_START",
             (unsigned char*)start, sizeof(OPENPTS_EVENT_COLLECTOR_START), "\n");
-        encodeBase64(b64, (unsigned char *)start, sizeof(OPENPTS_EVENT_COLLECTOR_START));
-        ERROR("EventData: %s\n", b64);
+        buf = encodeBase64(
+            (unsigned char *)start,
+            sizeof(OPENPTS_EVENT_COLLECTOR_START),
+            &buf_len);
+        if (buf == NULL) {
+            ERROR("encodeBase64 fail");
+            rc = PTS_INTERNAL_ERROR;
+            goto free;
+        }
+        ERROR("EventData: %s\n", buf);
+        free(buf);
 
         memcpy(&start->pts_version, &ctx->target_conf->pts_version, 4);
         memcpy(&start->collector_uuid, ctx->target_conf->uuid->uuid, 16);
@@ -862,8 +900,18 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
 
         printHex("OPENPTS_EVENT_COLLECTOR_START",
             (unsigned char*)start, sizeof(OPENPTS_EVENT_COLLECTOR_START), "\n");
-        encodeBase64(b64, (unsigned char *)start, sizeof(OPENPTS_EVENT_COLLECTOR_START));
-        ERROR("EventData: %s\n", b64);
+        buf = encodeBase64(
+            (unsigned char *)start,
+            sizeof(OPENPTS_EVENT_COLLECTOR_START),
+            &buf_len);
+        if (buf == NULL) {
+            ERROR("encodeBase64 fail");
+            rc = PTS_INTERNAL_ERROR;
+            goto free;
+        }
+        ERROR("EventData: %s\n", buf);
+        free(buf);
+  free:
         free(start);
     }
 
