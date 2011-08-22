@@ -371,7 +371,6 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
     char * loc;   // loc at value
     char * loc2;  // loc at "base64"
     int len;
-    int rc = 0;
     BYTE *buf;
     int buf_len;
 
@@ -405,7 +404,7 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
             return -1;  // end
         }
         if ((loc[0] == '=') && (loc[1] == '=')) {  // ==
-            rc = 1;
+            // operand is ==
         } else {
             ERROR("ERROR 002 [%c%c]  not  == \n", loc[0], loc[1]);
             return -1;  // unknown operand
