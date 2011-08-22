@@ -31,6 +31,9 @@
  * http://en.wikipedia.org/wiki/Base64
  *
  * 2011-08-17 SM - encodebase64 & decodeBase64  - alloc output buffer
+ * 2011-08-21 SM - remove _removeCR() and malloc
+ * 2011-08-21 SM - check bad string in BASE64 msg.
+ *
  */
 
 #include <stdio.h>
@@ -67,7 +70,6 @@ int _sizeofBase64Decode(int len) {
 
     return (len / 4 * 3) + 1;
 }
-
 
 
 /**
@@ -171,18 +173,11 @@ char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
     return out;
 }
 
-/**
-  * return length - TBD
-  */
-int plain64size(int len) {
-    // TODO(munetoh) calc
-    return len;
-}
 
 /**
-  * trans
+  * trans (do not check the bad input)
   */
-unsigned char trans(unsigned char in) {
+unsigned char _b64trans(unsigned char in) {
     if (in == '+') return 62;
     if (in == '/') return 63;
     if (in >= 'a') return (in-'a' + 26);
@@ -190,6 +185,34 @@ unsigned char trans(unsigned char in) {
     if (in >= '0') return (in-'0' + 52);
     return 0xFF;
 }
+
+/**
+ * string length without space at the end
+ */
+int _strippedlength(char * in, int len) {
+    int skip = 0;
+    int i;
+
+    /* last char */
+    i = len - 1;
+
+    while(1) {
+        if (in[i] == '\n') {
+            /* skip */
+            skip++;
+        } else if (in[i] == ' ') {
+            /* skip */
+            skip++;
+        } else {
+            /* valid data */
+            break;
+        }
+        i = i - 1;
+    }
+
+    return len - skip;
+}
+
 
 
 /**
@@ -199,136 +222,116 @@ unsigned char trans(unsigned char in) {
   *
   * return size of BYTE[] array
   */
-int _decodeBase64core(unsigned char *out, char * in, int len) {
+int _decodeBase64(unsigned char *out, char * in, int len) {
     int ptr1 = 0; // in
     int ptr2 = 0; // out
     int len2;
     char * in2;
+    char inbuf[4];
+    int i,j;
+    int skip;
 
     /* check */
-    if (out ==NULL) {
+    if (out == NULL) {
         ERROR("decodeBase64core - out is NULL\n");
         return -1;
     }
-
+    /* null input? */
+    if (in == NULL) {
+        ERROR("decodeBase64core - in is NULL\n");
+        return -1;
+    }
+    /* in[0] => out[0]=\0 */
     if (len == 0) {
         out[0] = 0;
         return 0;
     }
 
-    len2 = len;
+    len2 = _strippedlength(in, len);
     in2 = in;
 
-    // printf("[%3d]=[%s]\n", len2, in2);
-
     /* Trans */
-
     while (1) {
+        /* check remain buffer size >= 4 */
+        if (len2 < 4) {
+            ERROR("bad base64 data size");
+            goto error;
+        }
+        /* remove CR and Space and check bad string */
+        j = 0;
+        skip = 0;
+        for (i = ptr1; j < 4 ; i++) {
+            if (in2[i] == '\n') {
+                /* skip */
+                skip++;
+            } else if (in2[i] == ' ') {
+                /* skip */
+                skip++;
+            } else {
+                if ((in2[i] == 0x2B) ||
+                   (in2[i] == 0x2F) ||
+                   (in2[i] == 0x3D) ||
+                   ((0x30 <= in2[i]) && (in2[i] <= 0x39)) ||
+                   ((0x41 <= in2[i]) && (in2[i] <= 0x5A)) ||
+                   ((0x61 <= in2[i]) && (in2[i] <= 0x7A))) {
+                    /* valid data */
+                    inbuf[j]=in2[i];
+                    j++;
+                } else {
+                    /* BAD BASE64 String */
+                    ERROR("bad base64 data string, 0x%0x", in2[i]);
+                    goto error;
+                }
+            }
+        }
+        /* BASE64 -> Plain */
         if (len2 > 4) {
-            out[ptr2  ] =  (trans(in2[ptr1  ])       << 2) |
-                           (trans(in2[ptr1+1]) >> 4);
-            out[ptr2+1] = ((trans(in2[ptr1+1])&0x0F) << 4) |
-                           (trans(in2[ptr1+2]) >> 2);
-            out[ptr2+2] = ((trans(in2[ptr1+2])&0x03) << 6) |
-                            trans(in2[ptr1+3]);
-            len2  -= 4;
-            ptr1 += 4;
+            out[ptr2  ] =  (_b64trans(inbuf[0])       << 2) |
+                           (_b64trans(inbuf[1]) >> 4);
+            out[ptr2+1] = ((_b64trans(inbuf[1])&0x0F) << 4) |
+                           (_b64trans(inbuf[2]) >> 2);
+            out[ptr2+2] = ((_b64trans(inbuf[2])&0x03) << 6) |
+                            _b64trans(inbuf[3]);
+            len2 -= 4 + skip;
+            ptr1 += 4 + skip;
             ptr2 += 3;
-        } else if ( in2[ptr1+1] == '=' ) {
-            out[ptr2  ] = trans(in2[ptr1  ])      <<2;
+        } else if ( inbuf[1] == '=' ) {
+            out[ptr2  ] = _b64trans(inbuf[0])      << 2;
             ptr2 += 1;
             break;
-        } else if ( in2[ptr1+2] == '=' ) {
-            out[ptr2  ] = (trans(in2[ptr1  ]) <<2) |
-                          (trans(in2[ptr1+1]) >> 4);
+        } else if ( inbuf[2] == '=' ) {
+            out[ptr2  ] = (_b64trans(inbuf[0]) << 2) |
+                          (_b64trans(inbuf[1]) >> 4);
             ptr2 += 1;
             break;
-        } else if ( in2[ptr1+3] == '=' ) {
-            out[ptr2  ] =  (trans(in2[ptr1  ])       << 2) |
-                           (trans(in2[ptr1+1]) >> 4);
-            out[ptr2+1] = ((trans(in2[ptr1+1])&0x0F) << 4) |
-                           (trans(in2[ptr1+2]) >> 2);
+        } else if ( inbuf[3] == '=' ) {
+            out[ptr2  ] =  (_b64trans(inbuf[0])       << 2) |
+                           (_b64trans(inbuf[1]) >> 4);
+            out[ptr2+1] = ((_b64trans(inbuf[1])&0x0F) << 4) |
+                           (_b64trans(inbuf[2]) >> 2);
             ptr2 += 2;
             break;
         } else {
-            out[ptr2  ] =  (trans(in2[ptr1  ])       << 2) |
-                           (trans(in2[ptr1+1]) >> 4);
-            out[ptr2+1] = ((trans(in2[ptr1+1])&0x0F) << 4) |
-                           (trans(in2[ptr1+2]) >> 2);
-            out[ptr2+2] = ((trans(in2[ptr1+2])&0x03) << 6) |
-                            trans(in2[ptr1+3]);
+            out[ptr2  ] =  (_b64trans(inbuf[0])       << 2) |
+                           (_b64trans(inbuf[1]) >> 4);
+            out[ptr2+1] = ((_b64trans(inbuf[1])&0x0F) << 4) |
+                           (_b64trans(inbuf[2]) >> 2);
+            out[ptr2+2] = ((_b64trans(inbuf[2])&0x03) << 6) |
+                            _b64trans(inbuf[3]);
             ptr2 += 3;
             break;
         }
     }
 
-
     /* Anyway, add \0 at the end of buffer */
-    // TODO("out[%d] = 0\n", ptr2);
     out[ptr2] = 0;
 
     return ptr2;
+
+  error:
+    return -1;
 }
 
-
-/**
- * remove space & CR in Base64 string
- *
- * @param  *in   Base64 string buffer
- * @param  *len  size of buffer, before and after
- * @return       new Base64 string buffer (malloced)
- */
-char * _removeCR(char *in, int *len) {
-    char *out;
-    int i;
-    int j = 0;
-
-    out = malloc(*len);
-    memset(out, 0, *len);
-
-    for (i = 0; i < *len; i++) {
-        if (in[i] == '\n') {
-            /* skip */
-            // DEBUG("CR\n");
-        } else if (in[i] == ' ') {
-            /* skip */
-            // DEBUG("SP\n");
-        } else {
-            /* valid data */
-            out[j]=in[i];
-            j++;
-        }
-    }
-
-    *len = j;
-    // note)
-    // if there are no skip, it return same buffer
-    // if there are skip, out[j] is 0, since memset(0) before
-
-    return out;
-}
-
-/**
-  * Decode Base64(with CRLF) string to BYTE[]
-  *
-  * @param *out
-  * @param *in
-  * @param *len
-  * @return size of BYTE[] array
-  */
-int _decodeBase64(unsigned char *out, char * in, int len) {
-    int rc;
-    char * in2;
-    int len2 = len;
-
-    in2 = _removeCR(in, &len2);
-
-    rc = _decodeBase64core(out, in2, len2);
-
-    free(in2);
-
-    return rc;
-}
 
 /**
  * Decode Base64(with CRLF) string to BYTE[]
@@ -353,7 +356,7 @@ unsigned char *decodeBase64(char * in, int inlen, int *outlen) {
     memset(out,0,len1);
 
     len2 = _decodeBase64(out, in, inlen);
-    if (len2 > len1) {
+    if (len2 < 0) {
         ERROR("fatal error");
         free(out);
         *outlen = 0;
