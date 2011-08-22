@@ -26,7 +26,7 @@
  * \brief TCG TNC IF-IMC v1.2 R8
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-05-07
- * cleanup 2011-07-06 SM
+ * cleanup 2011-08-22 SM
  *
  * http://www.trustedcomputinggroup.org/resources/tnc_ifimc_specification
  * http://www.trustedcomputinggroup.org/files/resource_files/8CB977E1-1D09-3519-AD48484530EF6639/TNC_IFIMC_v1_2_r8.pdf
@@ -74,20 +74,18 @@ static TNC_TNCC_SendMessagePointer           sendMessagePtr;
 static OPENPTS_CONFIG *conf = NULL;
 static OPENPTS_CONTEXT *ctx = NULL;
 
-// static char *config_filename = NULL;
-
 int verbose = 0;
 // int verbose = DEBUG_IFM_FLAG;
 // int verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
 
-#if 1
+
 static TNC_Result sendMessage(
     /*in*/ TNC_IMCID imcID,
     /*in*/ TNC_ConnectionID connectionID,
     /*in*/ TNC_BufferReference message,
     /*in*/ TNC_UInt32 messageLength,
     /*in*/ TNC_MessageType messageType);
-#endif
+
 
 /* List of receive message types */
 static TNC_MessageType messageTypes[] = {
@@ -131,12 +129,13 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     /* initialize PTS Collector */
     conf = newPtsConfig();
     if (conf == NULL) {
-        ERROR("no memory\n");
+        ERROR("Can not allocate OPENPTS_CONFIG\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
     ctx =  newPtsContext(conf);
     if (ctx == NULL) {
+        ERROR("Can not allocate OPENPTS_CONTEXT\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -172,7 +171,7 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     rc = readOpenptsUuidFile(conf->newrm_uuid);
     if (rc != PTS_SUCCESS) {
         DEBUG("conf->str_newrm_uuid      : missing (file:%s)\n", conf->newrm_uuid->filename);
-        // goto free;
+        // May not exist
     } else {
         DEBUG("conf->str_newrm_uuid      : %s (for next boot)\n", conf->newrm_uuid->str);
     }
@@ -203,6 +202,8 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
   error:
     if (ctx != NULL) freePtsContext(ctx);
     ctx = NULL;
+    if (conf != NULL) freePtsConfig(conf);
+    conf = NULL;
 
     return rc;
 }
@@ -216,7 +217,7 @@ TNC_IMC_API TNC_Result TNC_IMC_NotifyConnectionChange(
 /*in*/  TNC_IMCID imcID,
 /*in*/  TNC_ConnectionID connectionID,
 /*in*/  TNC_ConnectionState newState) {
-    DEBUG("TNC_IMC_Initialize\n");
+    DEBUG("TNC_IMC_NotifyConnectionChange\n");
 
     /* check internal status */
     if (!initialized)
@@ -257,11 +258,7 @@ TNC_IMC_API TNC_Result TNC_IMC_BeginHandshake(
     /* connection ID */
     cid = connectionID;
 
-    /* just send hello to verifier */
-
-    // DEBUG_IFM("C    imcID=%d, connectionID=%d - TNC_IMC_BeginHandshake\n", (int)imcID, (int)connectionID);
-
-
+    /* just send OPENPTS_CAPABILITIES to verifier */
     msg = getPtsTlvMessage(ctx, OPENPTS_CAPABILITIES, &len);
 
     DEBUG_IFM("[C->V] OPENPTS_CAPABILITIES[%d]\n", len);
@@ -417,106 +414,6 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
         return TNC_RESULT_FATAL;
     }
 
-
-
-
-
-#if 0
-    if (messageType == TNCMESSAGENUM(VENDORID, 1)) {
-        /* capability from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != OPENPTS_CAPABILITIES) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* send PTS_CAPABILITIES  */
-        char* msg = getPtsTlvMessage(ctx, OPENPTS_CAPABILITIES, &len);
-        rc = sendMessage(imcID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 2));
-        free(msg);
-        DEBUG_IFM("Collector send PTS_CAPABILITIES len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 3)) {
-        /* DH_NONCE_PARAMETERS_REQUEST from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != DH_NONCE_PARAMETERS_REQUEST) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* send DH_NONCE_PARAMETORS_RESPONSE  */
-        char* msg = getPtsTlvMessage(ctx, DH_NONCE_PARAMETORS_RESPONSE, &len);
-        rc = sendMessage(imcID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 4));
-        free(msg);
-        DEBUG_IFM("Collector send PTS_CAPABILITIES len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 5)) {
-        /* DH_NONCE_FINISH from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != DH_NONCE_FINISH) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-        /* ack to keep TNC handshake  */
-        // TODO(munetoh) otherwise TNC HS was terminated.
-        char* msg = "ack";
-        rc = sendMessage(imcID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            strlen(msg),
-                            TNCMESSAGENUM(VENDORID, 6));
-        DEBUG_IFM("Collector send PTS_CAPABILITIES len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 7)) {
-        /* REQUEST_TEMPLATE_RIMM_SET_METADATA from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != REQUEST_RIMM_SET) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* send DH_NONCE_PARAMETORS_RESPONSE  */
-        char* msg = getPtsTlvMessage(ctx, RIMM_SET, &len);
-        rc = sendMessage(imcID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 8));
-        free(msg);
-        DEBUG_IFM("Collector send TEMPLATE_RIMM_SET_METADATA len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 9)) {
-        /* REQUEST_TEMPLATE_RIMM_SET_METADATA from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != REQUEST_INTEGRITY_REPORT) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* send DH_NONCE_PARAMETORS_RESPONSE  */
-        char* msg = getPtsTlvMessage(ctx, INTEGRITY_REPORT, &len);
-        rc = sendMessage(imcID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 10));
-        // free(msg);
-        DEBUG_IFM("Collector send INTEGRITY_REPORT len=%d\n", len);
-        return rc;
-    } else {
-        ERROR("bad msg from verifier\n");
-        return TNC_RESULT_FATAL;
-    }
-#endif
-
     return TNC_RESULT_SUCCESS;
 }
 
@@ -563,7 +460,7 @@ TNC_IMC_API TNC_Result TNC_IMC_Terminate(
     /* connection ID */
     // TODO(munetoh)
 
-    /* PTS */
+    /* Free PTS contexts */
     freePtsContext(ctx);
     freePtsConfig(conf);
 
@@ -709,8 +606,3 @@ TNC_IMC_API TNC_Result TNC_IMC_ProvideBindFunction(
 
     return rc;
 }
-
-
-
-
-

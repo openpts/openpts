@@ -26,7 +26,7 @@
  * \brief TCG TNC IF-IMV v1.2 R8
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-05-07
- * cleanup 2011-07-06 SM
+ * cleanup 2011-08-22 SM
  *
  * http://www.trustedcomputinggroup.org/resources/tnc_ifimv_specification
  * http://www.trustedcomputinggroup.org/files/static_page_files/646808C3-1D09-3519-AD2E60765779A42A/TNC_IFIMV_v1_2_r8.pdf
@@ -50,17 +50,13 @@
 #include <string.h>
 
 #include <tncifimv.h>
-// #include <libtnc.h>
 
 #include <openpts.h>
-
 
 // ifm.c
 BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len);
 
-
 /* global */
-
 static TNC_IMVID imv_id = -1;
 static int initialized = 0;
 
@@ -72,19 +68,19 @@ int verbose = 0;
 // int verbose = DEBUG_IFM_FLAG;
 // int verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
 
-#if 1
 static TNC_Result sendMessage(
     /*in*/ TNC_IMVID imvID,
     /*in*/ TNC_ConnectionID connectionID,
     /*in*/ TNC_BufferReference message,
     /*in*/ TNC_UInt32 messageLength,
     /*in*/ TNC_MessageType messageType);
-#endif
+
 static TNC_Result provideRecommendation(
     /*in*/ TNC_IMVID imvID,
     /*in*/ TNC_ConnectionID connectionID,
     /*in*/ TNC_IMV_Action_Recommendation recommendation,
     /*in*/ TNC_IMV_Evaluation_Result evaluation);
+
 static TNC_Result setAttribute(
     /*in*/ TNC_IMVID imvID,
     /*in*/ TNC_ConnectionID connectionID,
@@ -174,18 +170,17 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
     *pOutActualVersion = TNC_IFIMV_VERSION_1;
     imv_id = imvID;
 
-
     /* initialize PTS */
     conf =  newPtsConfig();
     if (conf == NULL) {
-        ERROR("no memory\n");
+        ERROR("Can not allocate OPENPTS_CONFIG\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
 
     ctx =  newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory\n");
+        ERROR("Can not allocate OPENPTS_CONTEXT\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -233,8 +228,7 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
     DEBUG_IFM("conf->config_dir            : %s\n",
         conf->config_dir);
 
-
-    // IIDB  -- TODO
+    // TODO IIDB
 
     initialized++;
 
@@ -245,10 +239,12 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
   error:
     if (ctx != NULL) freePtsContext(ctx);
     ctx = NULL;
-    // TODO conf = NULL;
+    if (conf != NULL) freePtsConfig(conf);
+    conf = NULL;
 
     return rc;
 }
+
 
 /**
  * TNC_IMV_NotifyConnectionChange (OPTIONAL)
@@ -398,7 +394,6 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             return TNC_RESULT_FATAL;
         }
 
-
         DEBUG_IFM("[C->V] vid=%X, type=%08X, length=%d\n", vid, type, length);
 
         /* message type */
@@ -415,7 +410,6 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
 
             /* Capability */
             cap =  (OPENPTS_IF_M_Capability *) value;
-
 
             rc = verifierHandleCapability(ctx, conf->config_dir, NULL, cap);
 
@@ -684,112 +678,9 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
         return TNC_RESULT_FATAL;
     }
 
-#if 0
-        /* capability from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != OPENPTS_CAPABILITIES) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* send DH-nonce param req */
-        char* msg = getPtsTlvMessage(ctx, DH_NONCE_PARAMETERS_REQUEST, &len);
-        rc = sendMessage(imvID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 3));
-        free(msg);
-        DEBUG_IFM("Verifier send DH_NONCE_PARAMETERS_REQUEST len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 4)) {
-        /* DH-nonce param res from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != DH_NONCE_PARAMETORS_RESPONSE) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* send DH-nonce param done */
-        char* msg = getPtsTlvMessage(ctx, DH_NONCE_FINISH, &len);
-        rc = sendMessage(imvID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 5));
-        free(msg);
-        DEBUG_IFM("Verifier send DH_NONCE_FINISH len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 6)) {
-        /* send template RIMM req */
-        char* msg = getPtsTlvMessage(ctx, REQUEST_RIMM_SET, &len);
-        rc = sendMessage(imvID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 7));
-        free(msg);
-        DEBUG_IFM("Verifier send REQUEST_TEMPLATE_RIMM_SET_METADATA len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 8)) {
-        /* RIMM from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != RIMM_SET) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* Save RIMM to where? */
-        // TODO(munetoh)
-
-        /* send IR req */
-        char* msg = getPtsTlvMessage(ctx, REQUEST_INTEGRITY_REPORT, &len);
-        rc = sendMessage(imvID,
-                            connectionID,
-                            (TNC_BufferReference)msg,
-                            len,
-                            TNCMESSAGENUM(VENDORID, 9));
-        free(msg);
-        DEBUG_IFM("Verifier send REQUEST_INTEGRITY_REPORT len=%d\n", len);
-        return rc;
-    } else if (messageType == TNCMESSAGENUM(VENDORID, 10)) {
-        /* IR from client  */
-        read_tlv = (PTS_IF_M_Attribute *) messageBuffer;
-        if (read_tlv->type != INTEGRITY_REPORT) {
-            ERROR("bad msg\n");
-            return TNC_RESULT_FATAL;
-        }
-
-        /* Save IR to where? */
-        // TODO(munetoh)
-
-        /* Validate IR */
-        // TODO(munetoh)
-
-        /* Recommendation */
-        setAttribute(imvID,
-                     connectionID,
-                     TNC_ATTRIBUTEID_REASON_LANGUAGE,
-                     2,
-                     (TNC_BufferReference)"en");
-
-        setAttribute(imvID,
-                     connectionID,
-                     TNC_ATTRIBUTEID_REASON_STRING,
-                     7,
-                     (TNC_BufferReference)"testing");  // TODO(munetoh)
-
-        rc = provideRecommendation(
-                    imvID,
-                    connectionID,
-                    TNC_IMV_ACTION_RECOMMENDATION_ISOLATE,
-                    TNC_IMV_EVALUATION_RESULT_NONCOMPLIANT_MAJOR);
-        return rc;
-#endif
-
-
     return TNC_RESULT_SUCCESS;
 }
+
 
 /**
  * from IMV spec.
@@ -907,6 +798,7 @@ TNC_IMV_API TNC_Result TNC_IMV_SolicitRecommendation(
                 evaluation);
 }
 
+
 /**
  * from IMV spec.
  *
@@ -950,6 +842,7 @@ TNC_IMV_API TNC_Result TNC_IMV_BatchEnding(
 
     return TNC_RESULT_SUCCESS;
 }
+
 
 /**
  * TNC_IMV_Terminate (OPTIONAL)
@@ -998,7 +891,7 @@ static TNC_Result reportMessageTypes(
     return (*reportMessageTypesPtr)(imvID, supportedTypes, typeCount);
 }
 
-#if 1
+
 /**
  * Call TNC_TNCS_SendMessage (MANDATORY) in the TNCS
  */
@@ -1026,7 +919,7 @@ static TNC_Result sendMessage(
                 messageLength,
                 messageType);
 }
-#endif
+
 
 #if 0
 // imv.c:343: error: ‘requestHandshakeRetry’ defined but not used
@@ -1047,6 +940,7 @@ static TNC_Result requestHandshakeRetry(
     return (*requestHandshakeRetryPtr)(imvID, connectionID, reason);
 }
 #endif
+
 
 /**
  * Call TNC_TNCS_ProvideRecommendation (MANDATORY) in the TNCS
@@ -1070,6 +964,7 @@ static TNC_Result provideRecommendation(
                 recommendation,
                 evaluation);
 }
+
 
 #if 0
 // imv.c:381: error: ‘getAttribute’ defined but not used
@@ -1124,8 +1019,6 @@ static TNC_Result setAttribute(
             bufferLength,
             buffer);
 }
-
-
 
 
 /* Platform-Specific IMV Functions */
@@ -1198,4 +1091,3 @@ TNC_IMV_API TNC_Result TNC_IMV_ProvideBindFunction(
         return TNC_RESULT_FATAL;
     }
 }
-
