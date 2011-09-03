@@ -137,7 +137,8 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         conf->uuid->status = OPENPTS_UUID_FILENAME_ONLY;
         genOpenptsUuid(conf->uuid);
 
-        if ((ans == 'Y') || (ans == 'y')) {
+        /* Y,y and just enter => create ~/.openpts */
+        if ((ans == 'Y') || (ans == 'y') || (ans == 0x0a)) {
             rc = mkdir(dirbuf, S_IRUSR | S_IWUSR | S_IXUSR);
             rc = writeOpenptsUuidFile(conf->uuid, 1);
             if (rc != PTS_SUCCESS) {
