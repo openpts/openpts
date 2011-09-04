@@ -191,7 +191,7 @@ int genOpenptsUuid(OPENPTS_UUID *uuid) {
         uuid->status = OPENPTS_UUID_UUID_ONLY;
     } else if (uuid->status == OPENPTS_UUID_FILENAME_ONLY) {
         // TODO Re genenation happen, before load the UUID from file
-        ERROR("genOpenptsUuid() %s filled, before load the UUID from file\n", uuid->str);
+        DEBUG("genOpenptsUuid() %s filled, before load the UUID from file\n", uuid->str);
         uuid->status = OPENPTS_UUID_FILLED;
     } else if (uuid->status == OPENPTS_UUID_FILLED) {
         // TODO Re genenation happen
