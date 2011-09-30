@@ -23,7 +23,7 @@
 # http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-AC_INIT(openpts, 0.2.5, openpts-users@lists.sourceforge.jp)
+AC_INIT(openpts, 0.2.6, openpts-users@lists.sourceforge.jp)
 
 # use pkg-config
 # check /usr/lib64/pkgconfig/
