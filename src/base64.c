@@ -291,7 +291,7 @@ int _decodeBase64(unsigned char *out, char * in, int len) {
                            (_b64trans(inbuf[2]) >> 2);
             out[ptr2+2] = ((_b64trans(inbuf[2])&0x03) << 6) |
                             _b64trans(inbuf[3]);
-            len2 -= 4 + skip;
+            len2 -= 4; // skip chars has been removed in len2
             ptr1 += 4 + skip;
             ptr2 += 3;
         } else if ( inbuf[1] == '=' ) {
