@@ -188,6 +188,8 @@ unsigned char _b64trans(unsigned char in) {
 
 /**
  * string length without space at the end
+ *
+ * 2011-11-30 Munetoh - fixed to skip the char in the middle of string
  */
 int _strippedlength(char * in, int len) {
     int skip = 0;
@@ -196,16 +198,13 @@ int _strippedlength(char * in, int len) {
     /* last char */
     i = len - 1;
 
-    while(1) {
+    while(i > 0) {
         if (in[i] == '\n') {
             /* skip */
             skip++;
         } else if (in[i] == ' ') {
             /* skip */
             skip++;
-        } else {
-            /* valid data */
-            break;
         }
         i = i - 1;
     }
