@@ -678,10 +678,11 @@ int main(int argc, char *argv[]) {
         /* get PUBKEY */
         rc = getTssPubKey(
                 conf->uuid->uuid,
-                TSS_PS_TYPE_SYSTEM,
+                conf->aik_storage_type,  // TSS_PS_TYPE_SYSTEM,
                 conf->srk_password_mode,
                 conf->tpm_resetdalock,
-                NULL,
+                conf->aik_storage_filename,  // NULL,
+                conf->aik_auth_type,
                 &conf->pubkey_length,
                 &conf->pubkey);
         if (rc != TSS_SUCCESS) {

@@ -45,6 +45,9 @@
 // Local TCSD
 #define SERVER    NULL
 
+// TODO common secret
+#define TPMSIGKEY_SECRET "password"
+
 #if 0
 /* options */
 const struct option long_option[] = {
@@ -62,7 +65,7 @@ const struct option long_option[] = {
     {0, 0, 0, 0}
 };
 #endif
-const char short_option[] = "u:flNPt:a:hSUB:vz";
+const char short_option[] = "u:flNPt:a:hSUB:Cvz";
 
 int verbose = 0;
 
@@ -76,6 +79,7 @@ void usage() {
     printf("\t-N\tCreate key without auth secret\n");
     printf("\t-a PASSWORD\tCreate key with auth secret, PASSWORD\n");
     printf("\t-P\tUse TSS diaglog to set the authsecret\n");
+    printf("\t-C\tUse common authsecret\n");
     printf("\t-f\tUpdate the key\n");
     printf("\t-z\tUse the SRK secret of all zeros (20 bytes of zeros).\n");
 
@@ -193,6 +197,7 @@ int main(int argc, char *argv[]) {
     unsigned len = 0;
 
     int srk_password_mode = 0;
+    int auth_type = 0;
 
 
     while (1) {
@@ -248,6 +253,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'z':  /* SRK */
             srk_password_mode = 1;
+            break;
+        case 'C':   /* common auth */
+            auth_type = 1;
             break;
         case 'v':  /* Verbose */
             verbose = 1;
@@ -580,6 +588,43 @@ int main(int argc, char *argv[]) {
 
             result = Tspi_Policy_AssignToObject(hKeyPolicy, hKey);
 
+            if (result != TSS_SUCCESS) {
+                printf
+                ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                 result);
+                goto close;
+            }
+        }
+    } else {
+        if (auth_type == 1) {
+            // Noauth => uses common Auth secret
+            result = Tspi_Context_CreateObject(
+                        hContext,
+                        TSS_OBJECT_TYPE_POLICY,
+                        TSS_POLICY_USAGE,
+                        &hKeyPolicy);
+            if (result != TSS_SUCCESS) {
+                printf
+                ("ERROR: Tspi_Context_CreateObject failed rc=0x%x\n",
+                 result);
+                goto close;
+            }
+
+            result = Tspi_Policy_SetSecret(
+                        hKeyPolicy,
+                        TSS_SECRET_MODE_PLAIN,
+                        strlen(TPMSIGKEY_SECRET),
+                        (BYTE *)TPMSIGKEY_SECRET);
+            if (result != TSS_SUCCESS) {
+                printf
+                ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                 result);
+                goto close;
+            }
+
+            result = Tspi_Policy_AssignToObject(
+                        hKeyPolicy,
+                        hKey);
             if (result != TSS_SUCCESS) {
                 printf
                 ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",

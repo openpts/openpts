@@ -314,6 +314,10 @@ int freePtsConfig(OPENPTS_CONFIG * conf) {
         free(conf->config_file);
     }
 
+    if (conf->aik_storage_filename != NULL) {
+        free(conf->aik_storage_filename);
+    }
+
     free(conf);
 
     return PTS_SUCCESS;
@@ -352,6 +356,8 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     char *path;
     char *filename2 = NULL;  // fullpath
     int buf_len;
+    /* tmp path */
+    char *aik_storage_filename = NULL;
 
     DEBUG("readPtsConfig()            : %s\n", filename);
 
@@ -892,6 +898,39 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
             }
 
+            /* Atetstation(sign) key*/
+            if (!strncmp(name, "aik.storage.type", 16)) {
+                if (!strncmp(value, "tss", 3)) {
+                    conf->aik_storage_type = OPENPTS_AIK_STORAGE_TYPE_TSS;
+                    DEBUG("conf->aik_storage_type     : none\n");
+                } else if (!strncmp(value, "blob", 4)) {
+                    conf->aik_storage_type = OPENPTS_AIK_STORAGE_TYPE_BLOB;
+                    DEBUG("conf->aik_storage_type     : blob\n");
+                } else {
+                    ERROR("unknown aik.storage.type %s\n", value);  // TODO
+                    conf->aik_storage_type = 0;
+                }
+            }
+            if (!strncmp(name, "aik.storage.filename", 20)) {
+                if (aik_storage_filename != NULL) {
+                    free(aik_storage_filename);
+                }
+                aik_storage_filename = smalloc(value);
+                DEBUG("aik_storage_filename       : CONF/%s\n", aik_storage_filename);
+            }
+            if (!strncmp(name, "aik.auth.type", 13)) {
+                if (!strncmp(value, "null", 4)) {
+                    conf->aik_auth_type = OPENPTS_AIK_AUTH_TYPE_NULL;
+                    DEBUG("conf->aik_auth_type        : null\n");
+                } else if (!strncmp(value, "common", 6)) {
+                    conf->aik_auth_type = OPENPTS_AIK_AUTH_TYPE_COMMON;
+                    DEBUG("conf->aik_auth_type        : common\n");
+                } else {
+                    ERROR("unknown aik.auth.type %s\n", value);  // TODO
+                    conf->aik_auth_type = 0;
+                }
+            }
+
             cnt++;
         } else {
             // TODO
@@ -901,6 +940,19 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     if (conf->verifier_logging_dir == NULL) {
         /* set default logging dir */
         conf->verifier_logging_dir = smalloc("~/.openpts");
+    }
+
+    /* Atetstation(sign) key */
+    if (conf->aik_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+        if (aik_storage_filename == NULL) {
+            /* set the default filename if missed */
+            conf->aik_storage_filename = getFullpathName(conf->config_dir, "key.blob");
+        } else {
+            conf->aik_storage_filename =
+                getFullpathName(conf->config_dir, aik_storage_filename);
+            free(aik_storage_filename);
+        }
+        DEBUG("conf->aik_storage_filename : %s\n", conf->aik_storage_filename);
     }
 
 #if 0

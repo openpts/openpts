@@ -418,6 +418,7 @@ typedef struct {
     OPENPTS_TARGET target[];
 } OPENPTS_TARGET_LIST;
 
+/* UUID status */
 #define OPENPTS_UUID_EMPTY         0
 #define OPENPTS_UUID_FILENAME_ONLY 1
 #define OPENPTS_UUID_UUID_ONLY     2
@@ -431,6 +432,12 @@ typedef struct {
     PTS_DateTime *time;
     int status;
 } OPENPTS_UUID;
+
+/* Attestation(sign) key */
+#define OPENPTS_AIK_STORAGE_TYPE_TSS  0
+#define OPENPTS_AIK_STORAGE_TYPE_BLOB 1
+#define OPENPTS_AIK_AUTH_TYPE_NULL    0
+#define OPENPTS_AIK_AUTH_TYPE_COMMON  1
 
 /**
  * Config
@@ -446,6 +453,11 @@ typedef struct {
     TPM_VERSION tpm_version;
     TSS_VERSION tss_version;
     TSS_VERSION pts_version;
+
+    /* Attestation(sign) key */
+    int   aik_storage_type;
+    char *aik_storage_filename;
+    int   aik_auth_type;
 
     /* UUID */
     OPENPTS_UUID * uuid;         /**< Platform(collector) UUID */

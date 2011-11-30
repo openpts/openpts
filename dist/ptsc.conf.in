@@ -192,6 +192,22 @@ ifm.timeout=4
 ################################################################################
 
 #
+# Attestation(sign) key
+#
+#  aik.storage.type
+#     tss    use tcsd ps_system
+#     blob   use the file (set the filename by aik.storage.filename)
+#
+#  aik.auth.type
+#     null   use the null secret
+#     common use the common secret
+#
+# Uncomment the following line for Infineon TPM(v1.2)
+# aik.storage.type=blob
+# aik.storage.filename=key.blob
+# aik.auth.type=common
+
+#
 # SRK password
 #
 #   null    tpm_takeownership with null password (just enter)

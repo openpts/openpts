@@ -168,7 +168,6 @@ int init(
     OPENPTS_PROPERTY *prop_start,
     OPENPTS_PROPERTY *prop_end) {
     int rc = PTS_SUCCESS;
-    UINT32 ps_type = TSS_PS_TYPE_SYSTEM;
     OPENPTS_CONTEXT *ctx;
     int i;
     int keygen = 1;
@@ -226,7 +225,13 @@ int init(
     //      if verifier take the ownership of sign key, we needs the key for each verifier.
     //      auth can be transferd by IF-M (DH excnage)
     if (keygen == 1) {
-        rc = createTssSignKey(conf->uuid->uuid, ps_type, NULL, 0, conf->srk_password_mode);
+        rc = createTssSignKey(
+                conf->uuid->uuid,
+                conf->aik_storage_type,
+                conf->aik_storage_filename,
+                conf->aik_auth_type,
+                0,
+                conf->srk_password_mode);
         if (rc == 0x0001) {  // 0x0001
             fprintf(stderr, "createSignKey failed. "
                             "if you uses well known SRK secret, "

@@ -1,3 +1,10 @@
+openpts (0.2.5.1) unstable; urgency=low
+
+  * Added config option for Infineon TPM
+  * Fixed base64 decode functions to support CR in the middle of string
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Wed, 30 Nov 2011 10:50:00 +0900
+
 openpts (0.2.5) unstable; urgency=low
 
   * scan by coverity
