@@ -53,10 +53,23 @@
 #endif
 
 #include <openpts.h>
+// #include <log.h>
 
 // TODO
 #define MAX_TLV_MESSAGE_LENGTH 5120000
 
+void htoncl(uint8_t *ptr, uint32_t value) {
+    /* Convert value to network endian */
+    *ptr++ = (uint8_t)(value >> 24);
+    *ptr++ = (uint8_t)(value >> 16);
+    *ptr++ = (uint8_t)(value >> 8);
+    *ptr   = (uint8_t)(value);
+}
+
+uint32_t nctohl(uint8_t *ptr) {
+    return ((uint32_t)ptr[0] << 24) | ((uint32_t)ptr[1] << 16) |
+           ((uint32_t)ptr[2] << 8)  | ptr[3];
+}
 
 // DEBUG
 // 2011-02-24 SM make check => pass
@@ -167,9 +180,8 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
     memset(head, 0, 12);
 
     /* malloc TLV for read */
-    read_tlv = (PTS_IF_M_Attribute *)malloc(sizeof(PTS_IF_M_Attribute));
+    read_tlv = (PTS_IF_M_Attribute *)xmalloc(sizeof(PTS_IF_M_Attribute));
     if (read_tlv == NULL) {
-        ERROR("no memory");
         return NULL;
     }
     memset(read_tlv, 0, sizeof(PTS_IF_M_Attribute));
@@ -204,9 +216,8 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
     /* read msg body */
     rest = read_tlv->length;
     if (rest > 0) {
-        read_msg = (PTS_Byte *)malloc(rest + 1);
+        read_msg = (PTS_Byte *)xmalloc(rest + 1);
         if (read_msg == NULL) {
-            ERROR("no memory (size = %d)\n", rest +1);
             goto error;
         } else {
             ptr = 0;
@@ -240,7 +251,9 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
 
   error:
     // if (read_msg != NULL) free(read_msg);
-    if (read_tlv != NULL) freePtsTlv(read_tlv);
+    if (read_tlv != NULL) {
+        freePtsTlv(read_tlv);
+    }
     return NULL;
 }
 
@@ -255,9 +268,9 @@ void freePtsTlv(PTS_IF_M_Attribute *tlv) {
 
     /* free*/
     if (tlv->value != NULL) {
-        free(tlv->value);
+        xfree(tlv->value);
     }
-    free(tlv);
+    xfree(tlv);
 }
 
 
@@ -274,8 +287,7 @@ BYTE *getTlvBuffer(int type, int length) {
     BYTE *buf;
     PTS_IF_M_Attribute *write_tlv;
 
-    if ((buf = malloc(12 + length)) == NULL) {
-        ERROR("no memory");
+    if ((buf = xmalloc(12 + length)) == NULL) {
         return NULL;
     }
     /* setup TLV header */
@@ -314,15 +326,10 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
     DEBUG("writePtsTlvToSock - start\n");
 
     /* check */
-    if (ctx == NULL) {
-        ERROR("ctx is NULL\n");
-        return NULL;
-    }
+    ASSERT(NULL != ctx, "ctx is NULL\n");
+
     conf = ctx->conf;
-    if (conf == NULL) {
-        ERROR("conf is NULL\n");
-        return NULL;
-    }
+    ASSERT(NULL != conf, "conf is NULL\n");
 
     /* init fd[] */
     for (i = 0; i < MAX_RM_NUM; i++) {
@@ -342,16 +349,23 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 #ifdef CONFIG_AIDE
     case REQUEST_AIDE_DATABASE:
 #endif
+//    {
         buf = getTlvBuffer(type, 0);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         break;
+//    }
 
     /* Collector <-> Verifier */
     case OPENPTS_CAPABILITIES:
+    {
         length = sizeof(OPENPTS_IF_M_Capability);
 
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
 
         ptr = 12;
         /* Send versions */
@@ -376,17 +390,31 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
         } else {
             memcpy(&buf[ptr + 32], ctx->conf->rm_uuid->uuid, 16);
         }
+
+        if (isFlagSet(ctx->conf->pts_flag[0], OPENPTS_FLAG0_NEWRM_EXIST) &&
+            ctx->conf->newrm_uuid != NULL &&
+            ctx->conf->newrm_uuid->uuid != NULL) {
+            memcpy(&buf[ptr + 48], ctx->conf->newrm_uuid->uuid, 16);
+        } else {
+            DEBUG("New RM unavailable -> sending platform UUID");
+            memcpy(&buf[ptr + 48], ctx->conf->uuid->uuid, 16);
+        }
+
         break;
+    }
 
 
 
     /* Collector --> Verifier */
     case TPM_PUBKEY:
+    {
         if ((ctx->conf->pubkey != NULL) && (ctx->conf->pubkey_length > 0)) {
             /* PUB key exist */
             length = ctx->conf->pubkey_length;
             buf = getTlvBuffer(type, length);
-            if (buf == NULL) goto error;
+            if (buf == NULL) {
+                goto error;
+            }
 
             /* copy PUBKEY */
             memcpy(&buf[12], ctx->conf->pubkey, ctx->conf->pubkey_length);
@@ -395,14 +423,16 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
             /* PUB key is missing */
             ERROR("writePtsTlvToSock - PUBKEY blob is missing\n");
             ctx->ifm_errno = PTS_FATAL;
-            ctx->ifm_strerror = smalloc("Piblic key is missing");
+            ctx->ifm_strerror = smalloc_assert("Public key is missing");
             length = 0;
             goto error;
         }
         break;
+    }
 
     /* Collector --> Verifier */
     case RIMM_SET:
+    {
         /* open/read RM files */
         length = 4;  // for RM num
         for (i = 0; i < conf->rm_num; i++) {
@@ -415,11 +445,14 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
                 /* send Error massage */
                 ctx->ifm_errno = PTS_FATAL;
                 ctx->ifm_strerror =
-                    smalloc("Manifest not found, initialize the collector");
+                    smalloc_assert("Manifest not found, initialize the collector");
                 goto error;
             }
             /* size */
-            fstat(fd[i], &st[i]);
+            if (-1 == fstat(fd[i], &st[i])) {
+                ERROR("fstat failed with errno %d\n", errno);
+                goto error;
+            }
             fsize[i] = st[i].st_size;
             length += 4 + fsize[i];
         }
@@ -453,14 +486,16 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
             DEBUG_IFM("RM[%d] len = %d\n", i, count[i]);
         }
         break;
+    }
 
     /* Collector --> Verifier */
     case NEW_RIMM_SET:
+    {
         /* check */
         if (conf->newrm_num == 0) {
             /* New RM is missing => send Error massage */
             ctx->ifm_errno = PTS_FATAL;
-            ctx->ifm_strerror = smalloc("New Manifest not found, check the collector");
+            ctx->ifm_strerror = smalloc_assert("New Manifest not found, check the collector");
             goto error;
         }
 
@@ -474,11 +509,14 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
                 /* send Error massage */
                 ctx->ifm_errno = PTS_FATAL;
                 ctx->ifm_strerror =
-                    smalloc("New Manifest file not found, check the collector");
+                    smalloc_assert("New Manifest file not found, check the collector");
                 goto error;
             }
             /* check the size */
-            fstat(fd[i], &st[i]);
+            if (-1 == fstat(fd[i], &st[i])) {
+                ERROR("fstat failed with errno %d\n", errno);
+                goto error;
+            }
             fsize[i] = st[i].st_size;
             length += 4 + fsize[i];
         }
@@ -487,7 +525,9 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
         DEBUG_IFM("writePtsTlv - NEW_RIMM_SET, length = %d", length);
 
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         ptr = 12;
 
 
@@ -514,48 +554,50 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
             DEBUG_IFM("RM[%d] len = %d\n", i, count[i]);
         }
         break;
+    }
 
     case NONCE:
+    {
         length = ctx->nonce->nonce_length;
         buf = getTlvBuffer(type, length);
         if (buf == NULL) goto error;
         memcpy(&buf[12], ctx->nonce->nonce, length);
         break;
+    }
 
     case INTEGRITY_REPORT:
-        /* generate new IR */
-        rc = genIr(ctx);
+    {
+        /* generate new IR, giving us a file descriptor corresponding
+           to an already deleted file for added security - once the file
+           gets closed you lose the IR! */
+        rc = genIr(ctx, &fd[0]);
         if (rc != PTS_SUCCESS) {
             ERROR("writePtsTlvToSock - gen IR failed\n");
             /* send Error massage */
             ctx->ifm_errno = PTS_FATAL;
-            ctx->ifm_strerror = smalloc("Generation of IR failed");
+            ctx->ifm_strerror = smalloc_assert("Generation of IR failed");
             goto error;
         }
 
         /* check the IR size */
-        fd[0] = open(ctx->conf->ir_filename, O_RDONLY);  // TODO(munetoh)
-        if (fd[0] < 0) {
-            ERROR("Error %s not found\n", ctx->conf->ir_filename);
-            /* send Error massage */
-            ctx->ifm_errno = PTS_FATAL;
-            ctx->ifm_strerror = smalloc("IR file is missing");
+        if (-1 == fstat(fd[0], &st[0])) {
+            ERROR("fstat failed with errno %d\n", errno);
+            goto error;
+        }
+        fsize[0] = st[0].st_size;
+        length = fsize[0];
+
+        buf = getTlvBuffer(type, length);
+        if (buf == NULL) {
+            goto error;
+        }
+        ptr = 12;
+
+        if (-1 == lseek(fd[0], 0, SEEK_SET)) {
+            ERROR("Could not seek to start of %s (fd '%d')\n", ctx->conf->ir_filename, fd[0]);
             goto error;
         }
 
-        fstat(fd[0], &st[0]);
-        fsize[0] = st[0].st_size;
-        length = fsize[0];
-        /* close */
-        close(fd[0]);
-        fd[0] = -1;
-
-
-        buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
-        ptr = 12;
-
-        fd[0] = open(ctx->conf->ir_filename, O_RDONLY);
         count[0] = copyfile(&buf[ptr], fd[0], fsize[0]);
         if (count[0] != fsize[0]) {
             ERROR("copyfile() faild %d != %d\n", count[0], fsize[0]);
@@ -566,16 +608,18 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
         fd[0] = -1;
 
         break;
+    }
 
 #ifdef CONFIG_AIDE
     case AIDE_DATABASE:  /* AIDE DATABASE: C -> V */
+    {
         /* setup TLV header  (2/2) */
         /* body */
         if (ctx->conf->aide_database_filename == NULL) {
             // Test
             DEBUG("writePtsTlvToSock - Error AIDE DB file is not configured\n");
             ctx->ifm_errno = PTS_FATAL;
-            ctx->ifm_strerror = smalloc("AIDE DB file is not configured");
+            ctx->ifm_strerror = smalloc_assert("AIDE DB file is not configured");
             goto error;
         } else {
             fd[0] = open(ctx->conf->aide_database_filename, O_RDONLY);
@@ -585,27 +629,28 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
                     ctx->conf->aide_database_filename);
                 /* send Error massage */
                 ctx->ifm_errno = PTS_FATAL;
-                ctx->ifm_strerror = smalloc("AIDE file not found");
+                ctx->ifm_strerror = smalloc_assert("AIDE file not found");
                 goto error;
             } else {
                 /* OK */
-                fstat(fd[0], &st[0]);
+                if (-1 == fstat(fd[0], &st[0])) {
+                    ERROR("fstat failed with errno %d\n", errno);
+                    goto error;
+                }
                 fsize[0] = st[0].st_size;
                 length = fsize[0];
-                /* close */
-                close(fd[0]);
-                fd[0] = -1;
             }
         }
 
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         ptr = 12;
 
 
         if (length > 0) {
             // BODY1
-            fd[0] = open(ctx->conf->aide_database_filename, O_RDONLY);
             count[0] = copyfile(&buf[ptr], fd[0], fsize[0]);
             if (count[0] != fsize[0]) {
                 ERROR("copyfile() faild %d != %d\n", count[0], fsize[0]);
@@ -621,14 +666,18 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
         }
         DEBUG_IFM("writePtsTlv - AIDE_DATABASE, length = %d", length);
         break;
+    }
 #endif  // CONFIG_AIDE
 
 
     case DH_NONCE_PARAMETERS_REQUEST:  /* DH: Initiator -> Respondor */
+    {
         /* setup TLV header  (2/2) */
         length = 4;
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         ptr = 12;
 
         /* Send DH Nonce */
@@ -643,8 +692,10 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         DEBUG_IFM("writePtsTlv - DH_NONCE_PARAMETERS_REQUEST, length = %d", length);
         break;
+    }
 
     case DH_NONCE_PARAMETORS_RESPONSE:  /* DH: IRespondor -> Initiator */
+    {
         /* setup TLV header  (2/2) */
         length =
             4 + 4 +
@@ -652,7 +703,9 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
             ctx->nonce->pubkey_length;
 
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         ptr = 12;
 
         /* Send DH param  */
@@ -687,8 +740,10 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         DEBUG_IFM("writePtsTlv - DH_NONCE_PARAMETORS_RESPONSE, length = %d", length);
         break;
+    }
 
     case DH_NONCE_FINISH: /* DH: Initiator -> Respondor */
+    {
         /* setup TLV header  (2/2) */
         length =
             4 +
@@ -696,7 +751,9 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
             ctx->nonce->pubkey_length;
 
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         ptr = 12;
 
         /* Send IF-M TLV header */
@@ -724,9 +781,10 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         DEBUG_IFM("writePtsTlv - DH_NONCE_FINISH, length = %d", length);
         break;
-
+    }
 
     case OPENPTS_ERROR:
+    {
         /* setup TLV header  (2/2) */
         // TODO
         if (ctx->ifm_strerror != NULL) {
@@ -736,7 +794,9 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
         }
 
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            goto error;
+        }
         ptr = 12;
 
         {
@@ -759,7 +819,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
                 memcpy(&buf[ptr], (BYTE *)&ctx->ifm_strerror, len);
                 ptr += len;
                 /* free */
-                free(ctx->ifm_strerror);
+                xfree(ctx->ifm_strerror);
             } else {
                 size = 0;
                 memcpy(&buf[ptr], (BYTE *)&size, 4);
@@ -769,9 +829,10 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         DEBUG_IFM("writePtsTlv - OPENPTS_ERROR, length = %d", length);
         break;
+    }
 
     default:
-        // BAT type
+        // BAD type
         ERROR("BAD IF-M OPENPTS MESSAGE TYPE, type=0x%x\n", type);
         return NULL;
     }
@@ -810,23 +871,6 @@ int writePtsTlv(OPENPTS_CONTEXT *ctx, int fdout, int type) {
     BYTE *message;
     int length = 0;
     int len;
-
-    OPENPTS_CONFIG *conf;
-
-    /* check */
-    if (ctx == NULL) {
-        ERROR("ctx is NULL\n");
-        return -1;
-    }
-    conf = ctx->conf;
-    if (conf == NULL) {
-        ERROR("conf is NULL\n");
-        return -1;
-    }
-    if (conf->uuid == NULL) {
-        ERROR("writePtsTlvToSock() - conf->uuid is NULL\n");
-        return -1;
-    }
 
     DEBUG_CAL("writePtsTlvToSock - start\n");
 

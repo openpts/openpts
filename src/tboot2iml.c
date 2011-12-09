@@ -472,9 +472,8 @@ int sinit_acm_hash(char *filename, int size, BYTE *sha1_digest, BYTE *sha256_dig
 
     DEBUG("sinit_acm_hash() file = %s, size = %d\n", filename, size);
 
-    acmbuf = malloc(size);
+    acmbuf = xmalloc(size);
     if (acmbuf == NULL) {
-        ERROR("no memory");
         rc = PTS_FATAL;
         goto error;
     }
@@ -527,7 +526,7 @@ int sinit_acm_hash(char *filename, int size, BYTE *sha1_digest, BYTE *sha256_dig
     debugPrintHex(" SHA256 Digest : ", sha256_digest, 32, "\n");
 
   error:
-    free(acmbuf);
+    xfree(acmbuf);
     return rc;
 }
 
@@ -624,8 +623,8 @@ int parseGrubConfFile(OPENPTS_TBOOT_CONTEXT *ctx, char *filename, char *path) {
                 TBOOT_MODULE *module;
                 OPENPTS_EVENT_TBOOT_MODULE *eventdata;
                 /* module structure */
-                module = malloc(sizeof(TBOOT_MODULE));
-                eventdata = malloc(sizeof(OPENPTS_EVENT_TBOOT_MODULE));
+                module = xmalloc_assert(sizeof(TBOOT_MODULE));
+                eventdata = xmalloc_assert(sizeof(OPENPTS_EVENT_TBOOT_MODULE));
                 module->eventdata = eventdata;
                 module->next = NULL;
                 if (prev_module == NULL) {
@@ -934,17 +933,15 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
     }
 
     /* event  */
-    event = malloc(sizeof(TSS_PCR_EVENT));
+    event = xmalloc(sizeof(TSS_PCR_EVENT));
     if (event == NULL) {
-        ERROR("no memory");
         goto free;
     }
     memset(event, 0, sizeof(TSS_PCR_EVENT));
 
     /* PCR/digest */
-    event->rgbPcrValue = malloc(20);
+    event->rgbPcrValue = xmalloc(20);
     if (event->rgbPcrValue == NULL) {
-        ERROR("no memory");
         goto free;
     }
 
@@ -1073,9 +1070,8 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
         }
         eventdata = module->eventdata;
         event->ulEventLength = 20 + 20 + 4 + 4 + eventdata->command_size + eventdata->filename_size;
-        event->rgbEvent = malloc(event->ulEventLength);
+        event->rgbEvent = xmalloc(event->ulEventLength);
         if (event->rgbEvent == NULL) {
-            ERROR("no memory");
             goto free;
         }
         ptr = event->rgbEvent;
@@ -1117,10 +1113,9 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
         }
         eventdata = module->eventdata;
         event->ulEventLength = 20 + 20 + 4 + 4 + eventdata->command_size + eventdata->filename_size;
-        if (event->rgbEvent != NULL) free(event->rgbEvent);
-        event->rgbEvent = malloc(event->ulEventLength);
+        if (event->rgbEvent != NULL) xfree(event->rgbEvent);
+        event->rgbEvent = xmalloc(event->ulEventLength);
         if (event->rgbEvent == NULL) {
-            ERROR("no memory");
             goto free;
         }
         ptr = event->rgbEvent;
@@ -1148,9 +1143,9 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
 
   free:
     if (event != NULL) {
-        if (event->rgbPcrValue != NULL) free(event->rgbPcrValue);
-        if (event->rgbEvent != NULL) free(event->rgbEvent);
-        free(event);
+        if (event->rgbPcrValue != NULL) xfree(event->rgbPcrValue);
+        if (event->rgbEvent != NULL) xfree(event->rgbEvent);
+        xfree(event);
     }
 
     /* close */
@@ -1221,7 +1216,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* ctx */
-    ctx = malloc(sizeof(OPENPTS_TBOOT_CONTEXT));
+    ctx = xmalloc_assert(sizeof(OPENPTS_TBOOT_CONTEXT));
     memset(ctx, 0, sizeof(OPENPTS_TBOOT_CONTEXT));
     ctx->lcp_policy_version = 1;
 
@@ -1250,6 +1245,6 @@ int main(int argc, char *argv[]) {
 
 
   close:
-    free(ctx);
+    xfree(ctx);
     return 0;
 }

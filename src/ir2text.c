@@ -45,46 +45,14 @@
 
 #include <tss/tss_structs.h>
 
+#include <openpts.h>
+
 /* Convert endian - 32bit */
 #define econv(x) ((UINT32)( \
     (((UINT32)(x) & (UINT32)0x000000ffUL) << 24) | \
     (((UINT32)(x) & (UINT32)0x0000ff00UL) <<  8) | \
     (((UINT32)(x) & (UINT32)0x00ff0000UL) >>  8) | \
     (((UINT32)(x) & (UINT32)0xff000000UL) >> 24)))
-
-
-
-// #include <openpts.h>
-
-/* base64.c */
-int base64size(int len);
-int encodeBase64(unsigned char *out, unsigned char * in, int len);
-int decodeBase64(unsigned char *out, unsigned char * in, int len);
-int decodeBase64core(unsigned char *out, unsigned char * in, int len);
-
-
-/* debug */
-int verbose = 0;
-
-#define DEBUG_FLAG     0x01
-#define DEBUG_FSM_FLAG 0x02
-#define DEBUG_XML_FLAG 0x04
-#define DEBUG_IFM_FLAG 0x08
-#define DEBUG_SAX_FLAG 0x10
-#define DEBUG_TPM_FLAG 0x20
-#define DEBUG_CAL_FLAG 0x40
-
-#define ERROR(fmt, ...) \
-fprintf(stderr, "ERROR     %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define TODO(fmt, ...) \
-fprintf(stderr, "TODO      %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define INFO(fmt, ...) \
-fprintf(stderr, "INFO      %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG(fmt, ...) if (verbose & DEBUG_FLAG) \
-fprintf(stdout, "DEBUG     %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
 #define MAX_DIGEST_SIZE 64
 #define EVENTDATA_BUF_SIZE 100000
@@ -268,16 +236,6 @@ void fprintEventData(FILE *fp, UINT32 type, UINT32 len, BYTE *eventdata) {
 }
 
 
-/**
- * print Hex string
- */
-void fprintHex(FILE *fp, BYTE *data, int num) {
-    int i;
-    for (i = 0; i < num; i++) {
-        fprintf(fp, "%02X", data[i]);
-    }
-}
-
 /*
 <Report xmlns:core="http://www.trustedcomputinggroup.org/XML/SCHEMA/1_0_1/core_integrity#" xmlns:stuff="http://www.trustedcomputinggroup.org/XML/SCHEMA/1_0/simple_object#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.trustedcomputinggroup.org/XML/SCHEMA/1_0/integrity_report#" ID="IR_24868831-1b3c-4eb5-8e15-83b74f54d033" UUID="24868831-1b3c-4eb5-8e15-83b74f54d033">
   <SnapshotCollection Id="IR_1bd0ac8f-d091-4a14-af05-651386f312a1" UUID="1bd0ac8f-d091-4a14-af05-651386f312a1" RevLevel="0">
@@ -387,9 +345,8 @@ void  irStartElement(void* context, const xmlChar* name, const xmlChar** atts) {
     } else if (!strcmp((char *)name, "stuff:Objects")) {
         /* New event */
         /* malloc */
-        ctx->event = (TSS_PCR_EVENT *) malloc(sizeof(TSS_PCR_EVENT));
+        ctx->event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (ctx->event == NULL) {
-            ERROR("no memory\n");
             return;
         }
         memset(ctx->event, 0, sizeof(TSS_PCR_EVENT));
@@ -496,24 +453,27 @@ void irEndElement(void * context, const xmlChar * name) {
         ctx->event->ulPcrIndex = atoi(ctx->buf);
     } else if (!strcmp((char *)name, "stuff:Hash")) {
         ctx->buf[ctx->char_size] = 0;
-        ctx->event->rgbPcrValue = malloc(MAX_DIGEST_SIZE);  // TODO(munetoh) alg -> size
-        rc = decodeBase64(ctx->event->rgbPcrValue, (unsigned char *)ctx->buf, ctx->char_size);
-        ctx->event->ulPcrValueLength = rc;
+        ctx->event->rgbPcrValue = decodeBase64(
+            (char *)ctx->buf,
+            ctx->char_size,
+            (int *)&ctx->event->ulPcrValueLength);
+        if (ctx->event->rgbEvent == NULL) {
+            // ERROR()
+            ctx->event->ulPcrValueLength = 0;
+        }
     } else if (!strcmp((char *)name, "eventtype")) {
         ctx->buf[ctx->char_size] = 0;
         ctx->event->eventType = atoi(ctx->buf);
     } else if (!strcmp((char *)name, "eventdata")) {
         ctx->buf[ctx->char_size] = 0;  // null terminate
-        /* malloc */
-        ctx->event->rgbEvent = malloc(ctx->char_size + 1);
+        ctx->event->rgbEvent = decodeBase64(
+            (char *)ctx->buf,
+            ctx->char_size,
+            (int *)&ctx->event->ulEventLength);
         if (ctx->event->rgbEvent == NULL) {
-            ERROR("no memory\n");
-            ctx->sax_error++;
-            return;
+            // ERROR()
+            ctx->event->ulEventLength = 0;
         }
-        /* base64 -> plain */
-        rc = decodeBase64(ctx->event->rgbEvent, (unsigned char *)ctx->buf, ctx->char_size);
-        ctx->event->ulEventLength = rc;
     } else if (!strcmp((char *)name, "PcrHash")) {
         /* PCR value */
         ctx->buf[ctx->char_size] = 0;  // null terminate
@@ -536,9 +496,8 @@ void irEndElement(void * context, const xmlChar * name) {
                 if (pcrs == NULL) {
                     /* malloc OPENPTS_PCRS */
                     // ERROR("PCR is not intialized - No QuoteData element\n");
-                    pcrs = malloc(sizeof(OPENPTS_PCRS));
+                    pcrs = xmalloc(sizeof(OPENPTS_PCRS));
                     if (pcrs == NULL) {
-                        ERROR("no memory\n");
                         return;
                     }
                     memset(pcrs, 0, sizeof(OPENPTS_PCRS));
@@ -621,16 +580,16 @@ int readIr(IR_CONTEXT *context, const char *filename) {
  * Usage
  */
 void usage(void) {
-    fprintf(stderr, "OpenPTS command\n\n");
-    fprintf(stderr, "Usage: ir2text [options]\n\n");
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -i filename           Set IR file\n");
-    fprintf(stderr, "  -o filename           Set output file, else stdout\n");
-    fprintf(stderr, "  -P filename           Set PCR output file (option)\n");
-    fprintf(stderr, "  -b                    Binary, (Convert IR to IML)\n");
-    fprintf(stderr, "  -E                    Enable endian conversion (BE->LE or LE->BE)\n");
-    fprintf(stderr, "  -h                    Show this help message\n");
-    fprintf(stderr, "\n");
+    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IR2TEXT_USAGE, "OpenPTS command\n\n"
+                    "Usage: ir2text [options]\n\n"
+                    "Options:\n"
+                    "  -i filename           Set IR file\n"
+                    "  -o filename           Set output file, else stdout\n"
+                    "  -P filename           Set PCR output file (option)\n"
+                    "  -b                    Binary, (Convert IR to IML)\n"
+                    "  -E                    Enable endian conversion (BE->LE or LE->BE)\n"
+                    "  -h                    Show this help message\n"
+                    "\n"));
 }
 
 int main(int argc, char *argv[]) {
@@ -641,20 +600,20 @@ int main(int argc, char *argv[]) {
     int c;
     IR_CONTEXT *ctx;
 
+    initCatalog();
+
     resetPcr();
 
-    // ctx = malloc(sizeof(IR_CONTEXT));
-    ctx = (IR_CONTEXT *) malloc(sizeof(IR_CONTEXT));
+    ctx = xmalloc(sizeof(IR_CONTEXT));
+    ctx = (IR_CONTEXT *) xmalloc(sizeof(IR_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return -1;
     }
     memset(ctx, 0, sizeof(IR_CONTEXT));
 
-    ctx->buf = malloc(EVENTDATA_BUF_SIZE);
+    ctx->buf = xmalloc(EVENTDATA_BUF_SIZE);
     if (ctx->buf == NULL) {
-        ERROR("no memory\n");
-        free(ctx);
+        xfree(ctx);
         return -1;
     }
 
@@ -684,13 +643,13 @@ int main(int argc, char *argv[]) {
             ctx->aligned = 4;
             break;
         case 'd':  /* DEBUG */
-            verbose = DEBUG_FLAG;
+            setDebugFlags(DEBUG_FLAG);
             break;
         case 'h':
             usage();
             return 0;
         default:
-            fprintf(stderr, "bad option %c\n", c);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IR2TEXT_BAD_OPTION_C, "bad option %c\n"), c);
             usage();
             return -1;
         }
@@ -714,7 +673,8 @@ int main(int argc, char *argv[]) {
     } else {
         /* print IR in binary text, with -o option */
         if (out_filename == NULL) {
-            fprintf(stderr, "set the output file for the binary mode\n");
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IR2TEXT_OUTPUT_BINARY_MODE,
+                "set the output file for the binary mode\n"));
             usage();
             return -1;
         }

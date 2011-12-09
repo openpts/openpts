@@ -53,6 +53,7 @@
 #include <dirent.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 #define SMBIOS_MAX_SIZE   4096
 #define SMBIOS_MAX_HANDLE 0x50
@@ -122,9 +123,8 @@ int readSmbiosFile(char * filename, BYTE **data, int *len) {
     BYTE *buf;
     int rc = PTS_SUCCESS;
 
-    buf = malloc(SMBIOS_MAX_SIZE);  // TODO check the filesize
+    buf = xmalloc(SMBIOS_MAX_SIZE);  // TODO check the filesize
     if (buf == NULL) {
-        ERROR("readSmbiosFile - no memory/n");
         return PTS_FATAL;
     }
 
@@ -143,7 +143,7 @@ int readSmbiosFile(char * filename, BYTE **data, int *len) {
     return rc;
 
   error:
-    free(buf);
+    xfree(buf);
     return rc;
 }
 
@@ -171,7 +171,8 @@ int printSmbios(BYTE *data, int length) {
         /* */
         str_length = ptr[0x16] + (ptr[0x17]<<8);
         str_num = ptr[0x1C] + (ptr[0x1D]<<8);
-        printf("%d structures occupying %d bytes.\n", str_num, str_length);
+        printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_STRUCTURES,
+            "%d structures occupying %d bytes.\n"), str_num, str_length);
         eod = ptr + str_length + 32;
         // SKIP Head
         ptr += 32;
@@ -183,11 +184,12 @@ int printSmbios(BYTE *data, int length) {
         type = ptr[0];
         len = ptr[1];
         handle = ptr[2] + ptr[3]*256;
-        printf("Handle 0x%04x, DMI type %d(0x%x), %d bytes\n", handle, type, type, len);
-        printHex("  head", ptr, len, "\n");
+        printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_HANDLE,
+            "Handle 0x%04x, DMI type %d(0x%x), %d bytes\n"), handle, type, type, len);
+        printHex(NLS(MS_OPENPTS, OPENPTS_SMBIOS_HEAD, "  head"), ptr, len, "\n");
 
         if (type == 127) {
-            printf("End Of Table\n");
+            printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_END_OF_TABLE, "End Of Table\n"));
             // printf("%ld\n", ptr - data);
             break;
         }
@@ -200,7 +202,7 @@ int printSmbios(BYTE *data, int length) {
         }
 
         if (ptr >  eod) {
-            printf("End Of Table\n");
+            printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_END_OF_TABLE, "End Of Table\n"));
             break;
         }
 
@@ -214,7 +216,7 @@ int printSmbios(BYTE *data, int length) {
         ptr++;
         ptr++;
 
-        printHex("  body", strings, ptr - strings, "\n");
+        printHex(NLS(MS_OPENPTS, OPENPTS_SMBIOS_BODY, "  body"), strings, ptr - strings, "\n");
 
 
         if (ptr > eod) {
@@ -343,8 +345,8 @@ int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length) {
         /* to config  */
         switch (type) {
             case 0x0: /* BIOS Information */
-                conf->bios_vendor = smalloc((char*)strings[0]);
-                conf->bios_version = smalloc((char*)strings[1]);
+                conf->bios_vendor = smalloc_assert((char*)strings[0]);
+                conf->bios_version = smalloc_assert((char*)strings[1]);
                 break;
             default:
                 break;

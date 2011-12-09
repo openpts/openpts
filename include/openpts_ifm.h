@@ -70,6 +70,7 @@ typedef struct {
 #define TNC_VENDORID_TNCFHH     0x0080AB  // 32939  Fachhochschule Hannover
 #define TNC_VENDORID_OSC        0x002358  //  9048  Open System Consultants (libtnc)
 #define TNC_VENDORID_OPENPTS    0x00950E  // 38158  OpenPTS
+#define TNC_VENDORID_PA_TNC     0x000000  //     0  RFC5792
 
 #define TNC_SUBTYPE_TCG_PTS 0x01
 
@@ -197,12 +198,13 @@ typedef struct {
 
 /* OPENPTS_CAPABILITIES */
 typedef struct {
-        BYTE        flag[4];        // 4
-        TPM_VERSION tpm_version;    // 4
-        TSS_VERSION tss_version;    // 4
-        TSS_VERSION pts_version;    // 4 set by configure.in
-        PTS_UUID    platform_uuid;  // 16
-        PTS_UUID    manifest_uuid;  // 16
+        BYTE        flag[4];            // 4
+        TPM_VERSION tpm_version;        // 4
+        TSS_VERSION tss_version;        // 4
+        TSS_VERSION pts_version;        // 4 set by configure.in
+        PTS_UUID    platform_uuid;      // 16
+        PTS_UUID    manifest_uuid;      // 16
+        PTS_UUID    new_manifest_uuid;  // 16
 } OPENPTS_IF_M_Capability;
 
 

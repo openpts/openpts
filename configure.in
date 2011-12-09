@@ -25,15 +25,17 @@
 
 AC_INIT(openpts, 0.2.6, openpts-users@lists.sourceforge.jp)
 
-# use pkg-config
-# check /usr/lib64/pkgconfig/
-PKG_PROG_PKG_CONFIG
-
 PTS_SPEC_MAJOR=0
 PTS_SPEC_MINOR=0
 PTS_VER_MAJOR=2
-PTS_VER_MINOR=5
+PTS_VER_MINOR=6
+
+# set PCR index used by OpenPTS
 OPENPTS_PCR_INDEX=11
+
+# use pkg-config
+# check /usr/lib64/pkgconfig/
+PKG_PROG_PKG_CONFIG
 
 AC_CONFIG_AUX_DIR([.])
 

@@ -53,6 +53,8 @@
 /* TCG IWG IF-PTS definitions */
 #include <iwgifpts.h>
 
+#include <openpts_log.h>
+
 #include <openpts_ifm.h>
 #include <openpts_fsm.h>
 #include <openpts_tpm.h>
@@ -61,41 +63,19 @@
 #include <openpts_tboot.h>
 #endif
 
-// TODO
-#ifdef AIX
-#define PPC
-#endif
 
-/* NLS */
-#ifdef ENABLE_NLS
-#ifdef HAVE_CATGETS
-#include <nl_types.h>
-extern nl_catd catd;
-#define NLS(a, b, x) catgets(catd, a, b, x)
-#else  // !HAVE_CATGETS
-#include <locale.h>
-#include <libintl.h>
-#define NLS(a, b, x) gettext(x)
-// #define N_(x) gettext_noop(x)
-// #define gettext_noop(x) (x)
-#endif  // HAVE_CATGETS
-#else  // !ENABLE_NLS
-#ifdef NLS
-#undef NLS
-#endif
-#define NLS(a, b, x) x
-#endif  // ENABLE_NLS
-
-
-
-/* OpenPTS default configulations  */
-
+/* OpenPTS default configurations  */
+// port NUM
+//   http://www.iana.org/assignments/port-numbers
+//   http://www.iana.org/cgi-bin/usr-port-number.pl
+//   User ports [1024:49151]
+//     6674-6686  Unassigned
+// TODO 5556 is comfrict with Freeciv, => 6678
+// note) The port is local. for the remote access, we use SSH tunnel (port 22)
 #define PTSC_CONFIG_FILE  "/etc/ptsc.conf"
 #define PTSV_CONFIG_FILE  "/etc/ptsv.conf"
 
 #define PTSC_GROUP_NAME    "ptsc"
-#define PTSC_IFM_TIMEOUT   5
-#define PTSC_IFM_TIMEOUT_MAX   30
 
 #define MAXDATA 1024
 
@@ -149,12 +129,23 @@ extern nl_catd catd;
 #define OPENPTS_SELFTEST_RENEWED   301
 #define OPENPTS_SELFTEST_FALLBACK  302
 #define OPENPTS_SELFTEST_FAILED    303
+#define OPENPTS_FILE_EXISTS        311
+#define OPENPTS_FILE_MISSING       312
+#define OPENPTS_DIR_EXISTS         313
+#define OPENPTS_DIR_MISSING        314
+#define OPENPTS_IML_MISSING        315
 
 // IMV
 #define IMV_ENROLLMENT_NONE          0
 #define IMV_ENROLLMENT_CREDENTIAL    1
 #define IMV_ENROLLMENT_AUTO          2
 
+// malloc should never really fail
+// #define ALWAYS_ASSERT_ON_BAD_ALLOC
+// Undefined this for daemons
+// #define NEVER_FREE_MEMORY
+
+#define isFlagSet(bits, flagToTest) (flagToTest == ((bits) & (flagToTest)))
 
 /* structures */
 
@@ -432,6 +423,29 @@ typedef struct {
     int status;
 } OPENPTS_UUID;
 
+/* information about the components described by the models */
+typedef struct {
+    char *SimpleName;
+    char *ModelName;
+    char *ModelNumber;
+    char *ModelSerialNumber;
+    char *ModelSystemClass;
+    char *VersionMajor;
+    char *VersionMinor;
+    char *VersionBuild;
+    char *VersionString;
+    char *MfgDate;
+    char *PatchLevel;
+    char *DiscretePatches;
+    char *VendorID_Name;
+    enum {
+        VENDORID_TYPE_TCG,
+        VENDORID_TYPE_SMI,
+        VENDORID_TYPE_GUID,
+    } VendorID_type;
+    char *VendorID_Value;
+} OPENPTS_COMPID;
+
 /**
  * Config
  */
@@ -454,7 +468,6 @@ typedef struct {
     OPENPTS_UUID * oldrm_uuid;   /**< RM(old/previous) UUID */
     OPENPTS_UUID * tmp_uuid;     /**< Platform(collector) UUID - changed */
     OPENPTS_UUID * tmp_rm_uuid;  /**< RM(now) UUID - changed */
-
 
     /* Daemon UUID */
     PTS_UUID     *daemon_uuid;
@@ -494,10 +507,13 @@ typedef struct {
     int iml_endian;                /**< 0: same, 2:conv */
     int iml_aligned;               /**< 0: byte, 4: 4-byte aligned */
 
-    /* FSM models (Linux) */
+    /* FSM models */
     char *model_dir; /**< */
-    char *platform_model_filename[MAX_PCRNUM]; /**< */  // BIOS
-    char *runtime_model_filename[MAX_PCRNUM];  /**< */  // IPL/VMM/OS
+    char *model_filename[MAX_RM_NUM][MAX_PCRNUM];
+    int iml_maxcount;
+
+    /* Component ID */
+    OPENPTS_COMPID compIDs[MAX_RM_NUM];
 
     /* verifier setting */
     char *verifier_logging_dir;
@@ -530,17 +546,17 @@ typedef struct {
     char *hostname;
     char *ssh_username;
     char *ssh_port;
-    int   ifm_timeout;
 
     /* IF-M verifier(IMV) */
     int enrollment;
 
 #ifdef CONFIG_AUTO_RM_UPDATE
-    int enable_aru;            /**> Enable update scan */
-    int update_exist;          /**> Update exist, used by collector */
-    int newrm_exist;           /**> NewRM exist, used by verifier */
-    PTS_UUID *aru_newrm_uuid;  /**> NewRM UUID */
-    void *update;              /**> Hold update*/
+    int enable_aru;              /**> Enable update scan */
+    int update_exist;            /**> Update exist, used by collector */
+    int target_newrm_exist;      /**> NewRM exist, used by verifier */
+    PTS_UUID *target_newrm_uuid; /**> NewRM UUID */
+    void *update;                /**> Hold update*/
+    BYTE *newRmSet;
 #endif
 
     /* misc */
@@ -553,6 +569,7 @@ typedef struct {
  */
 typedef struct {
     int num;       /**< */
+    int pcr;
     char *message; /**< */
     void * next;   /**< */
 } OPENPTS_REASON;
@@ -610,6 +627,7 @@ typedef struct {
 
     /* Integrity Report */
     OPENPTS_IR_CONTEXT *ir_ctx;
+    char *ir_filename;
 
 
 
@@ -624,6 +642,8 @@ typedef struct {
     int  ima_unknown;
     int  ima_ignore;  // they are included in the valid count
 
+    /* Component ID */
+    OPENPTS_COMPID compIDs[MAX_RM_NUM];
 
     /* IF-M */
     BYTE *read_msg;
@@ -786,11 +806,10 @@ int makeNewRmSetDir(OPENPTS_CONFIG *conf);
 /* ir.c */
 OPENPTS_IR_CONTEXT *newIrContext();
 void freeIrContext(OPENPTS_IR_CONTEXT *ctx);
-// TODO remove file
-int writeIr(OPENPTS_CONTEXT *ctx, const char *file);
-// int writeIr(OPENPTS_CONTEXT *ctx);
-int validateIr(OPENPTS_CONTEXT *ctx, const char *file);
-int genIr(OPENPTS_CONTEXT *ctx);
+int writeIr(OPENPTS_CONTEXT *ctx, const char *filename, int *savedFd);
+// int validateIr(OPENPTS_CONTEXT *ctx, const char *file);
+int validateIr(OPENPTS_CONTEXT *ctx);
+int genIr(OPENPTS_CONTEXT *ctx, int *savedFd);
 
 /* action.c */
 int doActivity(
@@ -823,10 +842,11 @@ int saveProperties(OPENPTS_CONTEXT *ctx, char * filename);
 void printProperties(OPENPTS_CONTEXT *ctx);
 int validateProperty(
     OPENPTS_CONTEXT *ctx, char *name, char *value, char *action);
+int addPropertiesFromConfig(OPENPTS_CONFIG *conf, OPENPTS_CONTEXT *ctx);
 
 /* reason.c */
-int addReason(OPENPTS_CONTEXT *ctx, const char *format, ...);
-void printReason(OPENPTS_CONTEXT *ctx);
+int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...);
+void printReason(OPENPTS_CONTEXT *ctx, int print_pcr_hints);
 
 
 /* log.c */
@@ -869,27 +889,36 @@ int genSmbiosFileByDmidecode(char * filename);
 int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length);
 
 /* misc.c */
-char * smalloc(char *str);
-char * snmalloc(char *str, int len);
-BYTE * snmalloc2(BYTE * buf, int offset, int len);
-void sfree(char *str);
+void *xmalloc_assert(size_t len);
+char *smalloc_assert(char *str);
+#ifdef ALWAYS_ASSERT_ON_BAD_ALLOC
+#define xmalloc(len) xmalloc_assert(len)
+#define smalloc(str) smalloc_assert(str)
+#else
+void *xmalloc(size_t len);
+char *smalloc(char *str);
+#endif
+char *snmalloc(char *str, int len);
+BYTE *snmalloc2(BYTE * buf, int offset, int len);
+void xfree(void *ptr);
 UINT32 byte2uint32(BYTE *b);
 char * trim(char *str);
 char *getHexString(BYTE *bin, int size);
 void printHex(char *head, BYTE *data, int num, char *tail);
+void fprintHex(FILE *fp, BYTE *data, int num);
 UINT32 b2l(UINT32 in);
+void debugHex(char *head, BYTE *data, int num, char *tail);
 
 int saveToFile(char * filename, int len, BYTE * msg);
 int getUint32(BYTE *buf);
 int makeDir(char *dirname);
 int checkDir(char *dirname);
+int checkFile(char *filename);
 ssize_t wrapRead(int fd, void *buf, size_t count);
 ssize_t wrapWrite(int fd, const void *buf, size_t count);
 char *getFullpathName(char *base_path, char *filename);
 char *getFullpathDir(char *filename);
-
-/* log.c */
-void writeLog(int priority, const char *format, ...);
+int unlinkDir(const char *dirPath);
 
 /* uuid.c */
 PTS_UUID *newUuid();
@@ -898,6 +927,8 @@ char * getStringOfUuid(PTS_UUID *uuid);
 PTS_UUID *getUuidFromString(char *str);
 PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid);
 PTS_DateTime * getDateTime();
+int writeUuidFile(char *str_uuid, char *filename, int overwrite);
+int readUuidFile(char *filename, char **str_uuid, PTS_UUID **uuid);
 int getRmList(OPENPTS_CONFIG *conf, char * config_dir);
 int purgeRenewedRm(OPENPTS_CONFIG *conf);
 void printRmList(OPENPTS_CONFIG *conf, char *indent);
@@ -905,6 +936,7 @@ int getTargetList(OPENPTS_CONFIG *conf, char * config_dir);
 void printTargetList(OPENPTS_CONFIG *conf, char *indent);
 char *getTargetConfDir(OPENPTS_CONFIG *conf);
 OPENPTS_TARGET *getTargetCollector(OPENPTS_CONFIG *conf);
+OPENPTS_TARGET *getTargetCollectorByUUID(OPENPTS_CONFIG *conf, const char *uuid);
 /* OPENPTS_UUID */
 OPENPTS_UUID *newOpenptsUuid();
 OPENPTS_UUID *newOpenptsUuid2(PTS_UUID *pts_uuid);
@@ -919,7 +951,7 @@ int init(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OPE
 int printCollectorStatus(OPENPTS_CONFIG *conf);
 int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OPENPTS_PROPERTY *prop_end);
 int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OPENPTS_PROPERTY *prop_end);
-
+int clear(OPENPTS_CONFIG *conf, int force);
 
 #ifdef CONFIG_AUTO_RM_UPDATE
 #include "./openpts_aru.h"
@@ -927,93 +959,5 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
 
 /* ssh.c */
 pid_t ssh_connect(char *host, char *ssh_username, char *ssh_port, char *key_file, int *socket);
-
-/* print controll */
-
-#define logDebug(fmt, ...) \
-syslog(LOG_NOTICE, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#define logInfo(fmt, ...)  \
-syslog(LOG_INFO, fmt, ##__VA_ARGS__)
-#define logError(fmt, ...) \
-syslog(LOG_ERR, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-
-/* main.c and check_*.c */
-extern int verbose;
-
-#define DEBUG_FLAG     0x01
-#define DEBUG_FSM_FLAG 0x02
-#define DEBUG_XML_FLAG 0x04
-#define DEBUG_IFM_FLAG 0x08
-#define DEBUG_SAX_FLAG 0x10
-#define DEBUG_TPM_FLAG 0x20
-#define DEBUG_CAL_FLAG 0x40
-
-#if 0
-#define ERROR(fmt, ...) \
-fprintf(stderr, "ERROR     %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define TODO(fmt, ...) \
-fprintf(stderr, "TODO      %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define INFO(fmt, ...) \
-fprintf(stderr, "INFO      %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)v
-
-#define DEBUG(fmt, ...) if (verbose & DEBUG_FLAG) \
-fprintf(stdout, "DEBUG     %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_FSM(fmt, ...) if (verbose & DEBUG_FSM_FLAG) \
-fprintf(stdout, "DEBUG_FSM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_XML(fmt, ...) if (verbose & DEBUG_XML_FLAG) \
-fprintf(stdout, "DEBUG_XML %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_IFM(fmt, ...) if (verbose & DEBUG_IFM_FLAG) \
-fprintf(stdout, "DEBUG_IFM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_SAX(fmt, ...) if (verbose & DEBUG_SAX_FLAG) \
-fprintf(stdout, "DEBUG_SAX %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_TPM(fmt, ...) if (verbose & DEBUG_TPM_FLAG) \
-fprintf(stdout, "DEBUG_TPM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_CAL(fmt, ...) if (verbose & DEBUG_CAL_FLAG) \
-fprintf(stdout, "DEBUG_TPM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#else
-
-// #include <syslog.h>
-
-#define ERROR(fmt, ...) \
-writeLog(LOG_ERR, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define TODO(fmt, ...) \
-writeLog(LOG_INFO, "(TODO) %s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define INFO(fmt, ...) \
-writeLog(LOG_INFO, fmt, ##__VA_ARGS__)
-// writeLog(LOG_INFO, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG(fmt, ...) if (verbose & DEBUG_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG     %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_FSM(fmt, ...) if (verbose & DEBUG_FSM_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG_FSM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_XML(fmt, ...) if (verbose & DEBUG_XML_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG_XML %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_IFM(fmt, ...) if (verbose & DEBUG_IFM_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG_IFM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_SAX(fmt, ...) if (verbose & DEBUG_SAX_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG_SAX %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_TPM(fmt, ...) if (verbose & DEBUG_TPM_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG_TPM %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_CAL(fmt, ...) if (verbose & DEBUG_CAL_FLAG) \
-writeLog(LOG_DEBUG, "DEBUG_CAL %s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#endif
 
 #endif  // INCLUDE_OPENPTS_H_

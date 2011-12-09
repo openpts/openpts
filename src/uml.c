@@ -47,6 +47,7 @@
 #include <tss/tspi.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 /*
 
@@ -107,7 +108,7 @@ void    uml2sax_endDocument(void * fctx) {
     // TODO(munetoh) ID must be "Start"
     ctx->curr_state = getSubvertex(ctx, "Start");
     if (ctx->curr_state == NULL) {
-        printf("ERROR Start state is missing\n");
+        ERROR("Start state is missing\n");
     }
 
     DEBUG_CAL("endDocument - done\n");
@@ -328,7 +329,7 @@ int readUmlModel(OPENPTS_FSM_CONTEXT * ctx, char *umlfile) {
     } else {
         /* delete previos one if exist */
         /* copy */
-        ctx->uml_file = smalloc(umlfile);
+        ctx->uml_file = smalloc_assert(umlfile);
         DEBUG_CAL("readUmlModel - done\n");
         return ctx->error;  // Success (0) or ERROR of IR if exist
     }

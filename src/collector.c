@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>  // inet_ntoa
 #include <unistd.h>
+#include <grp.h>
 
 #include <signal.h>
 
@@ -54,7 +55,6 @@
 
 #include <openpts.h>
 
-
 /**
  * print FSM info
  */
@@ -62,16 +62,16 @@ void printFsmInfo(OPENPTS_CONTEXT *ctx, char * indent) {
     int i;
     OPENPTS_SNAPSHOT *ss;
 
-    printf("%sPCR lv  FSM files\n", indent);
-    printf("%s-----------------------------------------------------\n", indent);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_FSM_INFO_HEADER, "%sPCR lv  FSM files\n"), indent);
+    OUTPUT("%s-----------------------------------------------------\n", indent);
 
     for (i = 0; i < MAX_PCRNUM; i++) {
         ss = getSnapshotFromTable(ctx->ss_table, i, 0);
 
         if (ss != NULL) {
             if (ss->fsm_behavior != NULL) {
-                printf("%s%2d  0  ", indent, i);
-                printf("%s\n", ss->fsm_behavior->uml_file);
+                OUTPUT("%s%2d  0  ", indent, i);
+                OUTPUT("%s\n", ss->fsm_behavior->uml_file);
             }
         }
 
@@ -79,12 +79,12 @@ void printFsmInfo(OPENPTS_CONTEXT *ctx, char * indent) {
         ss = getSnapshotFromTable(ctx->ss_table, i, 1);
         if (ss != NULL) {
             if (ss->fsm_behavior != NULL) {
-                printf("%s%2d  1  ", indent, i);
-                printf("%s\n", ss->fsm_behavior->uml_file);
+                OUTPUT("%s%2d  1  ", indent, i);
+                OUTPUT("%s\n", ss->fsm_behavior->uml_file);
             }
         }
     }
-    printf("%s-----------------------------------------------------\n", indent);
+    OUTPUT("%s-----------------------------------------------------\n", indent);
 }
 
 /**
@@ -102,8 +102,8 @@ int extendEvCollectorStart(OPENPTS_CONFIG *conf) {
 
 
     /* malloc eventlog */
-    collector_start = malloc(sizeof(OPENPTS_EVENT_COLLECTOR_START));
-    event = malloc(sizeof(TSS_PCR_EVENT));
+    collector_start = xmalloc_assert(sizeof(OPENPTS_EVENT_COLLECTOR_START));
+    event = xmalloc_assert(sizeof(TSS_PCR_EVENT));
 
     /*fill collector_start */
     memcpy(&collector_start->pts_version, &conf->pts_version, 4);
@@ -112,7 +112,7 @@ int extendEvCollectorStart(OPENPTS_CONFIG *conf) {
 
 
     /* get PCR value*/
-    // memcpy(&collector_start->pcr_value;make
+    // memcpy(&collector_start->pcr_value;
     readPcr(conf->openpts_pcr_index, pcr);
     memcpy(&collector_start->pcr_value, pcr, SHA1_DIGEST_SIZE);
 
@@ -138,8 +138,8 @@ int extendEvCollectorStart(OPENPTS_CONFIG *conf) {
     extendEvent(event);
 
     /* free */
-    free(collector_start);
-    free(event);
+    xfree(collector_start);
+    xfree(event);
 
     return PTS_SUCCESS;
 }
@@ -169,15 +169,74 @@ int init(
     OPENPTS_PROPERTY *prop_end) {
     int rc = PTS_SUCCESS;
     UINT32 ps_type = TSS_PS_TYPE_SYSTEM;
-    OPENPTS_CONTEXT *ctx;
+    OPENPTS_CONTEXT *ctx = NULL;
     int i;
     int keygen = 1;
+    TSS_VERSION tpm_version;
+
+    /* check */
+    if (conf == NULL) {
+        ERROR("FATAL");
+        return PTS_FATAL;
+    }
+    if (conf->uuid == NULL) {
+        ERROR("FATAL");
+        return PTS_FATAL;
+    }
+    if (conf->uuid->filename == NULL) {
+        ERROR("FATAL");
+        return PTS_FATAL;
+    }
+
+    /*
+     * Common misconfigulations
+     *
+     *  1) cannot access the IML through TSS.
+     *     default /etc/tcsd.conf does not configured to access the IML file at
+     *     securityfs.
+     *     => ERROR : OPENPTS_MISSING_IML
+     *
+     *  2) TPM not taken ownership.
+     *     in this case, Keygen was failed
+     *  3) Missing TCS Daemon
+     *     So ptsc can not access TPM/TSS, may got tspi 0x0311 error.
+     *  4) /etc/ptsc.conf did not configured for this platform yet
+     *     missing PCR - Model convination
+     */
+
+    /* Check the existing configulation */
+    rc = checkFile(conf->uuid->filename);
+    if (rc == OPENPTS_FILE_EXISTS) {
+        char *str_uuid;
+        PTS_DateTime *time;
+        /* if UUID file exist => exit, admin must delete the UUID file, then init again */
+        /* check existing UUID */
+        rc = readOpenptsUuidFile(conf->uuid);
+        str_uuid = getStringOfUuid(conf->uuid->uuid);
+        time = getDateTimeOfUuid(conf->uuid->uuid);
+
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UUID_FILE_EXISTS,
+                "The ptsc has been initialized. "
+                "If you want to re-intialize the platform, please clear the collector. "
+                "To see the detail of current ptsc, use ptsc -D. "
+                "To clear the ptsc, use ptsc -e\n"));
+        OUTPUT("    existing uuid = %s\n", str_uuid);
+        OUTPUT("    creation date = %d-%d-%d\n",
+            time->year + 1900,
+            time->mon + 1,
+            time->mday);
+        /* free */
+        xfree(str_uuid);
+        xfree(time);
+        return PTS_FATAL;  // TODO assign error code
+    }
+
 
     /* ctx for init */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("no memory?");
+        return PTS_FATAL;
     }
 
     /* add property */
@@ -186,12 +245,92 @@ int init(
         ctx->prop_end = prop_end;
         ctx->prop_count = prop_count;
     }
+    addPropertiesFromConfig(conf, ctx);
 
+    /* get TPM and TSS version */
+    rc = getTpmVersion(&tpm_version);
+    if (rc != PTS_SUCCESS) {
+        addReason(ctx, -1,
+            "[PTSC-INIT] Couldn't get the TPM version.　Check the TSS and TPM driver.");
+        rc = PTS_FATAL;
+        goto error;
+    }
 
-    /* config dir */
+    /* read FSM */
+    rc = readFsmFromPropFile(ctx, conf->config_file);
+    if (rc != PTS_SUCCESS) {
+        addReason(ctx, -1,
+            "[PTSC-INIT] Couldn't load validation models. Check the ptsc configlation, %s.",
+            conf->config_file);
+        rc = PTS_FATAL;
+        goto error;
+    }
+
+    /* read IML to fill the BIOS binary measurement, and translate BHV->BIN FSM */
+    /* load current IML using FSMs */
+    if (conf->iml_mode == 0) {  // TODO use def
+        rc = getIml(ctx, 0);  // iml.c, return event num
+        if (rc == 0) {
+            addReason(ctx, -1,
+                "[PTSC-INIT] Couldn't access IML through TSS. "
+                "Check the TSS configuration /etc/tcsd.conf");
+            rc = OPENPTS_IML_MISSING;
+            goto error;
+        }
+
+        rc = getPcr(ctx);  // iml.c, return pcr num
+        if (rc == 0) {
+            addReason(ctx, -1,
+                "[PTSC-INIT] Couldn't get the PCR value");
+            rc = PTS_FATAL;
+            goto error;
+        }
+    } else if (conf->iml_mode == 1) {
+        // TODO change to generic name?  conf->iml_filename[0]  conf->iml_filename[1]
+        /* from  securityfs */
+        /* BIOS IML */
+        rc = readBiosImlFile(
+                ctx,
+                conf->bios_iml_filename, conf->iml_endian);
+        if (rc != PTS_SUCCESS) {
+            addReason(ctx, -1,
+                "[PTSC-INIT] Couldn't read the IML file, %s. Check the ptsc configuration, %s.",
+                conf->bios_iml_filename, conf->config_file);
+            rc = PTS_FATAL;
+            goto error;
+        }
+
+        /* RUNTIME IML (Linux-IMA) */
+        if (ctx->conf->runtime_iml_filename != NULL) {
+            int count;
+            rc = readImaImlFile(
+                    ctx,
+                    conf->runtime_iml_filename,
+                    conf->runtime_iml_type, 0, &count);  // TODO endian?
+            if (rc != PTS_SUCCESS) {
+                addReason(ctx, -1,
+                    "[PTSC-INIT] Couldn't read IML file, %s. Check the ptsc configuration, %s.",
+                    conf->runtime_iml_filename, conf->config_file);
+                rc = PTS_INTERNAL_ERROR;
+                goto error;
+            }
+        }
+    } else {
+        addReason(ctx, -1,
+            "[PTSC-INIT] Unknown IML mode, %d, Check the ptsc configuration (iml.mode), %s .",
+            conf->iml_mode, conf->config_file);
+        rc = PTS_FATAL;
+        goto error;
+    }
+
+    /* config dir, /var/lib/openpts */
     if (conf->config_dir == NULL) {
-        ERROR("missing config dir, check your config file %s\n", conf->config_file);
-        return PTS_INTERNAL_ERROR;
+        addReason(ctx, -1,
+            NLS(MS_OPENPTS, OPENPTS_COLLECTOR_MISSING_CONFIG_DIR,
+            "[PTSC-INIT] Configuration directory is not defined. Check the ptsc configuration file, %s"),
+            conf->config_file);
+        rc = PTS_INTERNAL_ERROR;
+        goto error;
     } else {
         /* check */
         rc = checkDir(conf->config_dir);
@@ -199,22 +338,56 @@ int init(
             /* OK */
         } else {
             /* Missing */
-            INFO("create new config dir, %s", conf->config_dir);
+            struct group *ptsc_grp;
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_NEW_CONFIG_DIR,
+                "Creating new configuration directory '%s'\n"), conf->config_dir);
             makeDir(conf->config_dir);
+
+            // TODO Consider using getgrnam_r(...)
+            if ((ptsc_grp = getgrnam(PTSC_GROUP_NAME)) != NULL) {
+                if (-1 == chown(conf->config_dir, 0, ptsc_grp->gr_gid)) {
+                    addReason(ctx, -1,
+                        NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CHANGE_OWNSHIP_FAIL,
+                        "[PTSC-INIT] Could not change ownership of %s to " PTSC_GROUP_NAME "\n"),
+                        conf->config_dir);
+                    rc = PTS_FATAL;
+                    goto error;
+                }
+                if (-1 == chmod(conf->config_dir, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP)) {
+                    addReason(ctx, -1,
+                        NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CHANGE_MODE_FAIL,
+                        "[PTSC-INIT] Could not change file mode of %s (rwxr-w---)\n"), conf->config_dir);
+                    rc = PTS_FATAL;
+                    goto error;
+                }
+            } else {
+                addReason(ctx, -1,
+                    NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FIND_GROUP_FAIL,
+                    "[PTSC-INIT] Failed to look up group '%s'\n"), PTSC_GROUP_NAME);
+                    rc = PTS_FATAL;
+                    goto error;
+            }
         }
     }
-    // DEBUG("config dir : %s\n", conf->config_dir);
 
     /* Generate UUID of this platform */
-    // TODO TODO TODO
     if (conf->uuid == NULL) {
         // TODO UUID filename is missing
-        ERROR(" bad conf file\n");
-        return PTS_INTERNAL_ERROR;
+        addReason(ctx, -1,
+            NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE,
+            "[PTSC-INIT] Bad configuration file, %s"),
+            conf->config_file);
+        rc = PTS_INTERNAL_ERROR;
+        goto error;
     } else if (conf->uuid->status == OPENPTS_UUID_FILENAME_ONLY) {
         /* gen new UUID */
         rc = genOpenptsUuid(conf->uuid);
-        // TODO check rc
+        if (rc != PTS_SUCCESS) {
+            addReason(ctx, -1,
+                "[PTSC-INIT] Generation of UUID was failed");
+            rc = PTS_INTERNAL_ERROR;
+            goto error;
+        }
     } else {
         DEBUG("init() - use given UUID %s (for TEST)\n", conf->uuid->str);
         keygen = 0;
@@ -228,159 +401,127 @@ int init(
     if (keygen == 1) {
         rc = createTssSignKey(conf->uuid->uuid, ps_type, NULL, 0, conf->srk_password_mode);
         if (rc == 0x0001) {  // 0x0001
-            fprintf(stderr, "createSignKey failed. "
-                            "if you uses well known SRK secret, "
-                            "all zeros (20 bytes of zeros) try -z option\n");
+            addReason(ctx, -1,
+                NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SIGN_KEY_FAIL,
+                "[PTSC-INIT] Failed to create the signed key. "
+                "If you are using the well known SRK secret key (all zeroes) "
+                "then please try again with the '-z' option\n"));
             rc = PTS_INTERNAL_ERROR;
-            goto free;
+            goto error;
         } else if (rc != PTS_SUCCESS) {
-            fprintf(stderr, "createSignKey failed, rc = 0x%x\n", rc);
+            addReason(ctx, -1,
+                "[PTSC-INIT] Could not create the Key (rc = 0x%x).", rc);
             rc = PTS_INTERNAL_ERROR;
-            goto free;
+            goto error;
         }
-        printf("Sign key  location          : SYSTEM\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_PTSCD, "Sign key  location: SYSTEM\n"));
     } else {
         DEBUG("init() - skip key gen for the given UUID\n");
     }
 
-
-    /* Write UUID file */
-    rc = writeOpenptsUuidFile(conf->uuid, 0);
-    if (rc == PTS_DENIED) {
-        char *str_uuid;
-        PTS_DateTime *time;
-        /* if UUID file exist => exit, admin must delete the UUID file, then init again */
-        /* check existing UUID */
-        rc = readOpenptsUuidFile(conf->uuid);
-        str_uuid = getStringOfUuid(conf->uuid->uuid);
-        time = getDateTimeOfUuid(conf->uuid->uuid);
-
-        fprintf(stderr, "uuid file, '%s' exist, please remove this file if you want to re-intialize the platform\n",
-            conf->uuid->filename);
-        fprintf(stderr, "    existing uuid = %s\n", str_uuid);
-        fprintf(stderr, "    creation date = %d-%d-%d\n",
-            time->year + 1900,
-            time->mon + 1,
-            time->mday);
-        /* free */
-        free(str_uuid);
-        free(time);
-        goto free;
-    } else if (rc != PTS_SUCCESS) {
-        /* internal error */
-        fprintf(stderr, "uuid file, '%s' generation was failed\n", conf->uuid->filename);
-        rc = PTS_INTERNAL_ERROR;
-        goto free;
-    }
-
     /* print uuid */
-    printf("Generate uuid               : %s \n", conf->uuid->str);
-
-
-
-    /* read FSM */
-    rc = readFsmFromPropFile(ctx, conf->config_file);
-    if (rc != PTS_SUCCESS) {
-        ERROR("read FSM failed\n");
-        rc = PTS_INTERNAL_ERROR;
-        goto free;
-    }
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_GEN_UUID, "Generate uuid: %s \n"), conf->uuid->str);
 
     /* UUID for RM */
     if (conf->rm_uuid == NULL) {
         // init/set by readPtsConf
-        ERROR("conf->rm_uuid == NULL\n");
+        // ERROR("conf->rm_uuid == NULL\n");
+        addReason(ctx, -1,
+            "[PTSC-INIT] RM_UUID file is not defined (rm.uuid.file) in the ptsc configulation, %s",
+            conf->config_file);
+        rc = PTS_INTERNAL_ERROR;
+        goto error;
     } else if (conf->rm_uuid->status == OPENPTS_UUID_FILENAME_ONLY) {
         rc = genOpenptsUuid(conf->rm_uuid);
-        // TODO
+        if (rc != PTS_SUCCESS) {
+            addReason(ctx, -1,
+                "[PTSC-INIT] Generation of RM UUID was failed");
+            rc = PTS_INTERNAL_ERROR;
+            goto error;
+        }
+
     } else {
         DEBUG("init() - use given RM UUID %s\n", conf->rm_uuid->str);
     }
 
-    /* save to rm_uuid file */
-    rc = writeOpenptsUuidFile(conf->rm_uuid, 0);  // do not overwrite
-    if (rc != PTS_SUCCESS) {
-        ERROR("writeOpenptsUuidFile fail\n");
-    }
-    // TODO check rc
-
     /* RM set DIR */
     rc = makeRmSetDir(conf);
     if (rc != PTS_SUCCESS) {
-        ERROR("mkdir of RM set dir was failed\n");
-        goto free;
+        addReason(ctx, -1,
+            "[PTSC-INIT] Couldn't create Reference Maniferst directory");
+        rc = PTS_INTERNAL_ERROR;
+        goto error;
     }
 
     /* print rm uuid */
-    printf("Generate UUID (for RM)      : %s \n", conf->rm_uuid->str);
-
-    /* read IML to fill the BIOS binary measurement, and translate BHV->BIN FSM */
-
-    /* load current IML using FSMs */
-    if (conf->iml_mode == 0) {  // TODO use def
-#ifdef CONFIG_NO_TSS
-        ERROR("Build with --without-tss. iml.mode=tss is not supported\n");
-#else
-        rc = getIml(ctx, 0);
-        rc = getPcr(ctx);
-#endif
-    } else if (conf->iml_mode == 1) {
-        // TODO change to generic name?  conf->iml_filename[0]  conf->iml_filename[1]
-        /* from  securityfs */
-        /* BIOS IML */
-        rc = readBiosImlFile(
-                ctx,
-                conf->bios_iml_filename, conf->iml_endian);
-        if (rc != PTS_SUCCESS) {
-            DEBUG("getBiosImlFile() was failed\n");
-            fprintf(stderr, "Oops! Something is wrong. Please see the reason below\n");
-            printReason(ctx);
-            goto free;
-        }
-
-        /* RUNTIME IML (Linux-IMA) */
-        if (ctx->conf->runtime_iml_filename != NULL) {
-            int count;
-            rc = readImaImlFile(
-                    ctx,
-                    conf->runtime_iml_filename,
-                    conf->runtime_iml_type, 0, &count);  // TODO endian?
-            if (rc != PTS_SUCCESS) {
-                fprintf(stderr, "read IMA IML, %s was failed\n", conf->runtime_iml_filename);
-                rc = PTS_INTERNAL_ERROR;
-                goto free;
-            }
-        }
-    } else {
-        ERROR("unknown IML mode, %d\n", conf->iml_mode);
-    }
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_GEN_RM_UUID,
+        "Generate UUID (for RM): %s \n"), conf->rm_uuid->str);
 
     /* get SMBIOS data */
-    // TODO
+    // TODO Platform information - TBD
+    //      Use ptsc.conf to set the platform info, malually
 
     /* create Reference Manifest */
     for (i = 0; i < conf->rm_num; i++) {
         if (conf->rm_filename[i] != NULL) {
             rc = writeRm(ctx, conf->rm_filename[i], i);
             if (rc != PTS_SUCCESS) {
-                fprintf(stderr, "ERROR, initialization was failed\n");
-                addReason(ctx,
-                    "[INIT] Failed to create the manifest file, %s",
+                ERROR("ERROR, initialization was failed\n");
+                // WORK NEEDED: Reason need putting in NLS
+                addReason(ctx, -1,
+                    "[PTSC-INIT] Couldn't create the manifest file, %s",
                     conf->rm_filename[i]);
-                printReason(ctx);
+                //printReason(ctx, 0);
                 rc = PTS_FATAL;
-                goto free;
+                goto error;
             }
-            printf("level %d Reference Manifest  : %s\n", i, conf->rm_filename[i]);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_RM,
+                "level %d Reference Manifest  : %s\n"), i, conf->rm_filename[i]);
         } else {
-            ERROR("missing RM file for level %d\n", i);
+            addReason(ctx, -1,
+                NLS(MS_OPENPTS, OPENPTS_COLLECTOR_MISSING_RM_FILE,
+                "[PTSC-INIT] Missing reference manifest file for level %d\n"), i);
+            rc = PTS_FATAL;
+            goto error;
         }
     }
-    printf("\nptsc is successfully initialized!\n");
+
+    /* Finaly wrote the UUID files */
+
+    /* Write UUID file */
+    rc = writeOpenptsUuidFile(conf->uuid, 0);
+    if (rc != PTS_SUCCESS) {
+        /* internal error */
+        addReason(ctx, -1,
+            "[PTSC-INIT] Couldn't write the uuid file, '%s'.\n",
+            conf->uuid->filename);
+        rc = PTS_INTERNAL_ERROR;
+        goto error;
+    }
+
+    /* save to rm_uuid file */
+    rc = writeOpenptsUuidFile(conf->rm_uuid, 0);
+    if (rc != PTS_SUCCESS) {
+        addReason(ctx, -1,
+            "[PTSC-INIT] Couldn't write the UUID file, %s",
+            conf->rm_uuid->filename);
+        rc = PTS_INTERNAL_ERROR;
+        goto error;
+    }
+
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_SUCCESS,
+        "\nptsc has successfully initialized!\n"));
+    goto free;
+
+ error:
+    /* initialization was faild */
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_FAIL,
+        "ptsc initialization was failed\n"));
+    printReason(ctx, 0);
 
  free:
     /* free */
-    freePtsContext(ctx);
+    if (ctx != NULL) freePtsContext(ctx);
 
     return rc;
 }
@@ -416,6 +557,7 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     OPENPTS_CONTEXT *ctx;
     int i;
     OPENPTS_PROPERTY *prop;
+    char * ir_filename;
 
     DEBUG("selftest() start\n");
 
@@ -424,7 +566,6 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     /* new */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -439,25 +580,30 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
         prop = prop->next;
     }
 
+    /* additional properties from the pts config file */
+    addPropertiesFromConfig(conf, ctx);
 
     /* set dummy nonce for IR gen */
     ctx->nonce->nonce_length = 20;
-    ctx->nonce->nonce = malloc(20);
+    ctx->nonce->nonce = xmalloc_assert(20);
     memset(ctx->nonce->nonce, 0x5A, 20);
     // dummy target uuid
     ctx->str_uuid = smalloc("SELFTEST");
 
     /* gen IR */
-    rc = genIr(ctx);  // ir.c
+    rc = genIr(ctx, NULL);
     if (rc != PTS_SUCCESS) {
         ERROR("selftest() - genIR failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
 
+    /* hold the IR filename */
+    ir_filename = ctx->ir_filename;
+    ctx->ir_filename = NULL;
+
     /* free */
     freePtsContext(ctx);
-
 
     // DEBUG("selftest() - generate IR file => %s\n", conf->ir_filename);
     DEBUG("selftest() - generate IR - done\n");
@@ -473,9 +619,9 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     /* new */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return PTS_INTERNAL_ERROR;
     }
+    ctx->ir_filename = ir_filename;
 
     /* setup RMs */
     rc = getRmSetDir(conf);
@@ -513,18 +659,19 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
 
 
 
-    result = validateIr(ctx, conf->ir_filename);  /* ir.c */
-
+    //result = validateIr(ctx, conf->ir_filename);  /* ir.c */
+    // TODO 
+    result = validateIr(ctx);  /* ir.c */
 
 
     /* check RM integrity status */
     DEBUG("selftest() - validate IR - done (rc = %d)\n", result);
-    if ((rc != OPENPTS_RESULT_VALID) && (verbose & DEBUG_FLAG)) {
-        printReason(ctx);
+    if ((rc != OPENPTS_RESULT_VALID) && isDebugFlagSet(DEBUG_FLAG)) {
+        printReason(ctx, 0);
     }
 
     if (result != OPENPTS_RESULT_VALID) {
-        addReason(ctx, "[SELFTEST] selftest was failed");
+        addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SELFTEST_FAILED, "[SELFTEST] The self test failed"));
         if ((conf->newrm_uuid != NULL) && (conf->newrm_uuid->uuid != NULL)) {
             /* New RM exist (for reboot after the update), Try the new RM */
 
@@ -560,18 +707,25 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
             } else {
                 /* fail */
                 TODO("\n");
-                addReason(ctx, "[SELFTEST] selftest using both current and new UUID was failed");
-                printReason(ctx);
+                addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SELFTEST_FAILED_2,
+                               "[SELFTEST] The self test using both current and new UUIDs has failed"));
+                printReason(ctx, 0);
                 rc = OPENPTS_SELFTEST_FAILED;
             }
         } else {
-            addReason(ctx, "[SELFTEST] selftest was failed");
-            printReason(ctx);
+            printReason(ctx, 0);
             rc = OPENPTS_SELFTEST_FAILED;
         }
     } else {
         /* valid :-) */
         rc = OPENPTS_SELFTEST_SUCCESS;
+    }
+
+    /* leaving lots of temp 100K+ files lying around quickly fills up certain
+       filesystems, i.e. on AIX /tmp is typically small, so we 
+       unlink them after use */
+    if (NULL != conf->ir_filename) {
+        unlink(conf->ir_filename);
     }
 
  free:
@@ -605,7 +759,6 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     /* ctx for init */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -629,10 +782,12 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     }
 #endif
 
+    addPropertiesFromConfig(conf, ctx);
+
     /* read FSM */
     rc = readFsmFromPropFile(ctx, conf->config_file);
     if (rc != PTS_SUCCESS) {
-        ERROR("read FSM failed\n");
+        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_FSM, "Failed to read the FSM file\n"));
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -656,12 +811,13 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     /* RM set DIR */
     rc = makeRmSetDir(conf);
     if (rc != PTS_SUCCESS) {
-        ERROR("mkdir of RM set dir was failed\n");
+        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_MKDIR_RM_SET_FAILED,
+            "Failed to create the reference manifest set directory\n"));
         goto free;
     }
 
     /* print rm uuid */
-    printf("Generate UUID (for RM)      : %s \n", conf->rm_uuid->str);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_NEW_RM_UUID, "Generate UUID (for RM): %s \n"), conf->rm_uuid->str);
 
     /* read IML to fill the BIOS binary measurement, and translate BHV->BIN FSM */
 
@@ -682,8 +838,8 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
                 conf->bios_iml_filename, conf->iml_endian);
         if (rc != PTS_SUCCESS) {
             DEBUG("getBiosImlFile() was failed\n");
-            fprintf(stderr, "Oops! Something is wrong. Please see the reason below\n");
-            printReason(ctx);
+            ERROR("Oops! Something is wrong. Please see the reason below\n");
+            printReason(ctx, 0);
             goto free;
         }
 
@@ -695,7 +851,7 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
                     conf->runtime_iml_filename,
                     conf->runtime_iml_type, 0, &count);  // TODO endian?
             if (rc != PTS_SUCCESS) {
-                fprintf(stderr, "read IMA IML, %s was failed\n", conf->runtime_iml_filename);
+                ERROR("read IMA IML, %s was failed\n", conf->runtime_iml_filename);
                 rc = PTS_INTERNAL_ERROR;
                 goto free;
             }
@@ -712,18 +868,23 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
         if (conf->rm_filename[i] != NULL) {
             rc = writeRm(ctx, conf->rm_filename[i], i);
             if (rc != PTS_SUCCESS) {
-                fprintf(stderr, "write RM, %s was failed\n", conf->rm_filename[i]);
+                ERROR("write RM, %s was failed\n", conf->rm_filename[i]);
                 rc = PTS_INTERNAL_ERROR;
                 goto free;
             }
-            printf("level %d Reference Manifest  : %s\n", i, conf->rm_filename[i]);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_NEW_RM_RM, "level %d Reference Manifest: %s\n"), i, conf->rm_filename[i]);
         } else {
             ERROR("missing RM file for level %d\n", i);
         }
     }
-    // printf("\nptsc is successfully initialized!\n");
+    // OUTPUT("\nptsc is successfully initialized!\n");
 
  free:
+
+    if ( rc == PTS_INTERNAL_ERROR ) {
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_NEW_RM_FAILED, "Failed to generate Reference Manifest\n"));
+    }
+
     /* free */
     freePtsContext(ctx);
 
@@ -743,20 +904,21 @@ int printCollectorStatus(OPENPTS_CONFIG *conf) {
 
     ctx = newPtsContext(conf);
 
-    printf("%s version %s \n\n", PACKAGE, VERSION);
-
-    printf("config file                 : %s\n", conf->config_file);
-    /* UUID */
-    printf("UUID                        : %s (%s)\n", ctx->conf->uuid->str, conf->uuid->filename);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_HEADER,
+               "%s version %s\n\n"
+               "config file: %s\n"
+               "UUID: %s (%s)\n"),
+           PACKAGE, VERSION, conf->config_file, ctx->conf->uuid->str, conf->uuid->filename);
 
     /* IML */
     if (conf->iml_mode == 0) {
-        printf("IML access mode             : TSS\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_IML_1, "IML access mode             : TSS\n"));
     } else if (conf->iml_mode == 1) {
-        printf("IML access                  : SecurityFS\n");
-        printf("  BIOS IML file             : %s\n", conf->bios_iml_filename);
-        printf("  Runtime IML file          : %s\n", conf->runtime_iml_filename);
-        printf("  PCR file                  : %s\n", conf->pcrs_filename);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_IML_2,
+               "IML access: SecurityFS\n"
+               "  BIOS IML file: %s\n"
+               "  Runtime IML file: %s\n"
+               "  PCR file: %s\n"), conf->bios_iml_filename, conf->runtime_iml_filename, conf->pcrs_filename);
     } else {
         ERROR("unknown IML mode, %d\n", conf->iml_mode);
     }
@@ -764,36 +926,46 @@ int printCollectorStatus(OPENPTS_CONFIG *conf) {
     /* Linux IMA mode */
     switch (conf->runtime_iml_type) {
     case BINARY_IML_TYPE_IMA_ORIGINAL:
-        printf("  Runtime IML type          : Linux-IMA patch (kernel 2.6.18-2.6.29)\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_KERN_1,
+            "  Runtime IML type: Linux-IMA patch (kernel 2.6.18-2.6.29)\n"));
         break;
     case BINARY_IML_TYPE_IMA_31:
-        printf("  Runtime IML type          : IMA (kernel 2.6.30-31)\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_KERN_2,
+            "  Runtime IML type: IMA (kernel 2.6.30-31)\n"));
         break;
     case BINARY_IML_TYPE_IMA:
-        printf("  Runtime IML type          : IMA (kernel 2.6.32)\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_KERN_3,
+            "  Runtime IML type: IMA (kernel 2.6.32)\n"));
         break;
     case BINARY_IML_TYPE_IMA_NG:
-        printf("  Runtime IML type          : IMA NG (kernel 2.6.XX)\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_KERN_4,
+            "  Runtime IML type: IMA NG (kernel 2.6.XX)\n"));
         break;
     case BINARY_IML_TYPE_IMA_NGLONG:
-        printf("  Runtime IML type          : IMA NG LONG (kernel 2.6.XX)\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_KERN_5,
+            "  Runtime IML type: IMA NG LONG (kernel 2.6.XX)\n"));
         break;
     default:
-        printf("  Runtime IML type          : unknown type 0x%x\n", conf->runtime_iml_type);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_KERN_6,
+            "  Runtime IML type: unknown type 0x%x\n"), conf->runtime_iml_type);
         break;
     }  // switch
 
     /* Reference Manifest */
 
     /* UUID of this platform */
-    printf("RM UUID (current)           : %s\n", conf->rm_uuid->str);
-    printf("RM UUID (for next boot)     : %s\n", conf->newrm_uuid->str);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_RM_UUID_CUR,
+        "RM UUID (current): %s\n"), conf->rm_uuid->str);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_RM_UUID_NEXT,
+        "RM UUID (for next boot): %s\n"), conf->newrm_uuid->str);
 
     /* List RMs */
     getRmList(conf, conf->config_dir);
-    printf("List of RM set              : %d RM set in config dir\n", conf->rmsets->rmset_num);
-    printRmList(conf, "                             ");
-    printf("Integrity Report            : %s\n", conf->ir_filename);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_LIST_RM,
+        "List of RM set: %d RM set in config dir\n"), conf->rmsets->rmset_num);
+    printRmList(conf, "  ");
+    // OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_IR, "Integrity Report: %s\n"), conf->ir_filename);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_IR, "Integrity Report dir: %s\n"), conf->ir_dir);
 
 
     // TODO remove ctx from readFsmFromPropFile
@@ -804,9 +976,9 @@ int printCollectorStatus(OPENPTS_CONFIG *conf) {
         goto free;
     }
 
-    printf("Model dir                   : %s\n", conf->model_dir);
-    printf("                              Behavior Models\n");
-    printFsmInfo(ctx, "                              ");
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_MODEL_DIR, "Model dir: %s\n"), conf->model_dir);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_STATUS_BEHAVIOUR_MODELS, "Behavior Models\n"));
+    printFsmInfo(ctx, "  ");
 
     /* Manifest */
 
@@ -820,4 +992,77 @@ int printCollectorStatus(OPENPTS_CONFIG *conf) {
     return rc;
 }
 
+/**
+ * Clear PTS collector
+ * delete /var/lib/openpts
+ *
+ */
+int clear(
+    OPENPTS_CONFIG *conf,
+    int force) {
+    char ans[32];
+    int ansIsYes = 0, ansIsNo = 1;
+    int rc;
 
+    /* check */
+    if (conf == NULL) {
+        ERROR("conf == NULL");
+        return PTS_FATAL;
+    }
+    if (conf->config_dir == NULL) {
+        ERROR("conf->config_dir == NULL");
+        return PTS_FATAL;
+    }
+
+#if 0
+    // lock file exist
+    /* check */
+    rc = checkDir(conf->config_dir);
+    if (rc == PTS_INTERNAL_ERROR) {
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_FAIL_NODIR,
+            "%s is missing"), conf->config_dir);
+        return PTS_FATAL;
+    } else {
+TODO("HOGE DDD %s\n",conf->config_dir);
+    }
+
+TODO("HOGE %s\n",conf->config_dir);
+#endif
+
+    if (isatty(STDIN_FILENO) && (force == 0) ) {
+        char *lineFeed;
+        printf(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR,
+            "Clear the PTS collector [y/N]\n"));
+        if ( NULL != fgets(ans, 32, stdin) ) {
+            // strip the ending line-feed
+            if ((lineFeed = strrchr(ans, '\n')) != NULL) {
+                *lineFeed = '\0';
+            }
+
+            ansIsYes = (strcasecmp(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_YES, "y"), ans) == 0);
+            ansIsNo = (strcasecmp(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_NO, "n"), ans) == 0);
+            ansIsNo |= (strlen(ans) == 0);  // default answer case
+        } else {
+            ansIsYes = 0;
+            ansIsNo  = 1;
+        }
+    } else {
+        ansIsYes = force;
+        ansIsNo  = !force;
+    }
+
+    if (ansIsYes) {
+
+        rc = unlinkDir(conf->config_dir);
+        if (rc != PTS_SUCCESS) {
+            ERROR("unlinkDir(%s) fail", conf->config_dir);
+        }
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_YES_DONE,
+            "%s has been cleared\n") , conf->config_dir);
+    } else {
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_NO_DONE, "keep\n"));
+    }
+
+
+    return PTS_SUCCESS;
+}

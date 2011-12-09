@@ -26,7 +26,7 @@
  * \brief UUID wrapper (Generic part, OPENPTS_UUID)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-11-29
- * cleanup 2011-07-06 SM
+ * cleanup 2011-10-07 SM
  *
  * Linux uses libuuid
  *
@@ -80,9 +80,8 @@
 OPENPTS_UUID *newOpenptsUuid() {
     OPENPTS_UUID *uuid;
 
-    uuid = malloc(sizeof(OPENPTS_UUID));  // BYTE[16]
+    uuid = xmalloc(sizeof(OPENPTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(uuid, 0, sizeof(OPENPTS_UUID));
@@ -98,14 +97,13 @@ OPENPTS_UUID *newOpenptsUuid() {
 OPENPTS_UUID *newOpenptsUuid2(PTS_UUID *pts_uuid) {
     OPENPTS_UUID *uuid;
 
-    uuid = malloc(sizeof(OPENPTS_UUID));  // BYTE[16]
+    uuid = xmalloc(sizeof(OPENPTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(uuid, 0, sizeof(OPENPTS_UUID));
 
-    uuid->uuid = malloc(16);
+    uuid->uuid = xmalloc_assert(16);
     memcpy(uuid->uuid, pts_uuid, 16);
 
     uuid->str    = getStringOfUuid(uuid->uuid);
@@ -126,12 +124,11 @@ OPENPTS_UUID *newOpenptsUuidFromFile(char * filename) {
 
     uuid = newOpenptsUuid();
     if (uuid == NULL) {
-        ERROR("no memory");
         return NULL;
     }
 
     /* set the filename */
-    uuid->filename = smalloc(filename);
+    uuid->filename = smalloc_assert(filename);
 
     /* load the filename */
     rc = readOpenptsUuidFile(uuid);
@@ -155,19 +152,19 @@ void freeOpenptsUuid(OPENPTS_UUID *uuid) {
     }
 
     if (uuid->filename != NULL) {
-        free(uuid->filename);
+        xfree(uuid->filename);
     }
     if (uuid->uuid  != NULL) {
-        free(uuid->uuid);
+        xfree(uuid->uuid);
     }
     if (uuid->str  != NULL) {
-        free(uuid->str);
+        xfree(uuid->str);
     }
     if (uuid->time  != NULL) {
-        free(uuid->time);
+        xfree(uuid->time);
     }
 
-    free(uuid);
+    xfree(uuid);
 }
 
 /**
@@ -178,12 +175,7 @@ void freeOpenptsUuid(OPENPTS_UUID *uuid) {
  */
 int genOpenptsUuid(OPENPTS_UUID *uuid) {
     /* check */
-    if (uuid == NULL) {
-        ERROR("\n");
-        return PTS_INTERNAL_ERROR;
-    }
-
-
+    ASSERT(NULL != uuid, "uuid is NULL\n");
 
     /* check the status */
     if (uuid->status == OPENPTS_UUID_EMPTY) {
@@ -211,9 +203,15 @@ int genOpenptsUuid(OPENPTS_UUID *uuid) {
 
 
     /* free */
-    if (uuid->uuid != NULL) free(uuid->uuid);
-    if (uuid->str != NULL) free(uuid->str);
-    if (uuid->time != NULL) free(uuid->time);
+    if (uuid->uuid != NULL) {
+        xfree(uuid->uuid);
+    }
+    if (uuid->str != NULL) {
+        xfree(uuid->str);
+    }
+    if (uuid->time != NULL) {
+        xfree(uuid->time);
+    }
 
     /* set */
     uuid->uuid = newUuid();
@@ -260,13 +258,25 @@ int readOpenptsUuidFile(OPENPTS_UUID *uuid) {
     }
 
     /* free */
-    if (uuid->uuid != NULL) free(uuid->uuid);
-    if (uuid->str != NULL) free(uuid->str);
-    if (uuid->time != NULL) free(uuid->time);
+    if (uuid->uuid != NULL) {
+        xfree(uuid->uuid);
+    }
+    if (uuid->str != NULL) {
+        xfree(uuid->str);
+    }
+    if (uuid->time != NULL) {
+        xfree(uuid->time);
+    }
 
     /* open */
     if ((fp = fopen(uuid->filename, "r")) == NULL) {
         // DEBUG("readUuidFile - UUID File %s open was failed\n", filename);
+        /* we don't want double free errors - we may have already freed these up
+           above. this was a genuine issue that caused multiple pointers to
+           reference the same area of memory. */
+        uuid->uuid = NULL;
+        uuid->str  = NULL;
+        uuid->time = NULL;
         return PTS_DENIED;  // TODO
     }
 
@@ -304,7 +314,7 @@ int readOpenptsUuidFile(OPENPTS_UUID *uuid) {
         }
         uuid->status = OPENPTS_UUID_FILLED;
     } else {
-        ERROR("readOpenptsUuidFile() - read UUID fail\n");
+        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_READ_FAILED, "Failed to read the UUID file\n"));
     }
 
  close:
@@ -345,7 +355,8 @@ int writeOpenptsUuidFile(OPENPTS_UUID *uuid, int overwrite) {
     if (overwrite == 1) {
         /* overwrite */
         if ((fp = fopen(uuid->filename, "w")) == NULL) {
-            ERROR("UUID File %s open was failed\n", uuid->filename);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
+                "Failed to open UUID file %s\n"), uuid->filename);
             return PTS_INTERNAL_ERROR;
         }
     } else {
@@ -353,14 +364,19 @@ int writeOpenptsUuidFile(OPENPTS_UUID *uuid, int overwrite) {
         if ((fd = open(uuid->filename, O_CREAT | O_EXCL | O_WRONLY, mode)) == -1) {
             if (errno == EEXIST) {
                 /* exist, keep the current UUID file */
-                return PTS_SUCCESS;  // TODO
+                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FILE_EXISTS,
+                    "The UUID file '%s' already exists\n"), uuid->filename);
+                // return PTS_SUCCESS;  // TODO
+                return OPENPTS_FILE_EXISTS;
             } else {
-                ERROR("UUID File %s open was failed\n", uuid->filename);
+                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
+                    "Failed to open UUID file %s\n"), uuid->filename);
                 return PTS_INTERNAL_ERROR;
             }
         }
         if ((fp = fdopen(fd, "w")) == NULL) {
-            ERROR("UUID File %s open was failed\n", uuid->filename);
+            fprintf(stderr,  NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
+                "Failed to open UUID file %s\n"), uuid->filename);
             return PTS_INTERNAL_ERROR;
         }
     }

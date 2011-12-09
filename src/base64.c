@@ -41,6 +41,7 @@
 #include <string.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 /**
  * calc base64 size
@@ -54,6 +55,30 @@ int _sizeofBase64Encode(int len) {
     if (len == 0) return 1;
 
     return (len + 2 - ((len + 2) % 3)) * 4 / 3 + 1;
+}
+
+int getDecodedBase64Size(unsigned char *in, int inLen) {
+    int inCount;
+    int outCount;
+
+    inCount = inLen / 4;
+    if (inCount > 0) {
+        --inCount;
+    }
+    outCount = inCount * 3;
+    inCount *= 4;
+
+    if ( in[inCount+1] == '=' ) {
+        outCount += 1;
+    } else if ( in[inCount+2] == '=' ) {
+        outCount += 1;
+    } else if ( in[inCount+3] == '=' ) {
+        outCount += 2;
+    } else {
+        outCount += 3;
+    }
+
+    return outCount;
 }
 
 /**
@@ -154,18 +179,18 @@ char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
     int len2;
 
     *outlen = _sizeofBase64Encode(inlen);
-    out = (char *) malloc(*outlen);
+    out = (char *) xmalloc_assert(*outlen);
     if (out == NULL) {
         ERROR("no memory");
         *outlen = 0;
         return NULL;
     }
-    memset(out,0,*outlen);
+    memset(out, 0, *outlen);
 
     len2 = _encodeBase64(out, in, inlen);
     if (len2 > *outlen) {
         ERROR("fatal error");
-        free(out);
+        xfree(out);
         *outlen = 0;
         return NULL;
     }
@@ -196,7 +221,7 @@ int _strippedlength(char * in, int len) {
     /* last char */
     i = len - 1;
 
-    while(1) {
+    while (1) {
         if (in[i] == '\n') {
             /* skip */
             skip++;
@@ -223,12 +248,12 @@ int _strippedlength(char * in, int len) {
   * return size of BYTE[] array
   */
 int _decodeBase64(unsigned char *out, char * in, int len) {
-    int ptr1 = 0; // in
-    int ptr2 = 0; // out
+    int ptr1 = 0;  // in
+    int ptr2 = 0;  // out
     int len2;
     char * in2;
     char inbuf[4];
-    int i,j;
+    int i, j;
     int skip;
 
     /* check */
@@ -347,18 +372,18 @@ unsigned char *decodeBase64(char * in, int inlen, int *outlen) {
     int len2;
 
     len1 = _sizeofBase64Decode(inlen);
-    out = (unsigned char *) malloc(len1);
+    out = (unsigned char *) xmalloc_assert(len1);
     if (out == NULL) {
         ERROR("no memory");
         *outlen = 0;
         return NULL;
     }
-    memset(out,0,len1);
+    memset(out, 0, len1);
 
     len2 = _decodeBase64(out, in, inlen);
     if (len2 < 0) {
         ERROR("fatal error");
-        free(out);
+        xfree(out);
         *outlen = 0;
         return NULL;
     }

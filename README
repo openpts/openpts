@@ -50,7 +50,13 @@
  BUILDING openpts
  -------- ----------------
  $ sh ./bootstrap.sh
- $ ./configure --with-tss --with-aide --enable-tnc --prefix=/usr
+
+ 32-bit
+ $ ./configure --with-tss --with-aru --enable-tnc --prefix=/usr
+
+ 64-bit
+ $ ./configure --with-tss --with-aru --enable-tnc --prefix=/usr --libdir=/usr/lib64
+
  $ make
  # make install
 
@@ -62,6 +68,7 @@
  --with-tss       build with tss
  --enable-tnc     build TNC IMV/IMC libraries
  --with-tboot     build with tboot support
+
 
 
  BUILDING a OPENPTS RPM

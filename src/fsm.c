@@ -56,9 +56,8 @@ OPENPTS_FSM_CONTEXT *newFsmContext() {
     OPENPTS_FSM_CONTEXT *ctx = NULL;
 
     /* malloc */
-    ctx = (OPENPTS_FSM_CONTEXT *) malloc(sizeof(OPENPTS_FSM_CONTEXT));
+    ctx = (OPENPTS_FSM_CONTEXT *) xmalloc(sizeof(OPENPTS_FSM_CONTEXT));
     if (ctx == NULL) {
-        ERROR("ERROR\n");
         return NULL;
     }
     /* init */
@@ -82,10 +81,10 @@ void freeFsmTransitionChain(OPENPTS_FSM_Transition *fsm_trans) {
 
     /* free */
     if (fsm_trans->digest != NULL) {
-        free(fsm_trans->digest);
+        xfree(fsm_trans->digest);
     }
 
-    free(fsm_trans);
+    xfree(fsm_trans);
 }
 
 /**
@@ -96,17 +95,14 @@ void freeFsmSubvertexChain(OPENPTS_FSM_Subvertex *fsm_sub) {
         freeFsmSubvertexChain(fsm_sub->next);
     }
 
-    free(fsm_sub);
+    xfree(fsm_sub);
 }
 
 /**
  * free FSM context
  */
 int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
-    if (ctx == NULL) {
-        ERROR("ERROR\n");
-        return -1;
-    }
+    ASSERT(NULL != ctx, "ctx is NULL\n");
 
     /* Transition */
     if (ctx->fsm_trans != NULL) {
@@ -123,11 +119,11 @@ int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
 
     /* UML filename */
     if (ctx->uml_file != NULL) {
-        free(ctx->uml_file);
+        xfree(ctx->uml_file);
         ctx->uml_file = NULL;
     }
 
-    free(ctx);
+    xfree(ctx);
     return 0;
 }
 
@@ -176,9 +172,8 @@ void addFsmSubvertex(
 
             /* malloc OPENPTS_FSM_Subvertex */
             ptr = (OPENPTS_FSM_Subvertex *)
-                    malloc(sizeof(OPENPTS_FSM_Subvertex));
+                    xmalloc(sizeof(OPENPTS_FSM_Subvertex));
             if (ptr == NULL) {
-                ERROR("addFsmSubvertex - no memory\n");
                 return;
             }
 
@@ -203,7 +198,7 @@ void addFsmSubvertex(
                 ptr->prev = ptr_pre;
             } else {
                 ERROR("\n");
-                free(ptr);  // free last one
+                xfree(ptr);  // free last one
                 return;
             }
 
@@ -271,6 +266,35 @@ char * getSubvertexId(OPENPTS_FSM_CONTEXT *ctx, char * name) {
 
 /// TRANSITION ///
 
+static char *skipWhiteSpace(char *str, int *len) {
+    char *cur = str, *end = str + *len;
+    /* skip space */
+    while (cur < end &&
+           '\0' != *cur &&
+           ' '  == *cur) {
+        cur++;
+    }
+    *len -= cur - str;
+    return cur;
+}
+
+static int isEndOfString(char *str) {
+    return '\0' == *str;
+}
+
+static char *skipParameter(char *str, int *len) {
+    char *cur = str, *end = str + *len;
+    /* skip space */
+    while (cur < end &&
+           '\0' != *cur &&
+           ' '  != *cur &&
+           ','  != *cur) {
+        cur++;
+    }
+    *len -= cur - str;
+    return cur;
+}
+
 /**
  *   <body>eventtype == 0x01, digest == base64</body>
  * -1: error
@@ -285,7 +309,7 @@ int getTypeFlag(char * cond, UINT32 *eventtype) {
     char * loc;
     int len;
     int rc = 0;
-    long int val;  // TODO uint64_t but fail to build on i386 platform
+    long int val;  // TODO uint64_t? but build fail on i386 platform
 
     len = strlen(cond);
 
@@ -299,15 +323,9 @@ int getTypeFlag(char * cond, UINT32 *eventtype) {
         loc += 9;
         len -= (loc - cond);
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {    // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
 
         /* operation */
@@ -326,16 +344,11 @@ int getTypeFlag(char * cond, UINT32 *eventtype) {
         loc += 2;
         len -= 2;
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
+
         /* value */
         // 20110117 Ubuntu i386, 0x80000002 => 7FFFFFFF, => use strtoll
         if (len > 2) {
@@ -360,7 +373,7 @@ int getTypeFlag(char * cond, UINT32 *eventtype) {
  * Return
  *   0: don't care
  *   1: valid (=binary model),  return the digest => freed at freeFsmTransitionChain()
- *   2: ignore now (=behavior model)
+ *   2: ignore now (=behavior model or ignored digests in binary model)
  *  -1: Error?
  *
  * Unit Test : check_fsm.c / test_getDigestFlag
@@ -369,7 +382,6 @@ int getTypeFlag(char * cond, UINT32 *eventtype) {
  */
 int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
     char * loc;   // loc at value
-    char * loc2;  // loc at "base64"
     int len;
     BYTE *buf;
     int buf_len;
@@ -381,21 +393,15 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
     loc = strstr(cond, "digest");
     if (loc == NULL) {  // miss
         *digest_size = 0;
-        return 0;
+        return DIGEST_FLAG_SKIP;
     } else {  // hit
         /* skip  digest */
         loc += 6;
         len -= (loc - cond);
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
 
         /* operation, "==" only */
@@ -406,24 +412,20 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
         if ((loc[0] == '=') && (loc[1] == '=')) {  // ==
             // operand is ==
         } else {
-            ERROR("ERROR 002 [%c%c]  not  == \n", loc[0], loc[1]);
+            ERROR("ERROR 002 [%c%c]  not  ==, (cond = %s)\n", loc[0], loc[1], cond);
             return -1;  // unknown operand
         }
         loc +=2;
         len -=2;
 
         /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
 
         /* digest == base64 (behavior model) */
+#if 0
         loc2 = strstr(loc, "base64");
         if (loc2 != NULL) {  // HIT, temp
             /* Behavior Model */
@@ -446,6 +448,63 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
             *digest_size = SHA1_DIGEST_SIZE;
             return 1;
         }
+#endif
+        if (NULL != strstr(loc, "base64!")) {  // HIT, temp
+            /* Behavior Model */
+            return DIGEST_FLAG_IGNORE;
+        } else if (NULL != strstr(loc, "base64")) {  // HIT, temp
+            /* Behavior Model */
+            return DIGEST_FLAG_IGNORE;
+        } else if (NULL != strstr(loc, "transparent!")) {
+            /* we have been told to ignore this digest from the binary model */
+            /* and use the behaviour version instead */
+            return DIGEST_FLAG_TRANSPARENT;
+        } else {
+            /* Binary Model */
+            /* Base64 str -> BYTE[] */
+            buf = decodeBase64(
+                (char *)loc,
+                SHA1_BASE64_DIGEST_SIZE,
+                &buf_len);
+            if (buf == NULL) {
+                ERROR("decodeBase64 fail");
+                *digest = NULL;
+                *digest_size = 0;
+                return -1;
+            } else if (buf_len == SHA1_DIGEST_SIZE) {
+                *digest = buf;
+                *digest_size = SHA1_DIGEST_SIZE;
+                return DIGEST_FLAG_EQUAL;  // 1
+            } else {
+                ERROR("getDigestFlag() - decodeBase64() was failed \n");
+                xfree(buf);
+                *digest = NULL;
+                *digest_size = 0;
+                return -1;
+            }
+#if 0
+            buf = (BYTE *) xmalloc(SHA1_DIGEST_SIZE + 1);
+            if (buf == NULL) {
+                return -1;
+            }
+
+            // TODO(munetoh) get len, "<"
+            rc = decodeBase64(buf, SHA1_DIGEST_SIZE + 1, (unsigned char *)loc, SHA1_BASE64_DIGEST_SIZE);
+            if (rc == SHA1_DIGEST_SIZE) {
+                // TODO(munetoh) digest size change by alg
+                // this code is SHA1 only
+                *digest = buf;
+                *digest_size = rc;
+                return DIGEST_FLAG_EQUAL;
+            } else {
+                ERROR("getDigestFlag() - decodeBase64() was failed \n");
+                xfree(buf);
+                *digest = NULL;
+                *digest_size = 0;
+                return -1;
+            }
+#endif
+        }
     }
 }
 
@@ -459,89 +518,81 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
  *   COUNTER_FLAG_LT   1:  < name
  *   COUNTER_FLAG_GTE  2:  >= name 
  *
- *   set counter name to name 
- *
  * Unit Test : check_fsm.c / test_getCounterFlag
  */
-int getCounterFlag(char * cond, char **name) {
+int getCounterFlag(char *cond, char *name, char **flag) {
     char * loc;   // loc at value
-    char * loc2;  // loc at name
+    char * loc2;  // loc at flag
     int len;
     int rc = COUNTER_FLAG_SKIP;
 
     // DEBUG_CAL("getCounterFlag\n");
 
-    /* check */
-    if (cond == NULL) {
-        ERROR("getCounterFlag()");
-        return COUNTER_FLAG_SKIP;
-    }
+    ASSERT(cond != NULL, "Null condition found\n");
 
     len = strlen(cond);
-    loc = strstr(cond, "count");
+    loc = strstr(cond, name);
 
     if (loc == NULL) {
         /* miss */
         return 0;
     } else {
+        int param_len = 0;
         /* hit */
 
         /* skip  count */
-        loc += 5;
+        loc += strlen(name);
         len -= (loc - cond);
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
 
         /* operation, "&lt;" ">=" only */
         if ((len >= 2) && (loc[0] == 'l') && (loc[1] == 't')) {
-            /* >= */
+            /* <, lt */
+            // DEBUG("COUNTER_FLAG_LT");
             rc = COUNTER_FLAG_LT;
             loc +=2;
             len -=2;
         } else if ((len >= 2) && (loc[0] == '>') && (loc[1] == '=')) {
             /* >= */
+            // DEBUG("COUNTER_FLAG_GTE");
             rc = COUNTER_FLAG_GTE;
             loc +=2;
             len -=2;
         } else {
-            // ERROR("ERROR 002 [%s]  not  >= \n", &loc[0];
+            ERROR("unknown operand [%s]", &loc[0]);
             return -1;  // unknown operand
         }
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
-        }
-
-        // TODO check the end, this code only support if counter is the last equation
-
-        loc2 = loc;
-        len = strlen(loc2);
-
-        *name = malloc(len + 1);
-        if (*name == NULL) {
-            ERROR("no memory\n");
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
             return -1;
         }
-        memset(*name, 0, len + 1);
-        memcpy(*name, loc2, len);
+
+        // TODO check the end, this code only support if counter is the last
+
+        loc2 = skipParameter(loc, &len);
+        param_len = loc2 - loc;
+        if (0 == param_len) {
+            /* we haven't moved along the string - no valid parameter found */
+            return -1;
+        }
+
+        /* DEBUG_FSM("[%d][%s][%s]\n",len, loc, loc2); */
+
+        *flag = xmalloc(param_len + 1);
+        if (*flag == NULL) {
+            return -1;
+        }
+        memset(*flag, 0, param_len + 1);
+        memcpy(*flag, loc, param_len);
     }
-    DEBUG_FSM("getCounterFlag cond=[%s],  prop=[%s] rc=%d (0:1:2=skip:<:>=),\n", cond,  *name, rc);
+
+    DEBUG_FSM("getCounterFlag  %s #=> %d %s\n", cond, rc, *flag);
+
     return rc;
 }
 
@@ -580,15 +631,9 @@ int getLastFlag(char * cond) {
         loc += 5;
         len -= (loc - cond);
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
 
         /* operation, "&lt;" ">=" only */
@@ -607,15 +652,9 @@ int getLastFlag(char * cond) {
             return -1;  // unknown operand
         }
 
-        /* skip space */
-        while (len > 0) {
-            if (loc[0] == 0) return -1;  // end
-            else if (loc[0] == ' ') {  // space
-                loc++;
-                len--;
-            } else {
-                break;
-            }
+        loc = skipWhiteSpace(loc, &len);
+        if (isEndOfString(loc)) {
+            return -1;
         }
 
         /* value */
@@ -676,31 +715,31 @@ int addFsmTransition(
 
             /* malloc OPENPTS_FSM_Transition */
             ptr = (OPENPTS_FSM_Transition *)
-                    malloc(sizeof(OPENPTS_FSM_Transition));
+                    xmalloc(sizeof(OPENPTS_FSM_Transition));
             if (ptr == NULL) {
-                ERROR("no memory\n");
                 return PTS_INTERNAL_ERROR;
             }
             /* init */
             memset(ptr, 0, sizeof(OPENPTS_FSM_Transition));
             memcpy(ptr->source, source, FSM_BUF_SIZE);
             memcpy(ptr->target, target, FSM_BUF_SIZE);
-            // memcpy(ptr->cond, cond, FSM_BUF_SIZE);
             ptr->num = ctx->transition_num;
             if (cond == NULL) {
                 ptr->eventTypeFlag = 0;
-                ptr->digestFlag = 0;
+                ptr->digestFlag = DIGEST_FLAG_SKIP;
             } else if  (cond[0] == 0) {
                 ptr->eventTypeFlag = 0;
-                ptr->digestFlag = 0;
+                ptr->digestFlag = DIGEST_FLAG_SKIP;
                 memcpy(ptr->cond, cond, FSM_BUF_SIZE);
             } else {
                 // 0:don't care, 1:care
                 ptr->eventTypeFlag = getTypeFlag(cond, &ptr->eventType);
-                // 0:don't care, 1:care, 2:temp
+                // 0:don't care, 1:care, 2:temp, 3:transparent
                 ptr->digestFlag = getDigestFlag(cond, &ptr->digest, &ptr->digestSize);
                 // 0:don't care, 1:<, 2:>=
-                ptr->counter_flag = getCounterFlag(cond, &ptr->counter_name);
+                ptr->counter_flag = getCounterFlag(cond, "digest_count", &ptr->counter_name);
+                // 0:don't care, 1:<, 2:>=
+                ptr->fatal_counter_flag = getCounterFlag(cond, "fatal_count", &ptr->fatal_counter_name);
                 // 0:don't care 1: ==last 2: != last
                 ptr->last_flag = getLastFlag(cond);
                 memcpy(ptr->cond, cond, FSM_BUF_SIZE);
@@ -708,6 +747,11 @@ int addFsmTransition(
             /* subvertex link (ptr) */
             ptr->source_subvertex = getSubvertex(ctx, ptr->source);
             ptr->target_subvertex = getSubvertex(ctx, ptr->target);
+
+            if (DIGEST_FLAG_TRANSPARENT == ptr->digestFlag) {
+                DEBUG_FSM("Found transparent digest\n");
+                ctx->numTransparencies++;
+            }
 
             /* ptr */
             ptr->next = NULL;
@@ -720,7 +764,7 @@ int addFsmTransition(
                 ptr->next = NULL;  // last trans
             } else {
                 ERROR("\n");
-                free(ptr);  // free last one
+                xfree(ptr);  // free last one
                 return PTS_INTERNAL_ERROR;
             }
             ctx->transition_num++;
@@ -747,9 +791,8 @@ char *getEventString(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     char *buf;
 
     /* malloc */
-    buf = malloc(size);
+    buf = xmalloc(size);
     if (buf == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
 
@@ -759,7 +802,7 @@ char *getEventString(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         // len = snprintf(buf, size, "PCR[%d],TYPE=%d", (int)event->ulPcrIndex, event->eventType);
     } else {
         ERROR("NULL event\n");  // TODO(munetoh)
-        free(buf);
+        xfree(buf);
         return NULL;
     }
 
@@ -820,7 +863,7 @@ int updateFsm(
     TSS_PCR_EVENT *event;
     int type_check;
     int digest_check;
-    int counter_check;
+    int fatal_counter_check;
     int last_check;
     int dont_care;
     int hit = 0;
@@ -843,7 +886,7 @@ int updateFsm(
 
         /* dummy wrapper */
         eventWrapper = (OPENPTS_PCR_EVENT_WRAPPER *)
-            malloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
+            xmalloc_assert(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         memset(eventWrapper, 0, sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         eventWrapper->event_type = OPENPTS_DUMMY_EVENT;
         eventWrapper->push_count = 0;
@@ -859,7 +902,7 @@ int updateFsm(
         }
 
         /* free dummy wrapper */
-        free(eventWrapper);
+        xfree(eventWrapper);
         eventWrapper = NULL;
         return rc;
     } else if (eventWrapper->event == NULL) {
@@ -887,12 +930,12 @@ int updateFsm(
         fsm->level, fsm->pcr_index,
         curr_state->name, curr_state->action);
 
-    if ((event != NULL) && (verbose & DEBUG_FSM_FLAG)) {
+    if ((event != NULL) && isDebugFlagSet(DEBUG_FSM_FLAG)) {
         hex = getHexString(event->rgbPcrValue, event->ulPcrValueLength);
         DEBUG_FSM("[RM%02d-PCR%02d] eventtype=0x%x, digest=0x%s\n",
             fsm->level, fsm->pcr_index,
             event->eventType, hex);
-        free(hex);
+        xfree(hex);
     }
 
     if (eventWrapper->event_type == OPENPTS_DUMMY_EVENT) {
@@ -1074,7 +1117,8 @@ int updateFsm(
                         digest_check = -1;
                         // DEBUG_FSM("- invalid\n");
                     }
-                } else if (trans->digestFlag == DIGEST_FLAG_IGNORE) {
+                } else if (trans->digestFlag == DIGEST_FLAG_IGNORE ||
+                           trans->digestFlag == DIGEST_FLAG_TRANSPARENT) {
                     /* Behavior Model */
                     // DEBUG_FSM("digest - ignore\n");
                     digest_check = 2;
@@ -1085,47 +1129,56 @@ int updateFsm(
                 }
 
                 /* check the counter */
-                counter_check = 3;
-                if (trans->counter_flag == COUNTER_FLAG_LT) {
+                fatal_counter_check = 3;
+                if (trans->fatal_counter_flag == COUNTER_FLAG_LT) {
                     /* count < name */
-                    int count;
-                    count = getCountFromProperty(ctx, trans->counter_name);
+                    int fatal_count = getCountFromProperty(ctx, trans->fatal_counter_name);
 
-                    if (ctx->count < count) {
-                        DEBUG_FSM("COUNTER[%s] %d < %d - HIT\n",
-                            trans->counter_name, ctx->count, count);
-                        counter_check = 1;  // HIT
+                    if (ctx->count < fatal_count) {
+                        DEBUG_FSM("FATAL COUNTER %d < %d - HIT\n", ctx->count, fatal_count);
+                        fatal_counter_check = 1;  // HIT
                     } else {
-                        DEBUG_FSM("COUNTER[%s] %d < %d - MISS\n",
-                            trans->counter_name, ctx->count, count);
-                        counter_check = -1;  // MISS
+                        DEBUG_FSM("FATAL COUNTER %d < %d - MISS\n", ctx->count, fatal_count);
+                        fatal_counter_check = -1;  // MISS
                     }
-
-                } else if (trans->counter_flag == COUNTER_FLAG_GTE) {
+                } else if (trans->fatal_counter_flag == COUNTER_FLAG_GTE) {
                     /* count >= name */
-                    int count;
-                    count = getCountFromProperty(ctx, trans->counter_name);
+                    int fatal_count = getCountFromProperty(ctx, trans->fatal_counter_name);
 
                     // TODO at this moment we ignore >= condition,
-                    if (ctx->count >= count) {
-                        DEBUG_FSM("[RM%02d-PCR%02d] COUNTER[%s] %d >=  %d - HIT\n",
-                            fsm->level, fsm->pcr_index,
-                            trans->counter_name,
-                            ctx->count, count);
-                        counter_check = 1;  // HIT
+                    if (ctx->count >= fatal_count) {
+                        DEBUG_FSM("FATAL COUNTER %d >= %d - HIT\n", ctx->count, fatal_count);
+                        fatal_counter_check = 1;  // HIT
                     } else {
-                        DEBUG_FSM("COUNTER[%s] %d >=  %d - MISS\n",
-                            trans->counter_name, ctx->count, count);
-                        counter_check = -1;  // MISS
+                        DEBUG_FSM("FATAL COUNTER %d >= %d - MISS\n", ctx->count, fatal_count);
+                        fatal_counter_check = -1;  // MISS
                     }
                 } else {
                     // DEBUG_FSM("counter - don't care\n");
                 }
 
+                if (trans->counter_flag != COUNTER_FLAG_SKIP) {
+                    int thisCount = 1 + trans->event_num;
+                    int maxCount = getCountFromProperty(ctx, trans->counter_name);
+                    if (trans->counter_flag == COUNTER_FLAG_GTE &&
+                        thisCount >= maxCount) {
+                        DEBUG_FSM("DIGEST COUNTER %d >= %d ('%s') - digest is transparent\n",
+                            thisCount, maxCount, trans->counter_name);
+                        eventWrapper->transparent = 1;
+                    } else if (trans->counter_flag == COUNTER_FLAG_LT &&
+                               thisCount < maxCount) {
+                        DEBUG_FSM("DIGEST COUNTER %d < %d ('%s') - digest is transparent\n",
+                            thisCount, maxCount, trans->counter_name);
+                        eventWrapper->transparent = 1;
+                    }
+                }
 
                 /* Judge */
                 // if ((type_check == 1) && (digest_check == 1)) {
-                if ((type_check > 0) && (digest_check > 0) && (counter_check > 0) && (last_check > 0)) {
+                if ((type_check > 0) &&
+                    (digest_check > 0) &&
+                    (fatal_counter_check > 0) &&
+                    (last_check > 0)) {
                     /* Hit this Trans */
                     /* If Final state, switch to next snapshot */
                     if (!strcmp(trans->target, UML2_SD_FINAL_STATE_STRING)) {
@@ -1141,6 +1194,8 @@ int updateFsm(
                     eventWrapper->fsm_trans = trans;
                     trans->event = (void *) event;   // note) hold the last link of looped trans
                     trans->event_num++;  // # of shared trans > 1
+                    DEBUG_FSM("[RM%02d-PCR%02d] trans->event_num = %d\n",
+                        fsm->level, fsm->pcr_index, (int)trans->event_num);
                     hit = 1;
 
                     /* next trans */
@@ -1183,7 +1238,8 @@ int updateFsm(
                                 DEBUG("updateFsm - doActivity error\n");
                                 // INFO("FSM validation of doActivity() was failed.
                                 // (FSM state = %s)\n",fsm->curr_state->name);
-                                addReason(ctx, "[PCR%02d-FSM] action '%s' fail at state '%s'",
+                                addReason(ctx, fsm->pcr_index, NLS(MS_OPENPTS, OPENPTS_FSM_ACTION_FAILED,
+                                               "[PCR%02d-FSM] The action '%s' failed at state '%s'"),
                                     fsm->pcr_index, (char *)fsm->curr_state->action, fsm->curr_state->name);
                                 return rc;
                             } else if (rc == OPENPTS_FSM_MIGRATE_EVENT) {
@@ -1199,10 +1255,11 @@ int updateFsm(
                         break;
                     } else {
                         /* Trans */
-                        DEBUG_FSM("[RM%02d-PCR%02d] %s -> %s - HIT (type=%d, digest=%d) <== new curr_state\n",
+                        DEBUG_FSM("[RM%02d-PCR%02d] %s -> %s - HIT (type=%d, digest=%d)\n",
                             fsm->level, fsm->pcr_index,
-                            trans->source, trans->target, type_check, digest_check);
-
+                            trans->source,
+                            trans->target,
+                            type_check, digest_check);
                         fsm->curr_state = getSubvertex(fsm, trans->target);
 
                         if (fsm->curr_state != NULL) {
@@ -1247,7 +1304,7 @@ int updateFsm(
                                 rc = OPENPTS_FSM_SUCCESS;
                             }
                         } else {
-                            ERROR("curr_state is NULL\n");
+                            ERROR("curr_state is NULL, missing %s\n", trans->target);
                             rc = OPENPTS_FSM_ERROR;
                             return rc;
                         }
@@ -1303,9 +1360,8 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
     }
 
     /* New FSM */
-    dst_fsm = (OPENPTS_FSM_CONTEXT *) malloc(sizeof(OPENPTS_FSM_CONTEXT));
+    dst_fsm = (OPENPTS_FSM_CONTEXT *) xmalloc(sizeof(OPENPTS_FSM_CONTEXT));
     if (dst_fsm  == NULL) {
-        ERROR("copyFsm - no memory\n");
         return NULL;
     }
     memcpy((void *)dst_fsm, (void *)src_fsm, sizeof(OPENPTS_FSM_CONTEXT));
@@ -1324,7 +1380,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
     while (src_fsm_sub != NULL) {
         /* malloc new sub */
         dst_fsm_sub = (OPENPTS_FSM_Subvertex *)
-            malloc(sizeof(OPENPTS_FSM_Subvertex));
+            xmalloc_assert(sizeof(OPENPTS_FSM_Subvertex));
         /* copy */
         memcpy((void *)dst_fsm_sub,
                (void *)src_fsm_sub,
@@ -1362,7 +1418,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
     while (src_fsm_trans != NULL) {
         /* malloc new sub */
         dst_fsm_trans = (OPENPTS_FSM_Transition *)
-            malloc(sizeof(OPENPTS_FSM_Transition));
+            xmalloc_assert(sizeof(OPENPTS_FSM_Transition));
         /* copy */
         memcpy((void *)dst_fsm_trans,
                (void *)src_fsm_trans,
@@ -1408,7 +1464,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
 
   error:
     if (dst_fsm != NULL) {
-        free(dst_fsm);
+        xfree(dst_fsm);
     }
     return NULL;
 }
@@ -1565,10 +1621,8 @@ int insertFsmNew(
     DEBUG_FSM("insertFsm - start\n");
 
     /* check input */
-    if (fsm_trans == NULL) {
-        ERROR("ERROR fsm_trans == NULL\n");
-        return -1;
-    }
+    ASSERT(NULL != fsm_trans, "ERROR fsm_trans == NULL\n");
+
     if (fsm_trans->source_subvertex == NULL) {
         ERROR("ERROR fsm_trans->source_subvertex == NULL, %s -> %s\n",
             fsm_trans->source, fsm_trans->target);
@@ -1598,9 +1652,8 @@ int insertFsmNew(
         /* Add new subvertex, BN (->B) */
 
         new_sub = (OPENPTS_FSM_Subvertex *)
-            malloc(sizeof(OPENPTS_FSM_Subvertex));
+            xmalloc(sizeof(OPENPTS_FSM_Subvertex));
         if (new_sub == NULL) {
-            ERROR("no memory");
             return -1;
         }
         /* copy */
@@ -1644,9 +1697,8 @@ int insertFsmNew(
 
             /* malloc */
             new_trans = (OPENPTS_FSM_Transition*)
-                malloc(sizeof(OPENPTS_FSM_Transition));
+                xmalloc(sizeof(OPENPTS_FSM_Transition));
             if (new_trans == NULL) {
-                ERROR("no memory");
                 return -1;
             }
             /* copy */
@@ -1686,14 +1738,18 @@ int insertFsmNew(
             fsm_trans->copy_num++;
 
             /* Copy digest value to trans  */
-            new_trans->digestFlag = DIGEST_FLAG_EQUAL;
-            new_trans->digestSize = event->ulPcrValueLength;
-            new_trans->digest = malloc(event->ulPcrValueLength);
-            if (new_trans->digest == NULL) {
-                ERROR("no memory\n");
-                return -1;
+            if (0 == eventWrapper->transparent) {
+                new_trans->digestFlag = DIGEST_FLAG_EQUAL;
+                new_trans->digestSize = event->ulPcrValueLength;
+                new_trans->digest = xmalloc(event->ulPcrValueLength);
+                if (new_trans->digest == NULL) {
+                    return -1;
+                }
+                memcpy(new_trans->digest, event->rgbPcrValue, event->ulPcrValueLength);
+            } else {
+                DEBUG_FSM("Changing digestFlag == DIGEST_FLAG_TRANSPARENT\n");
+                new_trans->digestFlag = DIGEST_FLAG_TRANSPARENT;
             }
-            memcpy(new_trans->digest, event->rgbPcrValue, event->ulPcrValueLength);
 
             DEBUG_FSM("new  Trans BIN(%s -> %s)\n",
                       new_trans->source, new_trans->target);
@@ -1709,24 +1765,27 @@ int insertFsmNew(
                      "%s", new_sub->id);
 
             /* Copy digest value to FSM */
-            fsm_trans->digestFlag = DIGEST_FLAG_EQUAL;
-            fsm_trans->digestSize = event->ulPcrValueLength;
-            fsm_trans->digest = malloc(event->ulPcrValueLength);
-            if (fsm_trans->digest == NULL) {
-                ERROR("no memory\n");
-                return -1;
+            if (0 == eventWrapper->transparent) {
+                fsm_trans->digestFlag = DIGEST_FLAG_EQUAL;
+                fsm_trans->digestSize = event->ulPcrValueLength;
+                fsm_trans->digest = xmalloc(event->ulPcrValueLength);
+                if (fsm_trans->digest == NULL) {
+                    return -1;
+                }
+                memcpy(fsm_trans->digest, event->rgbPcrValue, event->ulPcrValueLength);
+            } else {
+                fsm_trans->digestFlag = DIGEST_FLAG_TRANSPARENT;
             }
-            memcpy(fsm_trans->digest, event->rgbPcrValue, event->ulPcrValueLength);
 
             // DEBUG_FSM("\tupdate Trans %p->%p->%p\n",
             //          fsm_trans->prev, fsm_trans, fsm_trans->next);
             DEBUG_FSM("\tUpdate Trans BIN(%s -> %s)\n",
                       fsm_trans->source, fsm_trans->target);
         } else {
-            ERROR("BAD LOOP\n");
+            ASSERT(0, "BAD LOOP\n");
         }
     } else {
-        ERROR("Not a loop");
+        ASSERT(0, "Not a loop");
     }
 
     DEBUG_FSM("insertFsm - done\n");
@@ -1813,10 +1872,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     OPENPTS_FSM_Subvertex * sub;
     OPENPTS_FSM_Subvertex * sub_next;
 
-    if (fsm_ctx == NULL) {
-        ERROR("ERROR No FSM TRANS\n");
-        return -1;
-    }
+    ASSERT(NULL != fsm_ctx, "ERROR No FSM TRANS\n");
 
     DEBUG_FSM("cleanupFsm - start, PCR[%d]\n", fsm_ctx->pcrIndex);
 
@@ -1909,7 +1965,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     trans = fsm_ctx->fsm_trans;
 
     if (trans == NULL) {
-        printf("ERROR No FSM TRANS\n");
+        ERROR("No FSM TRANS\n");
         return -1;
     }
 
@@ -1969,10 +2025,7 @@ int writeDotModel(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
     DEBUG("writeDotModel - start %s\n", filename);
 
     /* check */
-    if (ctx == NULL) {
-        ERROR("writeDotModel() - OPENPTS_FSM_CONTEXT is NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != ctx, "writeDotModel() - OPENPTS_FSM_CONTEXT is NULL\n");
 
     if (filename == NULL) {
         fp = stdout;
@@ -2090,12 +2143,14 @@ int writeCsvTable(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
         }
 
 
-        if (ptr->digestFlag == 1) {
+        if (ptr->digestFlag == DIGEST_FLAG_EQUAL) {
             fprintf(fp, "digest==0x");
             // for (i=0;i<DIGEST_SIZE;i++) fprintf(fp,"%02x",ptr->digest[i]);
             fprintf(fp, ",");
-        } else if (ptr->digestFlag == 2) {
-            fprintf(fp, "digest==base64,");
+        } else if (ptr->digestFlag == DIGEST_FLAG_IGNORE) {
+            fprintf(fp, "digest==base64!,");
+        } else if (ptr->digestFlag == DIGEST_FLAG_TRANSPARENT) {
+            fprintf(fp, "digest==transparent!,");
         } else {
             fprintf(fp, ",");
         }
@@ -2120,11 +2175,11 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
     int i, j;
     OPENPTS_FSM_Transition *ptr;
 
-    printf("ctx->transition_num = %d\n", ctx->transition_num);
-
-    printf("trans\t\tcurrent state\t\t\tcondition\t\t\\ttnext state\n");
-    printf("  id  \t\t\t\t\ttype(hex)\tdigest(hex)\n");
-    printf("----------------------------------------------------------------------------------------------\n");
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_FSM_HEADER,
+           "ctx->transition_num = %d\n"
+           "trans\t\tcurrent state\t\t\tcondition\t\t\\ttnext state\n"
+           "  id  \t\t\t\t\ttype(hex)\tdigest(hex)\n"), ctx->transition_num);
+    OUTPUT("----------------------------------------------------------------------------------------------\n");
 
 
     ptr = ctx->fsm_trans;
@@ -2133,27 +2188,30 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
             ERROR("PTR is NULL at %d\n", i);
             return -1;
         }
-        printf("%5d ", i);
-        printf("%30s ", getSubvertexName(ctx, ptr->source));
+        OUTPUT("%5d ", i);
+        OUTPUT("%30s ", getSubvertexName(ctx, ptr->source));
 
         if (ptr->eventTypeFlag == 1) {
-            printf(" 0x%08x  ", ptr->eventType);
+            OUTPUT(" 0x%08x  ", ptr->eventType);
         } else if (ptr->eventTypeFlag == 1) {
-            printf("!0x%08x  ", ptr->eventType);
+            OUTPUT("!0x%08x  ", ptr->eventType);
         } else {
-            printf("             ");
+            OUTPUT("             ");
         }
 
-        if (ptr->digestFlag == 1) {
-            printf("0x");
-            for (j = 0; j < ptr->digestSize; j++) printf("%02x", ptr->digest[j]);
-            printf(" ");
-        } else if (ptr->digestFlag == 2) {
-            printf("base64                                     ");
+        if (ptr->digestFlag == DIGEST_FLAG_EQUAL) {
+            OUTPUT("0x");
+            for (j = 0; j < ptr->digestSize; j++) OUTPUT("%02x", ptr->digest[j]);
+            OUTPUT(" ");
+        } else if (ptr->digestFlag == DIGEST_FLAG_IGNORE) {
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_FSM_BASE64, "base64                                     "));
+        } else if (ptr->digestFlag == DIGEST_FLAG_TRANSPARENT) {
+            /* WORK NEEDED: say transparent here? */
+            OUTPUT("                                           ");
         } else {
-            printf("                                           ");
+            OUTPUT("                                           ");
         }
-        printf("%-30s\n", getSubvertexName(ctx, ptr->target));
+        OUTPUT("%-30s\n", getSubvertexName(ctx, ptr->target));
 
         ptr = ptr->next;
     }

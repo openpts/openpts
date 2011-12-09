@@ -25,7 +25,7 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @author Olivier Valentin <olivier.valentin@us.ibm.com>
  * @date 2011-03-15
- * cleanup 2011-07-06 SM
+ * cleanup 2011-10-07 SM
  *
  * Copy from tools v0.1.X
  *
@@ -52,7 +52,7 @@
 
 #include <openssl/sha.h>
 
-int verbose = 0;
+#include <openpts.h>
 
 // Local TCSD
 #define SERVER    NULL
@@ -94,7 +94,7 @@ int hex2bin(void *dest, const void *src, size_t n) {
     unsigned char *ussrc = (unsigned char *) src;
 
     if (n & 0x01) {
-        printf("ERROR: hex2bin wrong size %d\n", (int)n);
+        ERROR("ERROR: hex2bin wrong size %d\n", (int)n);
         return -1;
     }
 
@@ -125,24 +125,16 @@ int hex2bin(void *dest, const void *src, size_t n) {
     return i;
 }
 
-void printhex(char *str, unsigned char *buf, int len) {
-    int i;
-    printf("%s", str);
-    for (i = 0; i < len; i++)
-        printf("%02x", buf[i]);
-    printf("\n");
-}
-
-
 void usage(void) {
-    fprintf(stderr, "OpenPTS command\n\n");
-    fprintf(stderr, "Usage: tpm_extendpcr [options] filename\n\n");
-    fprintf(stderr, "  filename              file to be measured\n");
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -p pcr_index          Set PCR index to extend\n");
-    fprintf(stderr, "  -t event_type         Set event type\n");
-    fprintf(stderr, "  -h                    Help\n");
-    fprintf(stderr, "\n");
+    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_USAGE,
+                    "OpenPTS command\n\n"
+                    "Usage: tpm_extendpcr [options] filename\n\n"
+                    "  filename              file to be measured\n"
+                    "Options:\n"
+                    "  -p pcr_index          Set PCR index to extend\n"
+                    "  -t event_type         Set event type\n"
+                    "  -h                    Help\n"
+                    "\n"));
 }
 
 
@@ -163,7 +155,6 @@ int main(int argc, char *argv[]) {
     char c;
     int pcrindex = 15;
     int eventtype = EV_FILE_SCAN_TSS;
-    int verbose = 0;
     SHA_CTX sha_ctx;
     int iml_mode = 0;
     int endian = 0;
@@ -173,6 +164,8 @@ int main(int argc, char *argv[]) {
     off_t fileLength;
     struct fileScan *fscan;
     struct stat     stat_buf;
+
+    initCatalog();
 
     /* parse the option args */
     while ((c = getopt(argc, argv, "f:p:d:t:IEAvh")) != EOF) {
@@ -193,7 +186,7 @@ int main(int argc, char *argv[]) {
             aligned = 1;
             break;
         case 'v':  /* verbose mode */
-            verbose = 1;
+            setVerbosity(1);
             break;
         case 'h':  /* help */
             usage();
@@ -217,26 +210,23 @@ int main(int argc, char *argv[]) {
     /* TSS open */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        printf
-        ("ERROR: Tspi_Context_Create failed rc=0x%x\n",
-         result);
-        goto end;
+        ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n",
+              result);
+        goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        printf
-        ("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
-         result);
+        ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
+              result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        printf
-        ("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
-         result);
+        ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
+              result);
         goto close;
     }
 
@@ -252,13 +242,14 @@ int main(int argc, char *argv[]) {
                                     &prgbRespData);
 
     if (result != TSS_SUCCESS) {
-        printf("ERROR: failed rc=0x%x\n", result);
+        ERROR("ERROR: failed rc=0x%x\n", result);
         goto close;
     }
 
-    pcrnum = (UINT32) * prgbRespData;
+    pcrnum = * (UINT32 *) prgbRespData;
     if (pcrindex > (int) pcrnum) {
-        printf("ERROR: pcrindex %d is out of range, this must be 0 to %d\n",
+        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_BAD_RANGE,
+            "ERROR: pcrindex %d is out of range, this must be 0 to %d\n"),
             pcrindex, pcrnum);
         goto close;
     }
@@ -269,16 +260,20 @@ int main(int argc, char *argv[]) {
         int fd;
         int eventCount = 0;
         TSS_PCR_EVENT pcrEvent;
+        void *fileMap;
+        off_t fileLength;
         void *current, *eof;
 
 
         if ((fd = open(filename, O_RDONLY)) < 0) {
-            fprintf(stderr, "file %s open fail\n", filename);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_OPEN_FAIL,
+                "Failed to open file '%s'\n"), filename);
             goto close;
         }
 
         fileLength = lseek(fd, 0, SEEK_END);
         if (fileLength < 0) {
+            // WORK NEEDED: Please use NLS for i18n
             fprintf(stderr, "file %s seek fail\n", filename);
             goto close;
         }
@@ -321,12 +316,15 @@ int main(int argc, char *argv[]) {
                         &prgbPcrValue);
 
             if (result != TSS_SUCCESS) {
-                fprintf(stderr, "Failed to extend PCR at %d event, rc = 0x%04x\n", eventCount, result);
-                fprintf(stderr, " pcr index : %d\n", pcrEvent.ulPcrIndex);
-                fprintf(stderr, " eventtype : 0x%x\n", pcrEvent.eventType);
+                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FAILED,
+                    "Failed to extend PCR at event %d\n"), eventCount);
+                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_INDEX,
+                    " pcr index: %d\n"), pcrEvent.ulPcrIndex);
+                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_EVENT_TYPE,
+                    " event type: 0x%x\n"), pcrEvent.eventType);
                 exit(1);
             }
-            free(prgbPcrValue);
+            xfree(prgbPcrValue);
             // Tspi_Context_FreeMemory(hContext, NULL);
 
             if (aligned == 1) {
@@ -340,13 +338,15 @@ int main(int argc, char *argv[]) {
         munmap(fileMap, fileLength);
         close(fd);
 
-        if (verbose == 1) {
-            printf("Fed the TPM/log with %d events\n", eventCount);
+        if (getVerbosity() > 0) {
+            printf(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FED_TPM,
+                "Fed the TPM/log with %d events\n"), eventCount);
         }
     } else {
         /* File => mmap */
         if ((fd = open(filename, O_RDONLY)) < 0) {
-            fprintf(stderr, "file %s open fail\n", filename);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_OPEN_FAIL,
+                "Failed to open file '%s'"), filename);
             goto close;
         }
 
@@ -359,13 +359,14 @@ int main(int argc, char *argv[]) {
 
         /* EV_SCAN_FILE */
         filename_len = strlen(filename);
-        fscan = malloc(40 + filename_len);
+        fscan = xmalloc(40 + filename_len);
         memset(fscan, 0, 40 + filename_len);
         fscan->filenameLength = filename_len;
         memcpy(fscan->filename, filename, filename_len);
 
         if (stat(filename, &stat_buf) != 0) {
-            fprintf(stderr, "stat fail\n");
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_STAT_FAILED,
+                "Failed to retrieve file information for '%s'\n"), filename);
             exit(1);
         }
 
@@ -379,9 +380,9 @@ int main(int argc, char *argv[]) {
         SHA1_Update(&sha_ctx, fileMap, fileLength);
         SHA1_Final(fscan->fileDigest, &sha_ctx);
 
-        if (verbose == 1) {
-            printf("Filename : %s\n", filename);
-            printhex("Digest   : ", fscan->fileDigest, 20);
+        if (getVerbosity() > 0) {
+            printf(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FILENAME, "Filename: %s\n"), filename);
+            printHex(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_DIGEST, "Digest: "), fscan->fileDigest, 20, "");
         }
 
         /* TSS_PCR_EVENT */
@@ -407,13 +408,15 @@ int main(int argc, char *argv[]) {
                                     &ulPcrValueLength,
                                     &rgbPcrValue);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: failed rc=0x%x\n", result);
+            ERROR("ERROR: failed rc=0x%x\n", result);
             goto free;
         }
 
-        if (verbose == 1) {
-            printhex("EventData: ", (BYTE*)fscan, event.ulEventLength);
-            printhex("PcrValue : ", rgbPcrValue, ulPcrValueLength);
+        if (getVerbosity() > 0) {
+            printHex(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_EVENT_DATA,
+                "EventData: "), (BYTE*)fscan, event.ulEventLength, "");
+            printHex(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_PCR_VALUE,
+                "PCR Value: "), rgbPcrValue, ulPcrValueLength, "");
         }
 
 
@@ -424,7 +427,7 @@ int main(int argc, char *argv[]) {
 
         /* TSS Free */
         Tspi_Context_FreeMemory(hContext, NULL);
-        // free(digest);
+        // xfree(digest);
     }
 
     /* TSS/TPM Close */

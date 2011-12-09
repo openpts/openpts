@@ -48,6 +48,7 @@
 #include <libxml/parser.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 
 /**
@@ -56,9 +57,8 @@
 OPENPTS_RM_CONTEXT *newRmContext() {
     OPENPTS_RM_CONTEXT *ctx;
 
-    ctx = (OPENPTS_RM_CONTEXT *) malloc(sizeof(OPENPTS_RM_CONTEXT));
+    ctx = (OPENPTS_RM_CONTEXT *) xmalloc(sizeof(OPENPTS_RM_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
 
@@ -73,9 +73,132 @@ void freeRmContext(OPENPTS_RM_CONTEXT *ctx) {
         return;
     }
 
-    free(ctx);
+    xfree(ctx);
 }
 
+/**
+ * write core:ComponentID
+ *
+ * <core:ComponentID id="CompID_<UUID>"
+ *                   [SimpleName=...]
+ *                   [ModelName=...]
+ *                   [ModelNumber=...]
+ *                   [ModelSerialNumber=...]
+ *                   [ModelSystemClass=...]
+ *                   [VersionMajor=...]
+ *                   [VersionMinor=...]
+ *                   [VersionBuild=...]
+ *                   [VersionString=...]
+ *                   [MfgDate=...]
+ *                   [PatchLevel=...]
+ *                   [DiscretePatches=...] >
+ *     <core:VendorID name="IBM">
+ *         <core:TcgVendorId>4116</core:TcgVendorId>
+ *     </core:VendorID>
+ * </core:ComponentID>
+ * 
+ */
+static int writeCoreComponentID(xmlTextWriterPtr writer,
+        const char *id,
+        OPENPTS_CONTEXT * ctx,
+        int level) {
+    OPENPTS_CONFIG *conf = ctx->conf;
+
+    if (xmlTextWriterStartElement(writer, BAD_CAST "core:ComponentID") < 0)
+        goto error;
+
+    if (xmlTextWriterWriteAttribute(writer, BAD_CAST "Id", BAD_CAST id) < 0)
+            goto error;
+
+    if (conf->compIDs[level].SimpleName != NULL)
+        if (xmlTextWriterWriteAttribute(writer, BAD_CAST "SimpleName", BAD_CAST conf->compIDs[level].SimpleName) < 0)
+            goto error;
+    if (conf->compIDs[level].ModelName != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "ModelName", BAD_CAST conf->compIDs[level].ModelName) < 0)
+            goto error;
+    if (conf->compIDs[level].ModelNumber != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "ModelNumber", BAD_CAST conf->compIDs[level].ModelNumber) < 0)
+            goto error;
+    if (conf->compIDs[level].ModelSerialNumber != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "ModelSerialNumber", BAD_CAST conf->compIDs[level].ModelSerialNumber) < 0)
+            goto error;
+    if (conf->compIDs[level].ModelSystemClass != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "ModelSystemClass", BAD_CAST conf->compIDs[level].ModelSystemClass) < 0)
+            goto error;
+    if (conf->compIDs[level].VersionMajor != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "VersionMajor", BAD_CAST conf->compIDs[level].VersionMajor) < 0)
+            goto error;
+    if (conf->compIDs[level].VersionMinor != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "VersionMinor", BAD_CAST conf->compIDs[level].VersionMinor) < 0)
+            goto error;
+    if (conf->compIDs[level].VersionBuild != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "VersionBuild", BAD_CAST conf->compIDs[level].VersionBuild) < 0)
+            goto error;
+    if (conf->compIDs[level].VersionString != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "VersionString", BAD_CAST conf->compIDs[level].VersionString) < 0)
+            goto error;
+    if (conf->compIDs[level].MfgDate != NULL)
+        if (xmlTextWriterWriteAttribute(writer, BAD_CAST "MfgDate", BAD_CAST conf->compIDs[level].MfgDate) < 0)
+            goto error;
+    if (conf->compIDs[level].PatchLevel != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "PatchLevel", BAD_CAST conf->compIDs[level].PatchLevel) < 0)
+            goto error;
+    if (conf->compIDs[level].DiscretePatches != NULL)
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "DiscretePatches", BAD_CAST conf->compIDs[level].DiscretePatches) < 0)
+            goto error;
+
+    if (conf->compIDs[level].VendorID_Name != NULL) {
+        if (xmlTextWriterStartElement(writer, BAD_CAST "core:VendorID") < 0)
+            goto error;
+
+        if (xmlTextWriterWriteAttribute(
+                writer, BAD_CAST "Name", BAD_CAST conf->compIDs[level].VendorID_Name) < 0)
+            goto error;
+
+        if (conf->compIDs[level].VendorID_Value != NULL) {
+            switch (conf->compIDs[level].VendorID_type) {
+                case VENDORID_TYPE_TCG:
+                    if (xmlTextWriterStartElement(writer, BAD_CAST "core:TcgVendorId") < 0)
+                        goto error;
+                    break;
+                case VENDORID_TYPE_SMI:
+                    if (xmlTextWriterStartElement(writer, BAD_CAST "core:SmiVendorId") < 0)
+                        goto error;
+                    break;
+                case VENDORID_TYPE_GUID:
+                    if (xmlTextWriterStartElement(writer, BAD_CAST "core:VendorGUID") < 0)
+                        goto error;
+                    break;
+            }
+            if (xmlTextWriterWriteString(writer, BAD_CAST conf->compIDs[level].VendorID_Value) < 0)
+                goto error;
+
+            if (xmlTextWriterEndElement(writer) < 0)
+                goto error;
+        }
+
+        if (xmlTextWriterEndElement(writer) < 0)  // VendorID
+            goto error;
+    }
+
+    if (xmlTextWriterEndElement(writer) < 0)  // ComponentID
+        goto error;
+
+    return 0;
+
+  error:
+    return -1;
+}
 
 /**
  * write core:Values
@@ -139,6 +262,7 @@ int writeCoreValues(xmlTextWriterPtr writer,
     if (xmlTextWriterEndElement(writer) < 0)  // core:Values
         goto error;
 
+    return 0;
   error:
     return rc;
 }
@@ -201,13 +325,13 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
         bhv_trans = eventWrapper->fsm_trans;  // EW keeps the link to BHV
         if (bhv_trans == NULL) {
             DEBUG("writeAllCoreValues() - BHV Trans is missing\n");
-            if (verbose & DEBUG_FLAG) {
+            if (isDebugFlagSet(DEBUG_FLAG)) {
                 UINT32 i;
-                printf("\tpcrindex=%d, eventype=%d, digest=",
+                DEBUG("\tpcrindex=%d, eventype=%d, digest=",
                     event->ulPcrIndex, event->eventType);
                 for (i = 0;i < event->ulPcrValueLength; i++)
-                    printf("%02x", event->rgbPcrValue[i]);
-                printf("\n");
+                    DEBUG("%02x", event->rgbPcrValue[i]);
+                DEBUG("\n");
             }
             return -1;
         }
@@ -216,11 +340,11 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
         if (bin_trans == NULL) {
             UINT32 i;
             ERROR("writeAllCoreValues() - BIN Trans is missing\n");
-            printf("\tat the event: pcrindex=%d, eventype=%d, digest=",
-                event->ulPcrIndex, event->eventType);
+            ERROR("\tat the event: pcrindex=%d, eventype=%d, digest=",
+                  event->ulPcrIndex, event->eventType);
             for (i = 0;i < event->ulPcrValueLength; i++)
-                printf("%02x", event->rgbPcrValue[i]);
-            printf("\n");
+                ERROR("%02x", event->rgbPcrValue[i]);
+            ERROR("\n");
             return -1;
         }
 
@@ -240,15 +364,13 @@ ERROR     rm.c:838 writeRm failed, bad IML or FSM
 
 */
 
-        if (verbose & DEBUG_FSM_FLAG) {
-            UINT32 i;
+        if (isDebugFlagSet(DEBUG_FSM_FLAG)) {
             DEBUG_FSM("writeAllCoreValues\n");
-            printf("\teventype=%d, digest=", event->eventType);
-            for (i = 0;i < event->ulPcrValueLength; i++)
-                printf("%02x", event->rgbPcrValue[i]);
-            printf("\n\tBHV(%s -> %s)\n\tBIN(%s -> %s)\n",
-                bhv_trans->source, bhv_trans->target,
-                bin_trans->source, bin_trans->target);
+            DEBUG("\teventype=%d", event->eventType);
+            debugHex("\tdigest", event->rgbPcrValue, event->ulPcrValueLength, "");
+            DEBUG("\n\tBHV(%s -> %s)\n\tBIN(%s -> %s)\n",
+                  bhv_trans->source, bhv_trans->target,
+                  bin_trans->source, bin_trans->target);
         }
 
         /* digest flag > 0 => RM */
@@ -286,7 +408,7 @@ ERROR     rm.c:838 writeRm failed, bad IML or FSM
 
                         /* copy digest value to FSM */
                         bin_trans->digestSize = event->ulPcrValueLength;
-                        bin_trans->digest = malloc(event->ulPcrValueLength);
+                        bin_trans->digest = xmalloc_assert(event->ulPcrValueLength);
                         // TODO(munetoh) check ptr
                         memcpy(bin_trans->digest,
                                event->rgbPcrValue,
@@ -476,9 +598,11 @@ int writeFsmTransition(xmlTextWriterPtr writer,
 
         if (xmlTextWriterWriteBase64(writer,
             (char*)trans->digest, 0, (int)trans->digestSize) < 0) goto error;
-
     } else if (trans->digestFlag == DIGEST_FLAG_IGNORE) {
-        snprintf(buf, sizeof(buf), "digest == base64");
+        snprintf(buf, sizeof(buf), "digest == base64!");
+        if (xmlTextWriterWriteString(writer, BAD_CAST buf) < 0) goto error;
+    } else if (trans->digestFlag == DIGEST_FLAG_TRANSPARENT) {
+        snprintf(buf, sizeof(buf), "digest == transparent!");
         if (xmlTextWriterWriteString(writer, BAD_CAST buf) < 0) goto error;
     }
     /* last */
@@ -693,6 +817,9 @@ int writeCoreAssertionInfo(xmlTextWriterPtr writer, OPENPTS_CONTEXT * ctx, int l
 
     /* SS Loop */
     for (i = 0; i < MAX_PCRNUM; i++) {
+        if (OPENPTS_PCR_INDEX == i) {
+            continue;
+        }
         ss = getSnapshotFromTable(ctx->ss_table, i, level);
         if ((ss != NULL) && (ss->event_num > 0)) {
             rc = writeValidationModel(writer, ss);
@@ -733,8 +860,8 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     // int j;
     xmlTextWriterPtr writer;
     xmlBufferPtr buf;
-    PTS_UUID *ir_uuid;
-    char *str_ir_uuid;
+    PTS_UUID *ir_uuid = NULL;
+    char *str_ir_uuid = NULL;
     char id[BUF_SIZE];
     OPENPTS_SNAPSHOT *ss = NULL;
 
@@ -768,7 +895,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     if (rc < 0) {
         ERROR("Error at xmlTextWriterStartDocument\n");
         rc = PTS_INTERNAL_ERROR;
-        goto freexml;
+        goto free;
     }
 
     /* Start an element named "Report", the root element of the document. */
@@ -776,7 +903,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     if (rc < 0) {
         ERROR("Error at xmlTextWriterStartElement\n");
         rc = PTS_INTERNAL_ERROR;
-        goto freexml;
+        goto free;
     }
 
     /* new UUID */
@@ -789,7 +916,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     str_ir_uuid = getStringOfUuid(ir_uuid);
     if (str_ir_uuid == NULL) {
         ERROR("UUID gen\n");
-        free(ir_uuid);
+        xfree(ir_uuid);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -873,6 +1000,9 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
 
 
     for (i = 0; i < MAX_PCRNUM; i++) {
+        if (OPENPTS_PCR_INDEX == i) {
+            continue;
+        }
         /* get SS */
         ss = getSnapshotFromTable(ctx->ss_table, i, level);
         if (ss != NULL) {
@@ -892,9 +1022,10 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
                 /* update Binary FSM using IML */
                 rc = writeAllCoreValues(writer, ss);
                 if (rc < 0) {
-                    addReason(ctx,
+                    // WORK NEEDED: Please use NLS for i18n
+                    addReason(ctx, i,
                         "[RM] The manifest generation was failed at pcr=%d, level=%d", i, level);
-                    addReason(ctx,
+                    addReason(ctx, i,
                         "[RM] The validation model may not support this platform. "
                         "Report this to openpts-users@lists.sourceforge.jp.");
                     rc = PTS_INTERNAL_ERROR;
@@ -927,9 +1058,12 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
         goto free;
     }
 
-    rc = xmlTextWriterFlush(writer);
+    /* add compIds */
+    snprintf(id, sizeof(id), "COMPID_%s", str_ir_uuid);
+
+    rc = writeCoreComponentID(writer, id, ctx, level);
     if (rc < 0) {
-        ERROR("writeRm: Error at xmlTextWriterFlush\n");
+        ERROR("writeRm - ERROR file %s\n", file);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -942,6 +1076,12 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
         goto free;
     }
 
+    rc = xmlTextWriterFlush(writer);
+    if (rc < 0) {
+        ERROR("writeRm: Error at xmlTextWriterFlush\n");
+        rc = PTS_INTERNAL_ERROR;
+        goto free;
+    }
 
 
     fp = fopen(file, "w");
@@ -951,15 +1091,20 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
         goto free;
     }
 
-    fprintf(fp, "%s", (const char *) buf->content);
+    if (fprintf(fp, "%s", (const char *) buf->content) <= 0) {
+        ERROR("Failed to write to file %s\n", file);
+        rc = PTS_INTERNAL_ERROR;  // 0
+    } else {
+        rc = PTS_SUCCESS;  // 0
+    }
 
     fclose(fp);
 
     rc = PTS_SUCCESS;  // 0
 
   free:
-    free(ir_uuid);
-    free(str_ir_uuid);
+    xfree(ir_uuid);
+    xfree(str_ir_uuid);
 
   freexml:
     xmlFreeTextWriter(writer);
@@ -977,13 +1122,14 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
 // almost same with uml.c
 // but RM contains multiple BIN-FSMs
 ///////////////////////////////////////////////////
-#define RM_SAX_STATE_IDOL 0
+#define RM_SAX_STATE_IDLE 0
 #define RM_SAX_STATE_VALIDATION_MODEL 1
 #define RM_SAX_STATE_SUBVERTEX 2
 #define RM_SAX_STATE_TRANSITION 3
 #define RM_SAX_STATE_BODY 4
+#define RM_SAX_STATE_VENDID 5
 
-#define RM_SAX_STATE_STUFF_HASH 5
+#define RM_SAX_STATE_STUFF_HASH 6
 
 /**
  * SAX parser
@@ -995,7 +1141,7 @@ void  rmStartDocument(void * ctx) {
     DEBUG_SAX("rmStartDocument\n");
 
     rm_ctx->sax_error = 0;
-    rm_ctx->sax_state = RM_SAX_STATE_IDOL;
+    rm_ctx->sax_state = RM_SAX_STATE_IDLE;
 }
 
 /**
@@ -1057,6 +1203,11 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                         if (level != rm_ctx->level) {
                             TODO("RM level is %d not %d\n", level, rm_ctx->level);
                             rm_ctx->level = level;
+                            if (level < 0 || level >= MAX_RM_NUM) {
+                                ERROR("level found in RM (%d) is greater or equal to MAX_RM_NUM (%d)\n",
+                                    level, MAX_RM_NUM);
+                                return;
+                            }
                         }
                     }
                 }
@@ -1172,9 +1323,101 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
     } else if (!strcmp((char *)name, "body")) { /* <body>eventtype == 0xa, </body> */
         // TODO(munetoh)
         rm_ctx->sax_state = RM_SAX_STATE_BODY;
+    } else if (!strcmp((char *)name, "core:ComponentID")) {
+        int attrIdx;
+        int level = pctx->rm_ctx->level;
+        char *attributeName;
+
+        DEBUG_SAX("ComponentID level %d\n", level);
+
+        attrIdx = 0;
+        while (atts[attrIdx] != NULL) {
+            char **attributeValue;
+
+            attributeName = (char *)atts[attrIdx];
+
+            if (strcmp(attributeName, "Id") == 0) {
+                attrIdx++;
+                attrIdx++;
+                continue;
+            }
+
+            if (strcmp(attributeName, "SimpleName") == 0) {
+                attributeValue = &pctx->compIDs[level].SimpleName;
+            } else if (strcmp(attributeName, "ModelName") == 0) {
+                attributeValue = &pctx->compIDs[level].ModelName;
+            } else if (strcmp(attributeName, "ModelNumber") == 0) {
+                attributeValue = &pctx->compIDs[level].ModelNumber;
+            } else if (strcmp(attributeName, "ModelSerialNumber") == 0) {
+                attributeValue = &pctx->compIDs[level].ModelSerialNumber;
+            } else if (strcmp(attributeName, "ModelSystemClass") == 0) {
+                attributeValue = &pctx->compIDs[level].ModelSystemClass;
+            } else if (strcmp(attributeName, "VersionMajor") == 0) {
+                attributeValue = &pctx->compIDs[level].VersionMajor;
+            } else if (strcmp(attributeName, "VersionMinor") == 0) {
+                attributeValue = &pctx->compIDs[level].VersionMinor;
+            } else if (strcmp(attributeName, "VersionBuild") == 0) {
+                attributeValue = &pctx->compIDs[level].VersionBuild;
+            } else if (strcmp(attributeName, "VersionString") == 0) {
+                attributeValue = &pctx->compIDs[level].VersionString;
+            } else if (strcmp(attributeName, "MfgDate") == 0) {
+                attributeValue = &pctx->compIDs[level].MfgDate;
+            } else if (strcmp(attributeName, "PatchLevel") == 0) {
+                attributeValue = &pctx->compIDs[level].PatchLevel;
+            } else if (strcmp(attributeName, "DiscretePatches") == 0) {
+                attributeValue = &pctx->compIDs[level].DiscretePatches;
+            } else {
+                ERROR("unknown attribute for Component ID: '%s'\n", attributeName);
+                attrIdx++;  // attribute
+                attrIdx++;  // skip
+                continue;
+            }
+
+            if (*attributeValue != NULL) {
+                xfree(*attributeValue);
+            }
+            *attributeValue = smalloc((char *)atts[++attrIdx]);
+
+            if (*attributeValue == NULL) {
+                pctx->rm_ctx->sax_error = PTS_FATAL;
+                return;
+            }
+            attrIdx++;
+        }
+    } else if (!strcmp((char *)name, "core:VendorID")) {
+        int level = pctx->rm_ctx->level;
+
+        if (atts[0] != NULL || strcmp((char *)atts[0], "Name") == 0) {
+            pctx->compIDs[level].VendorID_Name = smalloc((char *)atts[1]);
+            if (pctx->compIDs[level].VendorID_Name == NULL) {
+                pctx->rm_ctx->sax_error = PTS_FATAL;
+                return;
+            }
+        }
+    } else if (!strcmp((char *)name, "core:TcgVendorId")) {
+        rm_ctx->sax_state = RM_SAX_STATE_VENDID;
+        pctx->compIDs[pctx->rm_ctx->level].VendorID_type =
+            VENDORID_TYPE_TCG;
+
+        // VendorID_Value
+
+    } else if (!strcmp((char *)name, "core:SmiVendorId")) {
+        rm_ctx->sax_state = RM_SAX_STATE_VENDID;
+        pctx->compIDs[pctx->rm_ctx->level].VendorID_type =
+            VENDORID_TYPE_SMI;
+
+        // VendorID_Value
+
+    } else if (!strcmp((char *)name, "core:VendorGUID")) {
+        rm_ctx->sax_state = RM_SAX_STATE_VENDID;
+        pctx->compIDs[pctx->rm_ctx->level].VendorID_type =
+            VENDORID_TYPE_GUID;
+
+        // VendorID_Value
+
     } else {
         ERROR("Unknown  ELEMENT [%s] \n", name);
-        rm_ctx->sax_state = RM_SAX_STATE_IDOL;
+        rm_ctx->sax_state = RM_SAX_STATE_IDLE;
     }
 }
 
@@ -1209,11 +1452,19 @@ void rmEndElement(void * ctx, const xmlChar * name) {
             rm_ctx->source_xmiid,
             rm_ctx->target_xmiid,
             rm_ctx->charbuf);
+
+        /* We only want to do this once */
+        if (1 == rm_ctx->fsm->numTransparencies) {
+            char name[64];
+            snprintf(name, sizeof(name), "disable.quote.pcr.%d", rm_ctx->fsm->pcr_index);
+            addProperty(pctx, name, "1");
+            DEBUG("Added property %s=1\n", name);
+        }
     } else {
         // DEBUG_SAX("END ELEMENT [%s] \n", name);
     }
 
-    rm_ctx->sax_state = IR_SAX_STATE_IDOL;
+    rm_ctx->sax_state = RM_SAX_STATE_IDLE;
 }
 
 /**
@@ -1240,11 +1491,14 @@ void rmCharacters(void* ctx, const xmlChar * ch, int len) {
     case RM_SAX_STATE_BODY:
         memcpy(rm_ctx->charbuf, buf, sizeof(rm_ctx->charbuf));
         break;
+    case RM_SAX_STATE_VENDID:
+        pctx->compIDs[pctx->rm_ctx->level].VendorID_Value = smalloc_assert(buf);
+        break;
     default:
         DEBUG_SAX("characters[%d]=[%s]\n", len, buf);
         break;
     }
-    rm_ctx->sax_state = RM_SAX_STATE_IDOL;
+    rm_ctx->sax_state = RM_SAX_STATE_IDLE;
 }
 
 
@@ -1273,13 +1527,16 @@ int readRmFile(OPENPTS_CONTEXT *ctx, const char *filename, int level) {
 
     /* SAX variables */
     if (ctx->rm_ctx == NULL) {
-        ctx->rm_ctx = newRmContext();  // (OPENPTS_RM_CONTEXT *) malloc(sizeof(OPENPTS_RM_CONTEXT));
+        ctx->rm_ctx = newRmContext();  // (OPENPTS_RM_CONTEXT *) xmalloc(sizeof(OPENPTS_RM_CONTEXT));
         if (ctx->rm_ctx == NULL) {
-            ERROR("no memory\n");
             return -1;
         }
     }
 
+    if (level < 0 || level >= MAX_RM_NUM) {
+        ERROR("readRmFile - level (%d) is greater or equal to MAX_RM_NUM (%d)\n", level, MAX_RM_NUM);
+        return -1;
+    }
     ctx->rm_ctx->level = level;
 
     /* setup handlers */
@@ -1332,7 +1589,8 @@ int getRmSetDir(OPENPTS_CONFIG *conf) {
 
         if (lstat(buf, &st) == -1) {
             /* Missing conf dir => Error */
-            ERROR("getRmSetDir() -Conf directory, %s is missing. please initialize the collector first\n", buf);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_RM_CONF_DIR_MISSING,
+                        "The configuration directory '%s' is missing. Please initialize the collector first\n"), buf);
             rc = PTS_INTERNAL_ERROR;
             goto end;
         }
@@ -1345,9 +1603,9 @@ int getRmSetDir(OPENPTS_CONFIG *conf) {
                 conf->rm_uuid->str, i);
             if (conf->rm_filename[i] != NULL) {
                 // DEBUG("getRmSetDir() - free conf->rm_filename[%d] %s\n",i, conf->rm_filename[i]);
-                free(conf->rm_filename[i]);
+                xfree(conf->rm_filename[i]);
             }
-            conf->rm_filename[i] = smalloc(buf);
+            conf->rm_filename[i] = smalloc_assert(buf);
             DEBUG("RM File                      : %s\n", conf->rm_filename[i]);
         }
     } else {
@@ -1403,9 +1661,9 @@ int getNewRmSetDir(OPENPTS_CONFIG *conf) {
                 conf->newrm_uuid->str, i);
             if (conf->newrm_filename[i] != NULL) {
                 // DEBUG("getRmSetDir() - free conf->rm_filename[%d] %s\n",i, conf->rm_filename[i]);
-                free(conf->newrm_filename[i]);
+                xfree(conf->newrm_filename[i]);
             }
-            conf->newrm_filename[i] = smalloc(buf);
+            conf->newrm_filename[i] = smalloc_assert(buf);
             DEBUG("NEWRM File                  : %s\n", conf->newrm_filename[i]);
         }
     } else {
@@ -1446,7 +1704,7 @@ int makeRmSetDir(OPENPTS_CONFIG *conf) {
             snprintf(buf, BUF_SIZE, "%s/%s/rm%d.xml",
                 conf->rm_basedir,
                 conf->rm_uuid->str, i);
-            conf->rm_filename[i] = smalloc(buf);
+            conf->rm_filename[i] = smalloc_assert(buf);
         }
     }
     rc = PTS_SUCCESS;
@@ -1487,7 +1745,7 @@ int makeNewRmSetDir(OPENPTS_CONFIG *conf) {
                 "%s/%s/rm%d.xml",
                 conf->rm_basedir,
                 conf->newrm_uuid->str, i);
-            conf->newrm_filename[i] = smalloc(buf);
+            conf->newrm_filename[i] = smalloc_assert(buf);
         }
     }
     rc = PTS_SUCCESS;

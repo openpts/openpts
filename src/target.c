@@ -26,7 +26,7 @@
  * \brief target(collector)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2011-06-22
- * cleanup 2011-07-06 SM
+ * cleanup 2011-10-07 SM
  *
  * branch from uuid.c
  *
@@ -43,7 +43,6 @@
 #include <fcntl.h>
 
 #include <errno.h>
-
 
 // DIR
 #include <unistd.h>
@@ -180,9 +179,8 @@ int getRmList(OPENPTS_CONFIG *conf, char * config_dir) {
 
     /* malloc */
     // TODO alloc 1 more RMSET for update
-    conf->rmsets = (OPENPTS_RMSETS *) malloc(sizeof(OPENPTS_RMSETS) + sizeof(OPENPTS_RMSET) * (dir_num + 1) );
+    conf->rmsets = (OPENPTS_RMSETS *) xmalloc(sizeof(OPENPTS_RMSETS) + sizeof(OPENPTS_RMSET) * (dir_num + 1) );
     if (conf->rmsets == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
     conf->rmsets->rmset_num = dir_num;
@@ -219,9 +217,9 @@ int getRmList(OPENPTS_CONFIG *conf, char * config_dir) {
             }
         }
 
-        free(dir_list[cnt]);
+        xfree(dir_list[cnt]);
     }
-    free(dir_list);
+    xfree(dir_list);
 
     /* sort (bub) */
     for (i = 0; i< dir_num - 1; i++) {
@@ -328,7 +326,7 @@ int purgeRenewedRm(OPENPTS_CONFIG *conf) {
         state = rmset->state;
 
         if (state == OPENPTS_RM_STATE_TRASH) {
-            printf("  purge %s\n", rmset->str_uuid);
+            INFO(NLS(MS_OPENPTS, OPENPTS_PURGE_RENEWED_RM, "  purge %s\n"), rmset->str_uuid);
             rc = rmRmsetDir(rmset->dir);
             if (rc != PTS_SUCCESS) {
                 rc2 = PTS_OS_ERROR;
@@ -348,20 +346,14 @@ void printRmList(OPENPTS_CONFIG *conf, char *indent) {
     int num = 0;
 
     /* check */
-    if (conf == NULL) {
-        ERROR(" conf is NULL");
-        return;
-    }
-    if (conf->rmsets == NULL) {
-        ERROR(" conf->rmsets is NULL");
-        return;
-    }
-
+    ASSERT(NULL != conf, " conf is NULL");
+    ASSERT(NULL != conf->rmsets, " conf->rmsets is NULL");
 
     num = conf->rmsets->rmset_num;
 
-    printf("%s  ID              UUID                        date(UTC)                status\n", indent);
-    printf("%s%s\n", indent, SEP_LINE);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_HEADER, "%s  ID  UUID  date(UTC)  status\n"), indent);
+    OUTPUT("%s %s\n", indent, SEP_LINE);
+
 
     /* Print  */
     for (cnt = 0; cnt < num; cnt++) {
@@ -371,7 +363,7 @@ void printRmList(OPENPTS_CONFIG *conf, char *indent) {
         time = rmset->time;
         state = rmset->state;
 
-        printf("%s %3d %s %04d-%02d-%02d-%02d:%02d:%02d",
+        OUTPUT("%s %3d %s %04d-%02d-%02d-%02d:%02d:%02d",
             indent,
             cnt,
             str_uuid,
@@ -383,18 +375,18 @@ void printRmList(OPENPTS_CONFIG *conf, char *indent) {
             time->sec);
 
         if (state == OPENPTS_RM_STATE_OLD) {
-            printf(" OLD\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_OLD, " OLD\n"));
         } else if (state == OPENPTS_RM_STATE_NOW) {
-            printf(" NOW\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_NOW, " NOW\n"));
         } else if (state == OPENPTS_RM_STATE_NEW) {  // TODO def name is not clear
-            printf(" NEW (for next boot)\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_NOW_NEXT, " NEW (for next boot)\n"));
         } else if (state == OPENPTS_RM_STATE_TRASH) {
-            printf(" RENEWED (-R to purge)\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_RENEWED, " RENEWED (-R to purge)\n"));
         } else {
-            printf(" state=UNKNOWN\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_UNKNOWN, " state=UNKNOWN\n"));
         }
     }
-    printf("%s%s\n", indent, SEP_LINE);
+    OUTPUT("%s %s\n", indent, SEP_LINE);
 }
 
 
@@ -429,21 +421,20 @@ int getTargetList(OPENPTS_CONFIG *conf, char * config_dir) {
 
     /* move to config dir */
     if ((chdir(conf->config_dir)) != 0) {
-        fprintf(stderr, "Accessing config directory %s\n", conf->config_dir);
+        ERROR("Accessing config directory %s\n", conf->config_dir);
         return PTS_INTERNAL_ERROR;
     }
 
     /* scan dirs */
     dir_num = scandir(".", &dir_list, &selectUuidDir, NULL);
     if ( dir_num == -1 ) {
-        fprintf(stderr, "no target data\n");
+        ERROR("no target data\n");
         return PTS_INTERNAL_ERROR;
     }
 
     /* malloc target_list */
     conf->target_list = newTargetList(dir_num + 1);  // conf.c
     if (conf->target_list == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -451,11 +442,10 @@ int getTargetList(OPENPTS_CONFIG *conf, char * config_dir) {
     for (cnt = 0; cnt < dir_num; cnt++) {
         target = &conf->target_list->target[cnt];
         if (target == NULL) {
-            ERROR("no memory cnt=%d\n", cnt);
             return PTS_INTERNAL_ERROR;
         }
         /* init */
-        target->str_uuid = smalloc(dir_list[cnt]->d_name);
+        target->str_uuid = smalloc_assert(dir_list[cnt]->d_name);
         target->uuid = getUuidFromString(dir_list[cnt]->d_name);
         target->time = getDateTimeOfUuid(target->uuid);
         target->dir = getFullpathName(conf->config_dir, target->str_uuid);
@@ -466,7 +456,6 @@ int getTargetList(OPENPTS_CONFIG *conf, char * config_dir) {
         /* read target config */
         target_conf = (void *)newPtsConfig();
         if (target_conf  == NULL) {
-            printf("no memory\n");
             return PTS_INTERNAL_ERROR;  // TODO
         }
         readTargetConf(target_conf, target->target_conf_filename);
@@ -501,9 +490,12 @@ int getTargetList(OPENPTS_CONFIG *conf, char * config_dir) {
 
         target->target_conf = (void *)target_conf;
 
-        free(dir_list[cnt]);
+        xfree(dir_list[cnt]);
     }
-    free(dir_list);
+
+    if ( dir_num > 0 ) {
+        xfree(dir_list);
+    }
 
     return PTS_SUCCESS;
 }
@@ -524,10 +516,8 @@ char *getTargetConfDir(OPENPTS_CONFIG *conf) {
     int num = 0;
 
     /* check */
-    if (conf == NULL) {
-        ERROR("getTargetConfDir() - conf is NULL\n");
-        return NULL;
-    }
+    ASSERT(NULL != conf, "getTargetConfDir() - conf is NULL\n");
+
     if (conf->hostname == NULL) {
         ERROR("getTargetConfDir() - conf->hostname is NULL\n");
         return NULL;
@@ -550,7 +540,7 @@ char *getTargetConfDir(OPENPTS_CONFIG *conf) {
         } else {
             if (!strcmp(conf->hostname, target_conf->hostname)) {
                 /* HIT, return first one, if multiple host was exist conf dir was broken */
-                dir = smalloc(target->dir);
+                dir = smalloc_assert(target->dir);
                 return dir;
             }
         }
@@ -570,6 +560,15 @@ OPENPTS_TARGET *getTargetCollector(OPENPTS_CONFIG *conf) {
     OPENPTS_CONFIG *target_conf;
     int num = 0;
 
+    /* check */
+    if (conf == NULL) {
+        return NULL;
+    }
+    if (conf->target_list == NULL) {
+        return NULL;
+    }
+
+    /* # of target */
     num = conf->target_list->target_num;
 
     /* loop  */
@@ -594,7 +593,85 @@ OPENPTS_TARGET *getTargetCollector(OPENPTS_CONFIG *conf) {
     return NULL;
 }
 
+OPENPTS_TARGET *getTargetCollectorByUUID(OPENPTS_CONFIG *conf, const char *uuid) {
+    int cnt;
+    OPENPTS_TARGET *target;
+    int num = 0;
 
+    num = conf->target_list->target_num;
+
+    /* loop  */
+    for (cnt = 0; cnt < num; cnt++) {
+        target = &conf->target_list->target[cnt];
+
+        if (NULL != target->str_uuid && !strcmp(uuid, target->str_uuid)) {
+            /* HIT */
+            return target;
+        } else {
+            /* miss -> skip */
+        }
+    }
+
+    return NULL;
+}
+
+
+#if 0
+/* Needs more work. If we want this printed out for "openpts -D" invocations we need to
+   read in the RM files first, which we no longer do. */
+static void printTargetInfo_CompID(OPENPTS_CONTEXT *ctx, FILE *fp, int cnt) {
+    int level;
+
+    for (level = 0; level < MAX_RM_NUM; level++) {
+        if (ctx->compIDs[level].SimpleName != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.SimpleName: %s\n", cnt, level, ctx->compIDs[level].SimpleName);
+        if (ctx->compIDs[level].ModelName != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.ModelName: %s\n", cnt, level, ctx->compIDs[level].ModelName);
+        if (ctx->compIDs[level].ModelNumber != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.ModelNumber: %s\n",
+                cnt, level, ctx->compIDs[level].ModelNumber);
+        if (ctx->compIDs[level].ModelSerialNumber != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.ModelSerialNumber: %s\n",
+                cnt, level, ctx->compIDs[level].ModelSerialNumber);
+        if (ctx->compIDs[level].ModelSystemClass != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.ModelSystemClass: %s\n",
+                cnt, level, ctx->compIDs[level].ModelSystemClass);
+        if (ctx->compIDs[level].VersionMajor != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.VersionMajor: %s\n",
+                cnt, level, ctx->compIDs[level].VersionMajor);
+        if (ctx->compIDs[level].VersionMinor != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.VersionMinor: %s\n",
+                cnt, level, ctx->compIDs[level].VersionMinor);
+        if (ctx->compIDs[level].VersionBuild != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.VersionBuild: %s\n",
+                cnt, level, ctx->compIDs[level].VersionBuild);
+        if (ctx->compIDs[level].VersionString != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.VersionString: %s\n",
+                cnt, level, ctx->compIDs[level].VersionString);
+        if (ctx->compIDs[level].MfgDate != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.MfgDate: %s\n",
+                cnt, level, ctx->compIDs[level].MfgDate);
+        if (ctx->compIDs[level].PatchLevel != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.PatchLevel: %s\n",
+                cnt, level, ctx->compIDs[level].PatchLevel);
+        if (ctx->compIDs[level].DiscretePatches != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.DiscretePatches: %s\n",
+                cnt, level, ctx->compIDs[level].DiscretePatches);
+        if (ctx->compIDs[level].VendorID_Name != NULL)
+            fprintf(fp, "target[%d] rm.compid.%d.VendorID_Name: %s\n",
+                cnt, level, ctx->compIDs[level].VendorID_Name);
+        if (ctx->compIDs[level].VendorID_Value != NULL) {
+            fprintf(fp, "target[%d] rm.compid.%d.", cnt, level);
+            switch (ctx->compIDs[level].VendorID_type) {
+                case VENDORID_TYPE_TCG: fprintf(fp, "TcgVendorId: "); break;
+                case VENDORID_TYPE_SMI: fprintf(fp, "SmiVendorId: "); break;
+                case VENDORID_TYPE_GUID: fprintf(fp, "VendorGUID: "); break;
+            }
+            fprintf(fp, "%s\n", ctx->compIDs[level].VendorID_Value);
+        }
+    }
+}
+#endif
 
 
 /**
@@ -610,10 +687,10 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
 
     num = conf->target_list->target_num;
 
-    printf("%s  ID    UUID                                 "
-           "date(UTC)          username@hostname:port\n",
-        indent);
-    printf("%s%s\n", indent, SEP_LINE);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_TARGET_LIST_HEADER,
+           "%s  ID  UUID                                 date(UTC)          port port(ssh)  (username@)hostname\n"),
+           indent);
+    OUTPUT("%s%s\n", indent, SEP_LINE);
 
     /* Print  */
     for (cnt = 0; cnt < num; cnt++) {
@@ -628,7 +705,7 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
                     str_uuid = target_conf->uuid->str;
                 }
             }
-            printf("%s %4d %s %04d-%02d-%02d-%02d:%02d:%02d %s@%s:%s\n",
+            OUTPUT("%s %4d %s %04d-%02d-%02d-%02d:%02d:%02d %s@%s:%s\n",
                 indent,
                 cnt,
                 str_uuid,
@@ -645,5 +722,5 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
             // printf("--\n");
         }
     }
-    printf("%s%s\n", indent, SEP_LINE);
+    OUTPUT("%s%s\n", indent, SEP_LINE);
 }

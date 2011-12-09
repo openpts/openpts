@@ -22,23 +22,13 @@
  */
 
 /**
- * \file src/uuid.c
+ * \file src/uuid_libuuid.c
  * \brief UUID wrapper (libuuid part)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-11-29
- * cleanup 2011-01-20,21 SM
+ * cleanup 2011-10-07 SM
  *
  * Linux uses libuuid
- *
- * Program  UUID   Description        When            
- * ---------------------------------------------------------------------------------------------------
- * ptscd    CID    Colelctor ID       System install     => /var/lib/openpts/uuid (UUID of sign key)
- *          RM     RM ID              RM Gen xid in RM,  path /var/lib/openpts/$UUID/rm_files
- *          RunID  ID of this daemon  Daemon start       => /var/lib/openpts/run_uuid
- * openpts  VID    Verifier ID        1st run            => uuid=XXX in 'HOME/.openpts/openpts.conf' file
- *          RM                                           => 'HOME/.openpts/hostname/$UUID/rm_files
- *
- * Unit Test: check_uuid.c
  *
  */
 
@@ -57,6 +47,40 @@
 
 #define SEP_LINE "------------------------------------------------------------------------------------"
 
+#ifdef MACOS
+#include <arpa/inet.h>
+
+typedef struct {
+    uint32_t time_low;
+    uint16_t time_mid;
+    uint16_t time_hi_and_version;
+    uint8_t  clock_seq_hi_and_reserved;
+    uint8_t  clock_seq_low;
+    char     node[6];
+} my_uuid_t;
+
+time_t uuid_time(uuid_t uu, struct timeval *tv) {
+    my_uuid_t myUUID;
+    uint64_t clunks;
+
+    myUUID.time_low = ntohl(*((uint32_t*)&uu[0]));
+    myUUID.time_mid = ntohs(*((uint16_t*)&uu[4]));
+    myUUID.time_hi_and_version = ntohs(*((uint16_t*)&uu[6]));
+    myUUID.clock_seq_hi_and_reserved = uu[8];
+
+    if ((myUUID.clock_seq_hi_and_reserved & 0xc0) != 0x80) {
+        ERROR("uuid_time() - bad UUID variant (0x%02x) found, can't extract timestamp\n",
+            (myUUID.clock_seq_hi_and_reserved & 0xc0) >> 4);
+        return (time_t)-1;
+    }
+
+    clunks  = ((uint64_t)(myUUID.time_hi_and_version & 0x0fff)) << 48;
+    clunks += ((uint64_t)myUUID.time_mid) << 32;
+    clunks += myUUID.time_low;
+    return (clunks - 0x01B21DD213814000ULL) / 10000000;
+}
+#endif
+
 /******************************/
 /* PTS_UUID                   */
 /******************************/
@@ -68,9 +92,8 @@ PTS_UUID *newUuid() {
     uuid_t uu;
     PTS_UUID *uuid;
 
-    uuid = malloc(sizeof(PTS_UUID));  // BYTE[16]
+    uuid = xmalloc(sizeof(PTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
 
@@ -84,13 +107,7 @@ PTS_UUID *newUuid() {
  * free UUID
  */
 void freeUuid(PTS_UUID *uuid) {
-    /* check */
-    if (uuid == NULL) {
-        ERROR("null input\n");
-        return;
-    }
-
-    free(uuid);
+    xfree(uuid);
 }
 
 
@@ -109,7 +126,7 @@ PTS_UUID *getUuidFromString(char *str) {
         return NULL;
     }
 
-    uuid = malloc(sizeof(PTS_UUID));
+    uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
         ERROR("\n");
         return NULL;
@@ -126,9 +143,8 @@ char * getStringOfUuid(PTS_UUID *uuid) {
     char *str_uuid;
     uuid_t uu;
 
-    str_uuid = malloc(37);
+    str_uuid = xmalloc(37);
     if (str_uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
 
@@ -190,9 +206,8 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
     // TODO gmtime or local?
     gmtime_r((const time_t *) &t, &time);
 
-    pdt = malloc(sizeof(PTS_DateTime));
+    pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memcpy(pdt, &time, (9*4));
@@ -213,9 +228,8 @@ PTS_DateTime * getDateTime() {
     // TODO gmtime or local?
     gmtime_r((const time_t *) &t, &ttm);
 
-    pdt = malloc(sizeof(PTS_DateTime));
+    pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memcpy(pdt, &ttm, (9*4));

@@ -1,3 +1,16 @@
+openpts (0.2.6) unstable; urgency=low
+
+  * Update src/base64.c
+  * Wrap malloc/free by xmallox/xfree to keep away free(NULL)
+  * Added NLS() macro for i18n, (catgets or gettext)
+  * Added support of "transparent" digest.
+  * Locking to ensure only one instance of ptsc and openpts will run at the same time.
+  * Added the doorbell ringer(ptsevt) and the listener (ptsevtd)
+  * Added clear option. e.g. ptsc -e
+  * Improved error handling and messages
+
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Fri, 7 Oct 2011 12:00:00 +0900
+
 openpts (0.2.5) unstable; urgency=low
 
   * scan by coverity

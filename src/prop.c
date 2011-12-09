@@ -49,7 +49,6 @@
 #include <string.h>
 #include <stdarg.h> /* va_ */
 
-
 #include <openpts.h>
 
 /**
@@ -58,15 +57,14 @@
 OPENPTS_PROPERTY * newProperty(char *name, char *value) {
     OPENPTS_PROPERTY *prop;
 
-    prop = (OPENPTS_PROPERTY *) malloc(sizeof(OPENPTS_PROPERTY));
+    prop = (OPENPTS_PROPERTY *) xmalloc(sizeof(OPENPTS_PROPERTY));
     if (prop == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(prop, 0, sizeof(OPENPTS_PROPERTY));
 
-    prop->name = smalloc(name);
-    prop->value = smalloc(value);
+    prop->name = smalloc_assert(name);
+    prop->value = smalloc_assert(value);
 
     return prop;
 }
@@ -82,9 +80,9 @@ void freeProperty(OPENPTS_PROPERTY *prop) {
 
     // DEBUG("freeProperty() - free - name=%s, value=%s\n",prop->name, prop->value);
 
-    free(prop->name);
-    free(prop->value);
-    free(prop);
+    xfree(prop->name);
+    xfree(prop->value);
+    xfree(prop);
 }
 
 /**
@@ -119,24 +117,29 @@ int freePropertyChain(OPENPTS_PROPERTY *prop) {
 OPENPTS_PROPERTY* getProperty(OPENPTS_CONTEXT *ctx, char *name) {
     OPENPTS_PROPERTY *prop;
 
-    prop = ctx->prop_start;
-
-    // ERROR("getProperty - [%s]\n", name);
-
-    while (prop != NULL) {
-        // ERROR("getProperty - [%s] 1\n", prop->name);
-        if (!strcmp(name, prop->name)) {
-            // HIT;
-            // ERROR("getProperty - HIT - [%s] [%s]\n", prop->name, prop->value);
-            return prop;
-        }
-        // ERROR("getProperty - [%s] 2\n", prop->name);
-        prop = (OPENPTS_PROPERTY *) prop->next;
-        // prop = NULL;
-        // ERROR("getProperty - 3\n");
+    /* check */
+    if (name == NULL) {
+        ERROR("getProperty(NULL), bad call");
+        return NULL;
     }
 
-    // ERROR("getProperty - MISS\n");
+    /* look for the prop with name */
+    prop = ctx->prop_start;
+    while (prop != NULL) {
+        // ERROR("getProperty - [%s] 1\n", prop->name);
+        if (prop->name == NULL) {
+            ERROR("getProperty(%s) fail, bad property entry exist", name);
+            return NULL;
+        }
+
+        if (!strcmp(name, prop->name)) {
+            // HIT
+            return prop;
+        }
+
+        prop = (OPENPTS_PROPERTY *) prop->next;
+    }
+
     return NULL;
 }
 
@@ -156,7 +159,6 @@ int addProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
     /* malloc new prop */
     prop = newProperty(name, value);
     if (prop == NULL) {
-        ERROR("addProperty() - no memory\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -200,8 +202,8 @@ int setProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
     } else {
         /* name hit? update the value */
         // DEBUG("updateProperty() - TBD\n");
-        free(hit->value);
-        hit->value = smalloc(value);
+        xfree(hit->value);
+        hit->value = smalloc_assert(value);
         // memcpy(hit->value, value, strlen(value) + 1); // TODO size
     }
 
@@ -222,18 +224,9 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
     int rc = PTS_SUCCESS;
 
     /* check */
-    if (ctx == NULL) {
-        ERROR("ctx is NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
-    if (name == NULL) {
-        ERROR("name is NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
-    if (value == NULL) {
-        ERROR("value is NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != ctx, "setEventProperty - ctx is NULL\n");
+    ASSERT(NULL != name, "setEventProperty - name is NULL\n");
+    ASSERT(NULL != value, "setEventProperty - value is NULL\n");
 
 
     // DEBUG("setEventProperty - [%s] [%s]\n", name, value);
@@ -282,11 +275,10 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
         event = eventWrapper->event;
         str = snmalloc((char*)event->rgbEvent, event->ulEventLength);
         if (str == NULL) {
-            ERROR("no memory");
             return PTS_INTERNAL_ERROR;
         }
         setProperty(ctx, name, str);  // TODO 2011-02-03 SM implement
-        free(str);
+        xfree(str);
         // NULL
     } else if (!strcmp(value, "notexist")) {
         setProperty(ctx, name, value);  // TODO
@@ -317,18 +309,9 @@ int validateProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, char *action
     int rc = OPENPTS_FSM_ERROR;
     OPENPTS_PROPERTY* prop;
 
-    if (ctx == NULL) {
-        ERROR("ctx is NULL\n");
-        return OPENPTS_FSM_ERROR;
-    }
-    if (name == NULL) {
-        ERROR("name is NULL\n");
-        return OPENPTS_FSM_ERROR;
-    }
-    if (value == NULL) {
-        ERROR("value is NULL\n");
-        return OPENPTS_FSM_ERROR;
-    }
+    ASSERT(NULL != ctx, "validateProperty - ctx is NULL\n");
+    ASSERT(NULL != name, "validateProperty - name is NULL\n");
+    ASSERT(NULL != value, "validateProperty - value is NULL\n");
 
     /* trim */
     // trim(value);
@@ -380,9 +363,9 @@ void printProperties(OPENPTS_CONTEXT *ctx) {
     int i = 0;
     prop = ctx->prop_start;
 
-    printf("Properties name-value\n");
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_PROPS, "Properties name-value\n"));
     while (prop != NULL) {
-        printf("%5d %s=%s\n", i, prop->name, prop->value);
+        OUTPUT("%5d %s=%s\n", i, prop->name, prop->value);
         prop = prop->next;
         i++;
     }
@@ -419,4 +402,15 @@ int saveProperties(OPENPTS_CONTEXT *ctx, char * filename) {
     fclose(fp);
 
     return PTS_SUCCESS;
+}
+
+int addPropertiesFromConfig(OPENPTS_CONFIG *conf, OPENPTS_CONTEXT *ctx) {
+    /* additional properties from the pts config file */
+    if (conf->iml_maxcount > 0) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%d", conf->iml_maxcount);
+        addProperty(ctx, "iml.ipl.maxcount", buf);
+        DEBUG("Added automatic property iml.ipl.maxcount=%d\n", conf->iml_maxcount);
+    }
+    return 0;
 }

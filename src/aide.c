@@ -80,9 +80,9 @@
  */
 AIDE_METADATA * newAideMetadata() {
     AIDE_METADATA *metadata;
-    metadata = (AIDE_METADATA *) malloc(sizeof(AIDE_METADATA));
+    metadata = (AIDE_METADATA *) xmalloc(sizeof(AIDE_METADATA));
     if (metadata == NULL) {
-        ERROR("no memory\n");
+        // ERROR("no memory\n");
         return NULL;
     }
     memset(metadata, 0, sizeof(AIDE_METADATA));
@@ -105,14 +105,14 @@ void freeAideMetadata(AIDE_METADATA *md) {
     }
 
     /* free */
-    if (md->name != NULL) free(md->name);
-    if (md->lname != NULL) free(md->lname);
-    if (md->sha1 != NULL) free(md->sha1);
-    if (md->sha256 != NULL) free(md->sha256);
-    if (md->ima_name != NULL) free(md->ima_name);
-    if (md->hash_key != NULL) free(md->hash_key);
+    if (md->name != NULL) xfree(md->name);
+    if (md->lname != NULL) xfree(md->lname);
+    if (md->sha1 != NULL) xfree(md->sha1);
+    if (md->sha256 != NULL) xfree(md->sha256);
+    if (md->ima_name != NULL) xfree(md->ima_name);
+    if (md->hash_key != NULL) xfree(md->hash_key);
 
-    free(md);
+    xfree(md);
     md = NULL;
 
     return;
@@ -160,16 +160,15 @@ AIDE_CONTEXT * newAideContext() {
 
     // DEBUG("newAideContext()\n");
 
-    ctx = malloc(sizeof(AIDE_CONTEXT));
+    ctx = xmalloc(sizeof(AIDE_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(ctx, 0, sizeof(AIDE_CONTEXT));
 
     /* hash tables */
     // TODO set the size in openpts.h
-    ctx->aide_md_table = malloc(sizeof(struct hsearch_data));
+    ctx->aide_md_table = xmalloc(sizeof(struct hsearch_data));
     // TODO ck null
     memset(ctx->aide_md_table, 0, sizeof(struct hsearch_data));
     rc = hcreate_r(AIDE_HASH_TABLE_SIZE, ctx->aide_md_table);  // hash table for metadata
@@ -179,7 +178,7 @@ AIDE_CONTEXT * newAideContext() {
     }
     ctx->aide_md_table_size = 0;
 
-    ctx->aide_in_table = malloc(sizeof(struct hsearch_data));
+    ctx->aide_in_table = xmalloc(sizeof(struct hsearch_data));
     // TODO ck null
     memset(ctx->aide_in_table, 0, sizeof(struct hsearch_data));
     //  4096 full
@@ -194,7 +193,7 @@ AIDE_CONTEXT * newAideContext() {
     return ctx;
 
   error:
-    if (ctx != NULL) free(ctx);
+    if (ctx != NULL) xfree(ctx);
     return NULL;
 }
 
@@ -213,10 +212,10 @@ void freeAideIgnoreList(AIDE_LIST *list) {
 
     /* Free */
     if (list->name != NULL) {
-        free(list->name);
+        xfree(list->name);
     }
 
-    free(list);
+    xfree(list);
 
     return;
 }
@@ -239,8 +238,8 @@ void freeAideContext(AIDE_CONTEXT *ctx) {
     hdestroy_r(ctx->aide_md_table);
     hdestroy_r(ctx->aide_in_table);
 
-    free(ctx->aide_md_table);
-    free(ctx->aide_in_table);
+    xfree(ctx->aide_md_table);
+    xfree(ctx->aide_in_table);
 
 #ifdef CONFIG_SQLITE
     if (ctx->sqlite_db != NULL) {
@@ -260,7 +259,7 @@ void freeAideContext(AIDE_CONTEXT *ctx) {
         freeAideIgnoreList(ctx->ignore_name_start);
     }
 
-    free(ctx);
+    xfree(ctx);
     return;
 }
 
@@ -445,12 +444,12 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                 switch (items[i]) {
                     case AIDE_ITEM_NAME:   // char
                         if (!is_null) {
-                            md->name = smalloc(ptr);
+                            md->name = smalloc_assert(ptr);
                         }
                         break;
                     case AIDE_ITEM_LNAME:  // char
                         if (!is_null) {
-                            md->lname = smalloc(ptr);
+                            md->lname = smalloc_assert(ptr);
                         }
                         break;
                     case AIDE_ITEM_ATTR:   // int
@@ -534,7 +533,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                 // TODO SHA1 only, add hash agility later
                 /* alloc hash key */
                 sha1_b64_ptr[SHA1_BASE64_DIGEST_SIZE] = 0;  // jXgiZyt0yUbP4QhAq9WFsLF/FL4=  28
-                md->hash_key = malloc(strlen(sha1_b64_ptr) +1);
+                md->hash_key = xmalloc(strlen(sha1_b64_ptr) +1);
                 // TODO check NULL
                 memcpy(md->hash_key, sha1_b64_ptr, strlen(sha1_b64_ptr) + 1);
 
@@ -622,14 +621,14 @@ int readAideIgnoreNameFile(AIDE_CONTEXT *ctx, char *filename) {
             DEBUG("%4d [%s]\n", cnt, line);
 
             /* new  */
-            list = malloc(sizeof(AIDE_LIST));
+            list = xmalloc(sizeof(AIDE_LIST));
             if (list == NULL) {
                 ERROR("no mem\n");
                 rc = PTS_OS_ERROR;
                 goto error;  // return -1;
             }
             memset(list, 0, sizeof(AIDE_LIST));
-            list->name = smalloc(line);
+            list->name = smalloc_assert(line);
 
             /* add to chain */
             if (ctx->ignore_name_start == NULL) {
@@ -723,7 +722,7 @@ int hexcmp(BYTE *d1, BYTE *d2, int len) {
 // TODO(munetoh) how this work?
 void copyAideMetadata(AIDE_METADATA *dst, AIDE_METADATA *src) {
     if (dst->name == NULL) {
-        dst->name = malloc(strlen(src->name) + 1);
+        dst->name = xmalloc(strlen(src->name) + 1);
         memcpy(dst->name, src->name, strlen(src->name) + 1);
     }
 }
@@ -880,7 +879,7 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
         return -1;
     }
     rc = verifyBySQLite(ctx, (char*)buf);
-    free(buf);
+    xfree(buf);
 
     if (rc == OPENPTS_RESULT_VALID) {
         /* hit */
@@ -976,14 +975,14 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     rc = checkIgnoreList(ctx, name);
     if (rc == 0) {
         // HIT
-        free(name);
+        xfree(name);
         return 1;  // IGNORE
     }
 
-    free(name);
+    xfree(name);
     return 2;
 #else
-    free(name);
+    xfree(name);
     return 1;  // force
 #endif
 }
@@ -1052,9 +1051,8 @@ int escapeFilename(char **out, char *in) {
     len = strlen(in);
 
     /*  rough malloc new buffer */
-    buf = malloc(len*3);
+    buf = xmalloc(len*3);
     if (buf == NULL) {
-        ERROR("no memory\n");
         return -1;
     }
 
@@ -1203,7 +1201,7 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
             gzprintf(fp, "bad_filename ");
         } else {
             gzprintf(fp, "%s ", aide_filename);
-            free(aide_filename);
+            xfree(aide_filename);
             aide_filename = NULL;
         }
 
@@ -1217,7 +1215,7 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
             goto close;
         }
         gzprintf(fp, "%s \n", buf);
-        free(buf);
+        xfree(buf);
 
         // printf("%d %s\n", i, buf);
 
@@ -1233,7 +1231,7 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
     gzseek(fp, 1L, SEEK_CUR);  // add one \n
   close:
     gzclose(fp);
-    if (aide_filename != NULL) free(aide_filename);
+    if (aide_filename != NULL) xfree(aide_filename);
 
     DEBUG("convertImlToAideDbFile - done\n");
 
@@ -1302,7 +1300,7 @@ int writeReducedAidbDatabase(AIDE_CONTEXT *ctx, char *filename) {
             }
             gzprintf(fp, "%s ", md->name);
             gzprintf(fp, "%s \n", buf);
-            free(buf);
+            xfree(buf);
             cnt++;
         }
 

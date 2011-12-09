@@ -27,7 +27,7 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-18
  * refactoring 2011-02-15 SM
- * cleanup 2011-07-20 SM
+ * cleanup 2011-10-07 SM
  *
  * Create Sign Key
  * Create AIK
@@ -46,12 +46,16 @@
 #include <string.h>
 
 #ifndef CONFIG_NO_TSS
+#ifdef AIX
+#include <trousers/tss.h>
+#else
 #include <platform.h>
 #include <tss_defines.h>
 #include <tss_typedef.h>
 #include <tss_structs.h>
 #include <tss_error.h>
 #include <tspi.h>
+#endif
 #endif
 
 #include <openssl/sha.h>
@@ -81,6 +85,11 @@ int createTssSignKey(PTS_UUID *uuid, int ps_type, char *filename, int force, int
 }
 
 int deleteTssKey(PTS_UUID *uuid, int ps_type) {
+    /* dummy */
+    return TSS_SUCCESS;
+}
+
+int getTpmVersion(TSS_VERSION *version) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -177,7 +186,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
         ERROR("Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
         goto close;
     }
@@ -268,7 +277,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
         ERROR("Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
         goto close;
     }
@@ -328,7 +337,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
                 flag,  // TSS_TPMSTATUS_RESETLOCK,
                 value);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x, TPM requires ownerauth, use tpm_resetdalock command\n",
+        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -368,6 +377,9 @@ int printTssKeyList(int ps_type) {
     }
 
     /* List */
+    // buf = (BYTE *) & SRK_UUID;
+    // printhex("SRK uuid: ", buf, 16);
+
     result = Tspi_Context_GetRegisteredKeysByUUID(
                 hContext,
                 (UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
@@ -380,9 +392,9 @@ int printTssKeyList(int ps_type) {
         goto close;
     }
 
-    printf("Key number   : %d\n", ulKeyHierarchySize);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY_NUM, "Key number: %d\n"), ulKeyHierarchySize);
     for (i = 0; i < (int)ulKeyHierarchySize; i++) {
-        printf("Key %d\n", i);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY, "Key %d\n"), i);
         info = info + 1;
     }
 
@@ -674,7 +686,7 @@ int getTssPubKey(
     if (resetdalock == 1) {
         // 2011-03-03 SM WEC TPM locks well.
         // TSS_TPMSTATUS_RESETLOCK is read only. no way to get this FLAG before 0x803 Error? :-(
-        // Thus, control by ptscd.conf
+        // Thus, control by ptsc.conf
         DEBUG("TSS_TPMSTATUS_RESETLOCK\n");
         setTpmStatus(TSS_TPMSTATUS_RESETLOCK, TRUE, srk_password_mode);
     }
@@ -710,8 +722,10 @@ int getTssPubKey(
          result);
         if (result == 0x2020) {
             ERROR(" TSS_E_PS_KEY_NOT_FOUND.\n");
-            ERROR("  check system_ps_file setting in /etc/tcsd.conf. (default is /var/lib/tpm/system.data)\n");
-            ERROR(" If system_ps_file size is zero. it does not contains SRK info \n");
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
+                "Please check your system_ps_file setting in /etc/security/tss/tcsd.conf. "
+                "(The default is /var/tss/lib/tpm/system.data)\n"
+                "If system_ps_file size is zero then it does not contain the SRK info\n"));
         }
 
         goto close;
@@ -782,12 +796,13 @@ int getTssPubKey(
                     tss_uuid,
                     &hKey);
         if (result == 0x803) {
-            ERROR("TPM is locked. use 'tpm_resetdalock' command to clear the lock\n");
-            ERROR("For the ptsc, set the flag, 'tpm.resetdalock=on' in /etc/ptsc.conf, or use tpm_resetdalock command");
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_TPM_LOCKED,
+                        "The TPM is locked. Please use the 'tpm_resetdalock' command to clear the lock\n"
+                        "For the ptscd daemon please set the flag 'tpm.resetdalock=on' in /etc/ptsc.conf\n"));
             goto close;
         } else if (result != TSS_SUCCESS) {
             ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
-            printHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
+            debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
 
             goto close;
         }
@@ -809,7 +824,7 @@ int getTssPubKey(
                 0,  // ""
                 key_auth);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -824,16 +839,16 @@ int getTssPubKey(
                                 (UINT32 *) pubkey_length,
                                 &buf);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_GetAttribData failed rc=0x%x\n",
+        ERROR("Tspi_GetAttribData failed rc=0x%x\n",
                result);
         goto free;
     }
     /* copy to local */
     if (*pubkey != NULL) {
         // DEBUG("realloc conf->pubkey\n");  // TODO realloc happen
-        free(*pubkey);
+        xfree(*pubkey);
     }
-    *pubkey = malloc(*pubkey_length);
+    *pubkey = xmalloc_assert(*pubkey_length);
     memcpy(*pubkey, buf, *pubkey_length);
 
 
@@ -866,7 +881,7 @@ int getTpmVersion(TSS_VERSION *version) {
         ERROR("Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
         rc = (int)result;
         goto close;
@@ -976,7 +991,7 @@ int quoteTss(
         ERROR("Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
 
         goto close;
@@ -1037,7 +1052,7 @@ int quoteTss(
                         hPcrComposite,
                         i);
             if (result != TSS_SUCCESS) {
-                    printf("ERROR: failed rc=0x%x\n", result);
+                    ERROR("failed rc=0x%x\n", result);
                     goto close;
             }
             pcrSelectCount++;
@@ -1061,8 +1076,10 @@ int quoteTss(
          result);
         if (result == 0x2020) {
             ERROR(" TSS_E_PS_KEY_NOT_FOUND.\n");
-            ERROR("  check system_ps_file setting in /etc/tcsd.conf. (default is /var/lib/tpm/system.data)\n");
-            ERROR(" If system_ps_file size is zero. it does not contains SRK info \n");
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
+                "Please check your system_ps_file setting in /etc/tcsd.conf. "
+                "(The default is /var/lib/tpm/system.data)\n"
+                "If system_ps_file size is zero then it does not contains the SRK info\n"));
         }
 
         goto close;
@@ -1133,7 +1150,7 @@ int quoteTss(
                                             &hKey);
         if (result != TSS_SUCCESS) {
             ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
-            printHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
+            debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
 
             goto close;
         }
@@ -1143,7 +1160,7 @@ int quoteTss(
     result = Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hKeyPolicy);
     if (result != TSS_SUCCESS) {
         ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
-               result);
+              result);
         goto close;
     }
 
@@ -1154,7 +1171,7 @@ int quoteTss(
                 0,  // ""
                 key_auth);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1195,9 +1212,8 @@ int quoteTss(
     //   NONCE[20]
     // total 48-bytes
     validationData->ulDataLength = validation_data.ulDataLength;
-    validationData->rgbData = malloc(validation_data.ulDataLength);
+    validationData->rgbData = xmalloc(validation_data.ulDataLength);
     if (validationData->rgbData == NULL) {
-        ERROR("no memory");
         result = PTS_FATAL;
         goto free;
     }
@@ -1210,9 +1226,8 @@ int quoteTss(
     // 2011-02-09 SM bad approach
     /* rgbData */
     validationData->ulDataLength = 20;
-    validationData->rgbData = malloc(20);
+    validationData->rgbData = xmalloc(20);
     if (validationData->rgbData == NULL) {
-        ERROR("no memory");
         result = PTS_FATAL;
         goto free;
     }
@@ -1225,9 +1240,8 @@ int quoteTss(
 
     /* rgbValidationData */
     validationData->ulValidationDataLength = validation_data.ulValidationDataLength;
-    validationData->rgbValidationData = malloc(validation_data.ulValidationDataLength);
+    validationData->rgbValidationData = xmalloc(validation_data.ulValidationDataLength);
     if (validationData->rgbValidationData == NULL) {
-        ERROR("no memory");
         result = PTS_FATAL;
         goto free;
     }
@@ -1243,9 +1257,9 @@ int quoteTss(
     validationData->versionInfo.bRevMinor = validationData->rgbData[3];
 
 
-    if (verbose & DEBUG_FLAG) {
+    if (isDebugFlagSet(DEBUG_FLAG)) {
         DEBUG("TPM_Quote\n");
-        printHex("   validationData :",
+        debugHex("   validationData :",
             validationData->rgbData,
             validationData->ulDataLength, "\n");
     }
@@ -1270,9 +1284,9 @@ int quoteTss(
             // fprinthex(fp, "", data, length);
             if (length < MAX_DIGEST_SIZE) {
                 memcpy(&pcrs->pcr[i], data, length);
-                if (verbose & DEBUG_FLAG) {
+                if (isDebugFlagSet(DEBUG_FLAG)) {
                     // DEBUG("PCR[%d]", i);
-                    printHex("             : ", data, length, "\n");
+                    debugHex("             : ", data, length, "\n");
                 }
             } else {
                 ERROR("pcr size is too big %d >  %d\n", length, MAX_DIGEST_SIZE);
@@ -1293,7 +1307,6 @@ int quoteTss(
     Tspi_Context_CloseObject(hContext, hSRKPolicy);
     Tspi_Context_CloseObject(hContext, hSRK);
     Tspi_Context_CloseObject(hContext, hTPM);
-    // free(nonce);
 
     /* Close TSS/TPM */
   close:
@@ -1358,7 +1371,7 @@ int quote2Tss(
         ERROR("Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
 
         goto close;
@@ -1421,7 +1434,7 @@ int quote2Tss(
                         i,
                         TSS_PCRS_DIRECTION_RELEASE);
             if (result != TSS_SUCCESS) {
-                    printf("ERROR: failed rc=0x%x\n", result);
+                    ERROR("failed rc=0x%x\n", result);
                     goto close;
             }
             pcrSelectCount++;
@@ -1445,8 +1458,10 @@ int quote2Tss(
          result);
         if (result == 0x2020) {
             ERROR(" TSS_E_PS_KEY_NOT_FOUND.\n");
-            ERROR("  check system_ps_file setting in /etc/tcsd.conf. (default is /var/lib/tpm/system.data)\n");
-            ERROR(" If system_ps_file size is zero. it does not contains SRK info \n");
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
+                "Please check your system_ps_file setting in /etc/tcsd.conf. "
+                "(The default is /var/lib/tpm/system.data)\n"
+                "If system_ps_file size is zero then it does not contains the SRK info\n"));
         }
 
         goto close;
@@ -1516,7 +1531,7 @@ int quote2Tss(
                                             &hKey);
         if (result != TSS_SUCCESS) {
             ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
-            printHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
+            debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
 
             goto close;
         }
@@ -1537,7 +1552,7 @@ int quote2Tss(
                 0,
                 key_auth);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1557,30 +1572,30 @@ int quote2Tss(
                 &versionInfo);
     if (result != TSS_SUCCESS) {
         if (result == 0x01) {
-            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n",
-                   result);
-            ERROR("       Authorization faild, needs valid password\n");
+            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n", result);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_AUTH_FAILED, "Authorization failed, needs valid password\n"));
         } else {
-            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n",
-                   result);
+            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n", result);
         }
         goto free;
     }
 
-    if (verbose & DEBUG_FLAG) {
+    if (isDebugFlagSet(DEBUG_FLAG)) {
         DEBUG("TPM_Quote2\n");
-        printHex("   externalData   :",
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_EXT_DATA, "External Data:"),
             validation_data.rgbExternalData,
             validation_data.ulExternalDataLength, "\n");
-        printHex("   Data           :",
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_DATA, "Data:"),
             validation_data.rgbData,
             validation_data.ulDataLength, "\n");
-        printHex("   validationData :",
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_VALIDATION_DATA, "Validation Data:"),
             validation_data.rgbValidationData,
             validation_data.ulValidationDataLength, "\n");
-        printHex("   versionInfo    :",
-            versionInfo,
-            versionInfoSize, "\n");
+        if (versionInfoSize > 0) {
+            debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_VERSION_INFO, "Version Info:"),
+                versionInfo,
+                versionInfoSize, "\n");
+        }
     }
 
     /* Get PCR values used by Quote */
@@ -1603,20 +1618,20 @@ int quote2Tss(
             result = Tspi_TPM_PcrRead(
                 hTPM, i, &length, &data);
             if (result != TSS_SUCCESS) {
-                ERROR("Tspi_TPM_PcrRead failed rc=0x%x\n",
-                        result);
+                ERROR("Tspi_TPM_PcrRead failed rc=0x%x\n", result);
                 goto free;
             }
 #endif
 
             if (length < MAX_DIGEST_SIZE) {
                 memcpy(&pcrs->pcr[i], data, length);
-                if (verbose & DEBUG_FLAG) {
+                if (isDebugFlagSet(DEBUG_FLAG)) {
                     // DEBUG("PCR[%d]", i);
-                    printHex("             : ", data, length, "\n");
+                    debugHex("             : ", data, length, "\n");
                 }
             } else {
-                ERROR("pcr size is too big %d >  %d\n", length, MAX_DIGEST_SIZE);
+                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_PCR_SIZE_TOO_BIG,
+                    "PCR size is too big %d > %d\n"), length, MAX_DIGEST_SIZE);
             }
 
             Tspi_Context_FreeMemory(hContext, data);
@@ -1648,9 +1663,8 @@ int quote2Tss(
     // 2+4+20+5+1+20 = 52
     // total 75-bytes???
     validationData->ulDataLength = validation_data.ulDataLength;
-    validationData->rgbData = malloc(validation_data.ulDataLength);
+    validationData->rgbData = xmalloc(validation_data.ulDataLength);
     if (validationData->rgbData == NULL) {
-        ERROR("no memory");
         result = PTS_FATAL;
         goto free;
     }
@@ -1662,9 +1676,8 @@ int quote2Tss(
 
     /* rgbValidationData */
     validationData->ulValidationDataLength = validation_data.ulValidationDataLength;
-    validationData->rgbValidationData = malloc(validation_data.ulValidationDataLength);
+    validationData->rgbValidationData = xmalloc(validation_data.ulValidationDataLength);
     if (validationData->rgbValidationData == NULL) {
-        ERROR("no memory");
         result = PTS_FATAL;
         goto free;
     }
@@ -1687,7 +1700,6 @@ int quote2Tss(
     Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_CloseObject(hContext, hPcrComposite);
     Tspi_Context_CloseObject(hContext, hKey);
-    // free(nonce);
 
     /* Close TSS/TPM */
   close:
@@ -1715,26 +1727,23 @@ int getRandom(BYTE *out, int size) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_Create failed rc=0x%x\n", result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -1742,17 +1751,17 @@ int getRandom(BYTE *out, int size) {
     /* get Random*/
     result = Tspi_TPM_GetRandom(hTPM, size, &buf);
     if (result != TSS_SUCCESS) {
-            printf
-                ("ERROR: Tspi_TPM_GetRandom failed rc=0x%x\n",
+            ERROR
+                ("Tspi_TPM_GetRandom failed rc=0x%x\n",
                  result);
             Tspi_Context_FreeMemory(hContext, NULL);
             goto free;
     }
     memcpy(out, buf, size);
 
-    DEBUG("Get ramdom from TPM");
-    if (verbose & DEBUG_FLAG) {
-        printHex(" - random:", buf, size, "\n");
+    DEBUG("Get ramdom data from TPM");
+    if (isDebugFlagSet(DEBUG_FLAG)) {
+        debugHex(" - random:", buf, size, "\n");
     }
 
   free:
@@ -1780,31 +1789,28 @@ int extendEvent(TSS_PCR_EVENT* event) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_Create failed rc=0x%x\n", result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
     // 2011-02-21 SM pcr0=NULL -> 0x3003 BAD_PARAMETOR error
-    pcr0 = malloc(20);
+    pcr0 = xmalloc_assert(20);
     memset(pcr0, 0, 20);
 
     /* Extend */
@@ -1817,15 +1823,15 @@ int extendEvent(TSS_PCR_EVENT* event) {
                 &pcr_len,
                 &pcr);
     if (result != TSS_SUCCESS) {
-            printf
-                ("ERROR: Tspi_TPM_PcrExtend failed rc=0x%x\n",
+            ERROR
+                ("Tspi_TPM_PcrExtend failed rc=0x%x\n",
                  result);
             // Tspi_Context_FreeMemory(hContext, NULL);
             goto close;
     }
 
     // TODO free some?
-    free(pcr0);
+    xfree(pcr0);
 
   close:
     /* Close TSS/TPM */
@@ -1848,34 +1854,30 @@ int readPcr(int pcr_index, BYTE *pcr) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_Create failed rc=0x%x\n", result);
         if (result == 0x3011) {
-            printf(" TSS_E_COMM_FAILURE. tcsd is not running?\n");
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
-               result);
+        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
     result = Tspi_TPM_PcrRead(
         hTPM, pcr_index, &data_len, &data);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_TPM_PcrRead failed rc=0x%x\n",
-                result);
+        ERROR("Tspi_TPM_PcrRead failed rc=0x%x\n", result);
         goto close;
     }
     if (data_len != SHA1_DIGEST_SIZE) {
@@ -1925,8 +1927,6 @@ int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
     BIGNUM *rsa_e = NULL;
     BIGNUM *rsa_n = NULL;
     BYTE exp[4] = {0x00, 0x01, 0x00, 0x01};
-    char *rsa_e_hex = NULL;
-    char *rsa_n_hex = NULL;
 
     /* check */
     if (pcrs == NULL) {
@@ -1964,7 +1964,7 @@ int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
 
     /* hash */
     hash_length = 20;  // TODO
-    hash = malloc(20);
+    hash = xmalloc_assert(20);
     SHA1_Init(&ctx);
     SHA1_Update(&ctx, message, message_length);
     SHA1_Final(hash, &ctx);
@@ -2019,11 +2019,8 @@ int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
     rsa_n = BN_new();
     BN_bin2bn(pubkey, pubkey_length, rsa_n);
 
-    rsa_e_hex = BN_bn2hex(rsa_e);
-    rsa_n_hex = BN_bn2hex(rsa_n);
-
-    BN_hex2bn(&(rsa->n), rsa_n_hex);
-    BN_hex2bn(&(rsa->e), rsa_e_hex);
+    BN_hex2bn(&(rsa->n), BN_bn2hex(rsa_n));
+    BN_hex2bn(&(rsa->e), BN_bn2hex(rsa_e));
 
     // DEBUG("RSA_verify\n");
     /* RSA verify  1: success, 0:otherwise */
@@ -2039,23 +2036,21 @@ int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
     RSA_free(rsa);
     BN_free(rsa_e);
     BN_free(rsa_n);
-    OPENSSL_free(rsa_e_hex);
-    OPENSSL_free(rsa_n_hex);
 
     if (hash != NULL) {
-        free(hash);
+        xfree(hash);
     }
 
     /* DEBUG */
-    if (verbose & DEBUG_FLAG) {
+    if (isDebugFlagSet(DEBUG_FLAG)) {
         DEBUG("validateQuoteData - rc = %d (1:success)\n", rc);
-        printHex("pubkey    : ", pubkey, pubkey_length, "\n");
-        printHex("message   : ", message, message_length, "\n");
-        printHex("signature : ", signature, signature_length, "\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_PUBKEY, "pubkey: "), pubkey, pubkey_length, "\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_MSG, "message: "), message, message_length, "\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_SIGNATURE, "signature: "), signature, signature_length, "\n");
     }
 
     /**/
-    // free(message);
+    // xfree(message);
 
     if (rc == 1) {
         /* RSA verify - success */
@@ -2065,7 +2060,7 @@ int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
         UINT32 e;  // unsigned long
         ERR_load_crypto_strings();
         e = ERR_get_error();
-        ERROR("RSA_verify fail, %s\n", ERR_error_string(e, NULL));
+        ERROR("RSA_verify failed, %s\n", ERR_error_string(e, NULL));
         ERROR("   %s\n", ERR_lib_error_string(e));
         ERROR("   %s\n", ERR_func_error_string(e));
         ERROR("   %s\n", ERR_reason_error_string(e));
@@ -2131,9 +2126,8 @@ int validatePcrCompositeV11(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
     /* set ValueSize */
     value_size = 20 * count;
     buf_len = 2 + 2 + 4 + value_size;
-    buf = malloc(buf_len);
+    buf = xmalloc(buf_len);
     if (buf == NULL) {
-        ERROR("no memory\n");
         return PTS_INTERNAL_ERROR;
     }
     memset(buf, 0, buf_len);
@@ -2166,10 +2160,10 @@ int validatePcrCompositeV11(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
     SHA1_Update(&ctx, buf, buf_len);
     SHA1_Final(digest, &ctx);
 
-    if (verbose & DEBUG_FLAG) {
-        DEBUG("pcr composit\n");
-        printHex("   buf    :", buf, buf_len, "\n");
-        printHex("   digest :", digest, 20, "\n");
+    if (isDebugFlagSet(DEBUG_FLAG)) {
+        DEBUG("pcr composite\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_BUF, "   buf:"), buf, buf_len, "\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_DIGEST, "   digest:"), digest, 20, "\n");
         DEBUG("select size : %d\n", 2);
         DEBUG("select      : 0x%X\n", mask);
     }
@@ -2199,7 +2193,7 @@ int validatePcrCompositeV11(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
 
 
     /* free */
-    free(buf);
+    xfree(buf);
 
     return rc;
 }
@@ -2286,9 +2280,8 @@ int validatePcrCompositeV12(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
     /* set ValueSize */
     value_size = 20 * count;
     buf_len = 2 + pcrsel_size + 4 + value_size;
-    buf = malloc(buf_len);
+    buf = xmalloc(buf_len);
     if (buf == NULL) {
-        ERROR("no memory\n");
         return PTS_INTERNAL_ERROR;
     }
     memset(buf, 0, buf_len);
@@ -2324,10 +2317,10 @@ int validatePcrCompositeV12(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
     SHA1_Update(&ctx, buf, buf_len);
     SHA1_Final(digest, &ctx);
 
-    if (verbose & DEBUG_FLAG) {
+    if (isDebugFlagSet(DEBUG_FLAG)) {
         DEBUG("PcrComposit\n");
-        printHex("buf    :", buf, buf_len, "\n");
-        printHex("digest :", digest, 20, "\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_BUF, "   buf:"), buf, buf_len, "\n");
+        debugHex(NLS(MS_OPENPTS, OPENPTS_TSS_DIGEST, "   digest:"), digest, 20, "\n");
         DEBUG("PcrComposit - select size   : %d\n", pcrsel_size);
         DEBUG("PcrComposit - bit mask      : 0x%08X\n", mask);
     }
@@ -2339,9 +2332,9 @@ int validatePcrCompositeV12(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
         rc = PTS_SUCCESS;
     } else {
         DEBUG("validatePcrCompositeV12() - bad digest\n");
-        if (verbose & DEBUG_FLAG) {
-            printHex("  calc    :", digest, 20, "\n");
-            printHex("  given   :", composit_hash, 20, "\n");
+        if (isDebugFlagSet(DEBUG_FLAG)) {
+            debugHex("  calc    :", digest, 20, "\n");
+            debugHex("  given   :", composit_hash, 20, "\n");
         }
     }
 
@@ -2352,7 +2345,7 @@ int validatePcrCompositeV12(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
     }
 
     /* free */
-    free(buf);
+    xfree(buf);
 
     return rc;
 }

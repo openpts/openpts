@@ -46,7 +46,6 @@
  *  config.dir
  *  config.dir
  *  hostname
- *  ifm.timeout
  *  ima.validation.mode
  *  iml.aligned
  *  iml.endian
@@ -88,8 +87,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 /**
  * new Target list
@@ -102,9 +103,8 @@ OPENPTS_TARGET_LIST *newTargetList(int num) {
 
     size = sizeof(OPENPTS_TARGET_LIST) + sizeof(OPENPTS_TARGET) * (num);
 
-    list = (OPENPTS_TARGET_LIST *) malloc(size);
+    list = (OPENPTS_TARGET_LIST *) xmalloc(size);
     if (list == NULL) {
-        ERROR("no memory");
         return NULL;
     }
     memset(list, 0, size);
@@ -131,17 +131,24 @@ void freeTargetList(OPENPTS_TARGET_LIST *list) {
             ERROR("no memory cnt=%d\n", i);
         } else {
             if (target->uuid != NULL) freeUuid(target->uuid);
-            if (target->str_uuid != NULL) free(target->str_uuid);
-            if (target->time != NULL) free(target->time);
-            if (target->dir != NULL) free(target->dir);
-            if (target->target_conf_filename != NULL) free(target->target_conf_filename);
+            if (target->str_uuid != NULL) xfree(target->str_uuid);
+            if (target->time != NULL) xfree(target->time);
+            if (target->dir != NULL) xfree(target->dir);
+            if (target->target_conf_filename != NULL) xfree(target->target_conf_filename);
             if (target->target_conf != NULL) {
                 // DEBUG("target->target_conf => free\n");
-                freePtsConfig((OPENPTS_CONFIG *)target->target_conf);
+                /* WORK NEEDED: freePtsConfig -> freeTargetList -> freePtsConfig .
+                        Can we have cases where freePtsConfig is called twice on
+                        the same structure?! This leads to double free errors. Set the
+                        member variable to NULL before calling so we don't get circular
+                        dependencies! */
+                OPENPTS_CONFIG *conf = target->target_conf;
+                target->target_conf = NULL;
+                freePtsConfig(conf);
             }
         }
     }
-    free(list);
+    xfree(list);
 }
 
 /**
@@ -153,9 +160,8 @@ OPENPTS_CONFIG * newPtsConfig() {
     // DEBUG("newPtsConfig()\n");
 
     /* config */
-    conf = (OPENPTS_CONFIG *) malloc(sizeof(OPENPTS_CONFIG));
+    conf = (OPENPTS_CONFIG *) xmalloc(sizeof(OPENPTS_CONFIG));
     if (conf == NULL) {
-        ERROR("newPtsConfig - no memory\n");
         return NULL;
     }
     memset(conf, 0, sizeof(OPENPTS_CONFIG));
@@ -171,8 +177,6 @@ OPENPTS_CONFIG * newPtsConfig() {
     // set by configure.in
     conf->openpts_pcr_index = OPENPTS_PCR_INDEX;
 
-    conf->ifm_timeout = PTSC_IFM_TIMEOUT;
-
     return conf;
 }
 
@@ -184,144 +188,296 @@ int freePtsConfig(OPENPTS_CONFIG * conf) {
     int i;
     // DEBUG("freePtsConfig()\n");
 
-    if (conf == NULL) {
-        ERROR("conf is NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != conf, "conf is NULL\n");
 
     if (conf->config_dir != NULL) {
-        free(conf->config_dir);
+        xfree(conf->config_dir);
+        conf->config_dir = NULL;
     }
 
     if (conf->bios_iml_filename != NULL) {
-        free(conf->bios_iml_filename);
+        xfree(conf->bios_iml_filename);
+        conf->bios_iml_filename = NULL;
     }
 
     if (conf->runtime_iml_filename != NULL) {
-        free(conf->runtime_iml_filename);
+        xfree(conf->runtime_iml_filename);
+        conf->runtime_iml_filename = NULL;
     }
 
     if (conf->pcrs_filename != NULL) {
-        free(conf->pcrs_filename);
+        xfree(conf->pcrs_filename);
+        conf->pcrs_filename = NULL;
     }
 
     if (conf->ir_filename != NULL) {
-        free(conf->ir_filename);
+        xfree(conf->ir_filename);
+        conf->ir_filename = NULL;
     }
+
     if (conf->ir_dir != NULL) {
-        free(conf->ir_dir);
+        xfree(conf->ir_dir);
+        conf->ir_dir = NULL;
     }
 
     if (conf->prop_filename != NULL) {
-        free(conf->prop_filename);
+        xfree(conf->prop_filename);
+        conf->prop_filename = NULL;
     }
 
     if (conf->model_dir != NULL) {
         // TODO double free
-        free(conf->model_dir);
+        xfree(conf->model_dir);
+        conf->model_dir = NULL;
     }
 
     if (conf->verifier_logging_dir != NULL) {
         // TODO dounle free
-        free(conf->verifier_logging_dir);
+        xfree(conf->verifier_logging_dir);
+        conf->verifier_logging_dir = NULL;
     }
+
     if (conf->policy_filename != NULL) {
-        free(conf->policy_filename);
+        xfree(conf->policy_filename);
+        conf->policy_filename = NULL;
     }
 
 #ifdef CONFIG_AIDE
     if (conf->aide_database_filename != NULL) {
-        free(conf->aide_database_filename);
+        xfree(conf->aide_database_filename);
+        conf->aide_database_filename = NULL;
     }
 #ifdef CONFIG_SQLITE
     if (conf->aide_sqlite_filename != NULL) {
-        free(conf->aide_sqlite_filename);
+        xfree(conf->aide_sqlite_filename);
+        conf->aide_sqlite_filename = NULL;
     }
 #endif  // CONFIG_SQLITE
     if (conf->aide_ignorelist_filename != NULL) {
-        free(conf->aide_ignorelist_filename);
+        xfree(conf->aide_ignorelist_filename);
+        conf->aide_ignorelist_filename = NULL;
     }
 #endif  // CONFIG_AIDE
 
-
     if (conf->pubkey != NULL) {
-        free(conf->pubkey);
+        xfree(conf->pubkey);
+        conf->pubkey = NULL;
     }
 
     if (conf->property_filename != NULL) {
-        free(conf->property_filename);
+        xfree(conf->property_filename);
+        conf->property_filename = NULL;
     }
 
     /* OPENPTS_TARGET_LIST */
     if (conf->target_list  != NULL) {
         // DEBUG("conf->target_list  != NULL => free\n");
-        freeTargetList(conf->target_list);  // conf.c
+        /* WORK NEEDED: freePtsConfig -> freeTargetList -> freePtsConfig .
+                        Can we have cases where freePtsConfig is called twice on
+                        the same structure?! This leads to double free errors. Set the
+                        member variable to NULL before calling so we don't get circular
+                        dependencies! */
+        OPENPTS_TARGET_LIST *list = conf->target_list;
+        conf->target_list = NULL;
+        freeTargetList(list);  // conf.c
     }
 
     /* UUID */
     if (conf->uuid  != NULL) {
         freeOpenptsUuid(conf->uuid);
+        conf->uuid = NULL;
     }
     /* RM UUID */
     if (conf->rm_uuid != NULL) {
         freeOpenptsUuid(conf->rm_uuid);
+        conf->rm_uuid = NULL;
     }
     /* NEWRM UUID */
     if (conf->newrm_uuid != NULL) {
         freeOpenptsUuid(conf->newrm_uuid);
+        conf->newrm_uuid = NULL;
     }
     /* OLDRM UUID */
     if (conf->oldrm_uuid != NULL) {
         freeOpenptsUuid(conf->oldrm_uuid);
+        conf->oldrm_uuid = NULL;
     }
 
     /* target UUID */
     if (conf->target_uuid  != NULL) {
-        free(conf->target_uuid);
+        xfree(conf->target_uuid);
+        conf->target_uuid = NULL;
     }
     if (conf->str_target_uuid  != NULL) {
-        free(conf->str_target_uuid);
+        xfree(conf->str_target_uuid);
+        conf->str_target_uuid = NULL;
     }
 
 
     /* RM filenames */
     for (i = 0; i< conf->rm_num; i++) {
-        if (conf->rm_filename[i] != NULL) free(conf->rm_filename[i]);
+        if (conf->rm_filename[i] != NULL) {
+            xfree(conf->rm_filename[i]);
+            conf->rm_filename[i] = NULL;
+        }
     }
     for (i = 0; i< conf->newrm_num; i++) {
-        if (conf->newrm_filename[i] != NULL) free(conf->newrm_filename[i]);
+        if (conf->newrm_filename[i] != NULL) {
+            xfree(conf->newrm_filename[i]);
+            conf->newrm_filename[i] = NULL;
+        }
     }
 
 
     /* */
     if (conf->rm_basedir != NULL) {
-        free(conf->rm_basedir);
+        xfree(conf->rm_basedir);
+        conf->rm_basedir = NULL;
     }
 
     /* */
     if (conf->hostname != NULL) {
-        free(conf->hostname);
+        xfree(conf->hostname);
+        conf->hostname = NULL;
     }
     if (conf->ssh_username != NULL) {
-        free(conf->ssh_username);
+        xfree(conf->ssh_username);
+        conf->ssh_username = NULL;
     }
     if (conf->ssh_port != NULL) {
-        free(conf->ssh_port);
+        xfree(conf->ssh_port);
+        conf->ssh_port = NULL;
     }
 
     if (conf->config_file != NULL) {
         // DEBUG("conf->config_file => free\n");
-        free(conf->config_file);
+        xfree(conf->config_file);
+        conf->config_file = NULL;
     }
 
-    free(conf);
+#ifdef CONFIG_AUTO_RM_UPDATE
+    if (conf->newRmSet != NULL) {
+        xfree(conf->newRmSet);
+        conf->newRmSet = NULL;
+    }
+#endif
+
+    for (i = 0; i < MAX_RM_NUM; i++) {
+        if (conf->compIDs[i].SimpleName != NULL) xfree(conf->compIDs[i].SimpleName);
+        if (conf->compIDs[i].ModelName != NULL) xfree(conf->compIDs[i].ModelName);
+        if (conf->compIDs[i].ModelNumber != NULL) xfree(conf->compIDs[i].ModelNumber);
+        if (conf->compIDs[i].ModelSerialNumber != NULL) xfree(conf->compIDs[i].ModelSerialNumber);
+        if (conf->compIDs[i].ModelSystemClass != NULL) xfree(conf->compIDs[i].ModelSystemClass);
+        if (conf->compIDs[i].VersionMajor != NULL) xfree(conf->compIDs[i].VersionMajor);
+        if (conf->compIDs[i].VersionMinor != NULL) xfree(conf->compIDs[i].VersionMinor);
+        if (conf->compIDs[i].VersionBuild != NULL) xfree(conf->compIDs[i].VersionBuild);
+        if (conf->compIDs[i].VersionString != NULL) xfree(conf->compIDs[i].VersionString);
+        if (conf->compIDs[i].MfgDate != NULL) xfree(conf->compIDs[i].MfgDate);
+        if (conf->compIDs[i].PatchLevel != NULL) xfree(conf->compIDs[i].PatchLevel);
+        if (conf->compIDs[i].DiscretePatches != NULL) xfree(conf->compIDs[i].DiscretePatches);
+        if (conf->compIDs[i].VendorID_Name != NULL) xfree(conf->compIDs[i].VendorID_Name);
+        if (conf->compIDs[i].VendorID_Value != NULL) xfree(conf->compIDs[i].VendorID_Value);
+    }
+
+    xfree(conf);
 
     return PTS_SUCCESS;
 }
 
+/* parse Component ID related properties */
+static int readPtsConfig_CompID(
+    OPENPTS_CONFIG *conf,
+    char *name,
+    char *value) {
 
+    char *attributeName;
+    const char *levelStr;
+    uint64_t level;
+    char **attributeValue;
 
+    /****************/
+    /* line parsing */
+    /****************/
 
+    // 01234567890123456
+    // rm.compid.0.SimpleName
+    if (strncmp(name, "rm.compid.", 10) != 0) return PTS_SUCCESS;
+
+    levelStr = name + 10;
+    level = strtoul(levelStr, &attributeName, 10);
+
+    if (levelStr == attributeName) {
+        ERROR("readPtsConfig_CompID()- invalid level number ('%s')\n", name);
+        return PTS_FATAL;
+    }
+
+    if (*attributeName != '.') {
+        ERROR("readPtsConfig_CompID()- missing '.' after level ('%s')\n", name);
+        return PTS_FATAL;
+    }
+
+    attributeName++;
+
+    /******************/
+    /* interpretation */
+    /******************/
+
+    if (level >= MAX_RM_NUM) {
+        ERROR("readPtsConfig_CompID()- trying to affect a CompID(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
+            attributeName, level, MAX_RM_NUM);
+        return PTS_FATAL;
+    }
+
+    if      (strcmp(attributeName, "SimpleName") == 0)
+        attributeValue = &conf->compIDs[level].SimpleName;
+    else if (strcmp(attributeName, "ModelName") == 0)
+        attributeValue = &conf->compIDs[level].ModelName;
+    else if (strcmp(attributeName, "ModelNumber") == 0)
+        attributeValue = &conf->compIDs[level].ModelNumber;
+    else if (strcmp(attributeName, "ModelSerialNumber") == 0)
+        attributeValue = &conf->compIDs[level].ModelSerialNumber;
+    else if (strcmp(attributeName, "ModelSystemClass") == 0)
+        attributeValue = &conf->compIDs[level].ModelSystemClass;
+    else if (strcmp(attributeName, "VersionMajor") == 0)
+        attributeValue = &conf->compIDs[level].VersionMajor;
+    else if (strcmp(attributeName, "VersionMinor") == 0)
+        attributeValue = &conf->compIDs[level].VersionMinor;
+    else if (strcmp(attributeName, "VersionBuild") == 0)
+        attributeValue = &conf->compIDs[level].VersionBuild;
+    else if (strcmp(attributeName, "VersionString") == 0)
+        attributeValue = &conf->compIDs[level].VersionString;
+    else if (strcmp(attributeName, "MfgDate") == 0)
+        attributeValue = &conf->compIDs[level].MfgDate;
+    else if (strcmp(attributeName, "PatchLevel") == 0)
+        attributeValue = &conf->compIDs[level].PatchLevel;
+    else if (strcmp(attributeName, "DiscretePatches") == 0)
+        attributeValue = &conf->compIDs[level].DiscretePatches;
+    else if (strcmp(attributeName, "VendorID_Name") == 0)
+        attributeValue = &conf->compIDs[level].VendorID_Name;
+    else if (strcmp(attributeName, "TcgVendorId") == 0) {
+        conf->compIDs[level].VendorID_type = VENDORID_TYPE_TCG;
+        attributeValue = &conf->compIDs[level].VendorID_Value;
+    } else if (strcmp(attributeName, "SmiVendorId") == 0) {
+        conf->compIDs[level].VendorID_type = VENDORID_TYPE_SMI;
+        attributeValue = &conf->compIDs[level].VendorID_Value;
+    } else if (strcmp(attributeName, "VendorGUID") == 0) {
+        conf->compIDs[level].VendorID_type = VENDORID_TYPE_GUID;
+        attributeValue = &conf->compIDs[level].VendorID_Value;
+    } else {
+        ERROR("unknown Component ID attribute: '%s'\n", attributeName);
+        return PTS_FATAL;
+    }
+
+    if (*attributeValue != NULL) {
+        xfree(*attributeValue);
+    }
+    *attributeValue = smalloc(value);
+    if (*attributeValue == NULL) {
+        return PTS_FATAL;
+    }
+
+    return PTS_SUCCESS;
+}
 
 /**
  * Read pts config file
@@ -344,14 +500,13 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     FILE *fp;
     char line[LINE_BUF_SIZE];
     char *eq;
-    char *name;
-    char *value = NULL;
-    // char *config_path = NULL;
     int cnt = 1;
-    int len;
     char *path;
     char *filename2 = NULL;  // fullpath
     int buf_len;
+    int isFileFound = 0;
+    int isFileIncorrect = 0;
+
 
     DEBUG("readPtsConfig()            : %s\n", filename);
 
@@ -373,24 +528,22 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
         filename2 = smalloc(filename);
     }
     if (filename2 == NULL) {
-        ERROR("no memory?\n");
         return PTS_INTERNAL_ERROR;
     }
 
     /* set config filename (fullpath) to conf*/
     if (conf->config_file != NULL) {
         /* replace, free old conf path */
-        free(conf->config_file);
+        xfree(conf->config_file);
     }
-    conf->config_file = smalloc(filename2);
+    conf->config_file = smalloc_assert(filename2);
 
     /* dir where config file -> config_dir */
     if (conf->config_dir != NULL) {
         // free old one
-        free(conf->config_dir);
+        xfree(conf->config_dir);
     }
     conf->config_dir = getFullpathDir(filename2);
-    // config_path  = conf->config_dir;
 
 
     /* open */
@@ -400,17 +553,28 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
         goto free;
     }
 
-    /* parse */
+    isFileFound = 1;
 
+    /* parse */
     while (fgets(line, LINE_BUF_SIZE, fp) != NULL) {  // read line
-        // DEBUG("\t%s", line);
-        /* ignore comment, null line */
+        size_t line_len;
+        line_len = strlen(line);
+
+        /* check for line length */
+        if (line_len == LINE_BUF_SIZE) {
+            ERROR("Line too long in %s at line %d\n", filename2, cnt);
+            isFileIncorrect = 1;
+            goto free;
+        }
+
+        /* strip trailing CR */
+        if (line[line_len-1] == '\n') line[--line_len] = '\0';
+
         if (line[0] == '#') {
-            // comment
+            // comment -> skip
         } else if ((eq = strstr(line, "=")) != NULL) { /* name=value line*/
-            /* remove CR */
-            len = strlen(line);
-            if (line[len-1] == 0x0a) line[len-1] = 0;
+            char *name;
+            char *value;
 
             name = line;
             value = eq + 1;
@@ -428,12 +592,12 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 if (value[0] != '/') {
                     /* => get fullpath */
                     path = getFullpathName(conf->config_dir, value);
-                    free(conf->config_dir);
+                    xfree(conf->config_dir);
                     conf->config_dir = path;
                 } else {
                     /* started by /, seems full path, just replace */
-                    free(conf->config_dir);
-                    conf->config_dir = smalloc(value);
+                    xfree(conf->config_dir);
+                    conf->config_dir = smalloc_assert(value);
                 }
             }
 
@@ -450,7 +614,9 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "tss", 3)) {
                     conf->iml_mode = 0;
                 } else {
-                    ERROR("TBD\n");  // TODO
+                    ERROR("iml.mode is neither 'securityfs' or 'tss'\n");
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
 
@@ -465,6 +631,8 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else {
                     ERROR("Bad srk.password.mode flag '%s' in %s\n",
                         value, filename);
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
 
@@ -479,6 +647,8 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else {
                     ERROR("Bad tpm.resetdalock flag '%s' in %s\n",
                         value, filename);
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
 
@@ -492,6 +662,8 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     DEBUG("conf->tpm_quote_type       : quote\n");
                 } else {
                     ERROR("Bad tpm.quote.type flag %s\n", value);
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
 
@@ -513,7 +685,9 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     DEBUG("endian mode            : convert\n");
 #endif
                 } else {
-                    ERROR("\n");  // TODO
+                    ERROR("iml.endian is neither 'big' or 'little'\n");
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
 
@@ -525,13 +699,11 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
             /* BIOS IML */
             if (!strncmp(name, "bios.iml.file", 13)) {
-                // conf->bios_iml_filename = getFullpathName(config_path, value);
                 conf->bios_iml_filename = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->bios_iml_filename    : %s\n", conf->bios_iml_filename);
             }
             /* RUNTIME IML */
             if (!strncmp(name, "runtime.iml.file", 16)) {
-                // conf->runtime_iml_filename = getFullpathName(config_path, value);
                 conf->runtime_iml_filename = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->runtime_iml_filename : %s\n", conf->runtime_iml_filename);
             }
@@ -543,12 +715,13 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "IMA", 3)) {
                     conf->runtime_iml_type = BINARY_IML_TYPE_IMA_ORIGINAL;
                 } else {
-                    ERROR("unknown runtime.iml.type %s\n", value);  // TODO
+                    ERROR("unknown runtime.iml.type %s\n", value);
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
             /* PCR */
             if (!strncmp(name, "pcrs.file", 9)) {
-                // conf->pcrs_filename = getFullpathName(config_path, value);
                 conf->pcrs_filename = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->pcrs_filename        : %s\n", conf->pcrs_filename);
             }
@@ -557,42 +730,47 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "rm.basedir", 10)) {
                 if (conf->rm_basedir != NULL) {
                     // DEBUG("realloc conf->rm_basedir");  // TODO realloc happen
-                    free(conf->rm_basedir);
+                    xfree(conf->rm_basedir);
                 }
-                // conf->rm_basedir = getFullpathName(config_path, value);
                 conf->rm_basedir = getFullpathName(conf->config_dir, value);
             }
             if (!strncmp(name, "rm.num", 6)) {
                 conf->rm_num = atoi(value);
                 if (conf->rm_num > MAX_RM_NUM) {
-                    ERROR("RM number %d is larger the %d\n", conf->rm_num, MAX_RM_NUM);
+                    ERROR("RM number rm.num=%d is larger than MAX_RM_NUM=%d - truncking\n", conf->rm_num, MAX_RM_NUM);
+                    conf->rm_num = MAX_RM_NUM;
                 }
                 DEBUG("conf->rm_num               : %d\n", conf->rm_num);
             }
 
             /* IR file (verifier side) */
+            /* Depricated - we use a temporary file in /tmp on collector side */
             if (!strncmp(name, "ir.file", 7)) {
                 if (conf->ir_filename != NULL) {
                     // DEBUG("realloc conf->ir_filename");  // TODO realloc happen
-                    free(conf->ir_filename);
+                    xfree(conf->ir_filename);
                 }
                 conf->ir_filename = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->ir_filename          : %s\n", conf->ir_filename);
+                // ERROR("ir.file is obsolute, please use ir.dir");  /// Collectror TODO 
             }
             /* IR dir (collector side) */
             if (!strncmp(name, "ir.dir", 6)) {
                 if (conf->ir_dir != NULL) {
                     // DEBUG("realloc conf->ir_filename");  // TODO realloc happen
-                    free(conf->ir_dir);
+                    xfree(conf->ir_dir);
                 }
                 conf->ir_dir = getFullpathName(conf->config_dir, value);
-                DEBUG("conf->ir_filename          : %s\n", conf->ir_dir);
-            }
+                DEBUG("conf->ir_dir          : %s\n", conf->ir_dir);
+            } // BAD else {
+            //    /* set this to some sensible default value so that ptsc.c doesn't seg fault */
+            //    conf->ir_dir = smalloc("/tmp");
+            //}
 
             if (!strncmp(name, "prop.file", 9)) {
                 if (conf->prop_filename != NULL) {
                     // DEBUG("realloc conf->prop_filename");  // TODO realloc happen
-                    free(conf->prop_filename);
+                    xfree(conf->prop_filename);
                 }
                 conf->prop_filename = getFullpathName(conf->config_dir, value);
             }
@@ -610,10 +788,15 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 conf->model_dir = getFullpathName(conf->config_dir, value);
             }
 
+            if (!strncmp(name, "iml.ipl.maxcount", 16)) {
+                conf->iml_maxcount = atoi(value);
+                DEBUG("conf->iml_maxcount         : %d\n", conf->iml_maxcount);
+            }
+
             /* Verifier */
             if (!strncmp(name, "verifier.logging.dir", 20)) {
                 if (conf->verifier_logging_dir != NULL) {
-                    free(conf->verifier_logging_dir);
+                    xfree(conf->verifier_logging_dir);
                 }
                 conf->verifier_logging_dir = getFullpathName(conf->config_dir, value);
             }
@@ -622,7 +805,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "policy.file", 11)) {
                 if (conf->policy_filename != NULL) {
                     // DEBUG("realloc conf->policy_filename\n");  // TODO realloc happen
-                    free(conf->policy_filename);
+                    xfree(conf->policy_filename);
                 }
                 conf->policy_filename = getFullpathName(conf->config_dir, value);
             }
@@ -645,14 +828,16 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "none", 4)) {
                     conf->ima_validation_mode = OPENPTS_VALIDATION_MODE_NONE;
                 } else {
-                    ERROR("unknown ima.validation.mode [%s]\n", value);  // TODO
+                    ERROR("unknown ima.validation.mode [%s]\n", value);
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
 #ifdef CONFIG_AIDE
             if (!strncmp(name, "aide.database.file", 18)) {
                 if (conf->aide_database_filename != NULL) {
                     // DEBUG("realloc conf->aide_database_filename\n");   // TODO realloc happen
-                    free(conf->aide_database_filename);
+                    xfree(conf->aide_database_filename);
                 }
                 conf->aide_database_filename = getFullpathName(conf->config_dir, value);
             }
@@ -664,7 +849,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "aide.ignorelist.file", 20)) {
                 if (conf->aide_ignorelist_filename != NULL) {
                     // DEBUG("realloc conf->aide_ignorelist_filename\n");   // TODO realloc happen
-                    free(conf->aide_ignorelist_filename);
+                    xfree(conf->aide_ignorelist_filename);
                 }
                 conf->aide_ignorelist_filename = getFullpathName(conf->config_dir, value);
             }
@@ -694,7 +879,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 if (conf->uuid->uuid != NULL) {
                     TODO("free conf->uuid \n");
-                    free(conf->uuid->uuid);
+                    xfree(conf->uuid->uuid);
                 }
                 /* set */
                 conf->uuid->uuid = getUuidFromString(value);
@@ -714,7 +899,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 if (conf->rm_uuid->filename != NULL) {
                     // DEBUG("realloc conf->rm_uuid->filename");  // TODO realloc happen
-                    free(conf->rm_uuid->filename);
+                    xfree(conf->rm_uuid->filename);
                 }
                 conf->rm_uuid->filename = getFullpathName(conf->config_dir, value);
                 conf->rm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
@@ -738,7 +923,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 if (conf->newrm_uuid->filename != NULL) {
                     // DEBUG("realloc conf->rm_uuid->filename");  // TODO realloc happen
-                    free(conf->newrm_uuid->filename);
+                    xfree(conf->newrm_uuid->filename);
                 }
                 conf->newrm_uuid->filename = getFullpathName(conf->config_dir, value);
                 conf->newrm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
@@ -749,7 +934,9 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     //  DEBUG("no UUID file %s\n", conf->uuid->filename);
                     conf->newrm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
                 } else {
-                    // DEBUG("read UUID from file %s, UUID=%s\n", conf->uuid->filename, conf->uuid->str);
+                    conf->pts_flag[0] |= OPENPTS_FLAG0_NEWRM_EXIST;
+                    DEBUG("Read new RM UUID from file %s, UUID=%s. New pts_flag[0]=0x%02x\n",
+                          conf->newrm_uuid->filename, conf->newrm_uuid->str, conf->pts_flag[0]);
                 }
                 DEBUG("conf->newrm_uuid->str      : %s\n", conf->newrm_uuid->str);
             }
@@ -760,7 +947,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 if (conf->oldrm_uuid->filename != NULL) {
                     // DEBUG("realloc conf->oldrm_uuid->filename");  // TODO realloc happen
-                    free(conf->oldrm_uuid->filename);
+                    xfree(conf->oldrm_uuid->filename);
                 }
                 conf->oldrm_uuid->filename = getFullpathName(conf->config_dir, value);
                 conf->oldrm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
@@ -780,7 +967,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "target.uuid", 11)) {
                 if (conf->target_uuid != NULL) {
                     // DEBUG("realloc conf->target_uuid\n");  // TODO realloc happen
-                    free(conf->target_uuid);
+                    xfree(conf->target_uuid);
                 }
                 conf->target_uuid = getUuidFromString(value);
                 if (conf->target_uuid == NULL) {
@@ -789,7 +976,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     // add string too
                     if (conf->str_target_uuid != NULL) {
                         // DEBUG("realloc conf->str_target_uuid\n");  // TODO realloc happen
-                        free(conf->str_target_uuid);
+                        xfree(conf->str_target_uuid);
                     }
                     conf->str_target_uuid = getStringOfUuid(conf->target_uuid);
                     if (conf->str_target_uuid == NULL) {
@@ -797,10 +984,11 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     }
                 }
             }
+
             /* PUBKEY */
             if (!strncmp(name, "target.pubkey", 13)) {
                 if (conf->pubkey != NULL) {
-                    free(conf->pubkey);
+                    xfree(conf->pubkey);
                 }
                 conf->pubkey = decodeBase64(
                     (char *)value,
@@ -821,11 +1009,11 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             conf->ssh_port = NULL;
 
             if (!strncmp(name, "ssh.username", 12)) {
-                conf->ssh_username = smalloc(value);
+                conf->ssh_username = smalloc_assert(value);
                 DEBUG("conf->ssh_username         : %s\n", conf->ssh_username);
             }
             if (!strncmp(name, "ssh.port", 8)) {
-                conf->ssh_port = smalloc(value);
+                conf->ssh_port = smalloc_assert(value);
                 DEBUG("conf->ssh_port             : %s\n", conf->ssh_port);
             }
 
@@ -833,23 +1021,10 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "hostname", 8)) {
                 if (conf->hostname != NULL) {
                     // DEBUG("realloc conf->hostname\n");  // TODO realloc happen
-                    free(conf->hostname);
+                    xfree(conf->hostname);
                 }
-                conf->hostname = smalloc(value);
+                conf->hostname = smalloc_assert(value);
                 DEBUG("conf->hostname             : %s\n", conf->hostname);
-            }
-
-            /* IF-M timeout  */
-            if (!strncmp(name, "ifm.timeout", 11)) {
-                conf->ifm_timeout = atoi(value);
-                if (conf->ifm_timeout > PTSC_IFM_TIMEOUT_MAX) {
-                    DEBUG("conf->ifm_timeout          : %d => %d(MAX)\n",
-                        conf->ifm_timeout, PTSC_IFM_TIMEOUT_MAX);
-                    conf->ifm_timeout = PTSC_IFM_TIMEOUT_MAX;
-                } else {
-                    DEBUG("conf->ifm_timeout          : %d\n",
-                        conf->ifm_timeout);
-                }
             }
 
             /* Selftest */
@@ -859,7 +1034,9 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "off", 3)) {
                     conf->selftest = 0;  // default
                 } else {
-                    ERROR("unknown selftest %s\n", value);  // TODO
+                    ERROR("unknown selftest %s\n", value);
+                    isFileIncorrect = 1;
+                    goto free;
                 }
             }
             /* Autoupdate */
@@ -872,7 +1049,15 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     DEBUG("conf->autoupdate           : off\n");
                 } else {
                     ERROR("unknown autoupdate %s\n", value);  // TODO
+                    isFileIncorrect = 1;
+                    goto free;
                 }
+            }
+
+            /* Component IDs */
+            if ((rc = readPtsConfig_CompID(conf, name, value)) != PTS_SUCCESS) {
+                isFileIncorrect = 1;
+                goto free;
             }
 
             /* PTSV Enrollment */
@@ -894,13 +1079,24 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
             cnt++;
         } else {
-            // TODO
+            /* accept only blank lines */
+            char *ptr;
+
+            ptr = line;
+            while (*ptr != '\0') {
+                if (!isspace(*ptr)) {
+                    ERROR("Syntax error in %s at line %d\n", filename2, cnt);
+                    isFileIncorrect = 1;
+                    goto free;
+                }
+                ptr++;
+            }
         }
     }
 
     if (conf->verifier_logging_dir == NULL) {
         /* set default logging dir */
-        conf->verifier_logging_dir = smalloc("~/.openpts");
+        conf->verifier_logging_dir = smalloc_assert("~/.openpts");
     }
 
 #if 0
@@ -916,17 +1112,71 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     }
 #endif
 
-    rc =  PTS_SUCCESS;
-
-  // close:
     fclose(fp);
 
   free:
-    if (filename2 != NULL) free(filename2);
+    if (isFileFound) {
+        if (isFileIncorrect) {
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+            rc = PTS_INTERNAL_ERROR;
+        } else {
+            /* not incorrect */
+            rc = PTS_SUCCESS;
+        }
+    } else {
+        /* not found */
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_CONFIG_MISSING, "Cannot open config file '%s'\n"), filename2);
+        rc = PTS_INTERNAL_ERROR;
+    }
+
+    if (filename2 != NULL) xfree(filename2);
 
     return rc;
 }
 
+#if 0
+static void writeTargetConf_CompID(OPENPTS_CONFIG *conf, FILE *fp) {
+    int level;
+
+    for (level = 0; level < MAX_RM_NUM; level++) {
+        if (conf->compIDs[level].SimpleName != NULL)
+            fprintf(fp, "rm.compid.%d.SimpleName=%s\n", level, conf->compIDs[level].SimpleName);
+        if (conf->compIDs[level].ModelName != NULL)
+            fprintf(fp, "rm.compid.%d.ModelName=%s\n", level, conf->compIDs[level].ModelName);
+        if (conf->compIDs[level].ModelNumber != NULL)
+            fprintf(fp, "rm.compid.%d.ModelNumber=%s\n", level, conf->compIDs[level].ModelNumber);
+        if (conf->compIDs[level].ModelSerialNumber != NULL)
+            fprintf(fp, "rm.compid.%d.ModelSerialNumber=%s\n", level, conf->compIDs[level].ModelSerialNumber);
+        if (conf->compIDs[level].ModelSystemClass != NULL)
+            fprintf(fp, "rm.compid.%d.ModelSystemClass=%s\n", level, conf->compIDs[level].ModelSystemClass);
+        if (conf->compIDs[level].VersionMajor != NULL)
+            fprintf(fp, "rm.compid.%d.VersionMajor=%s\n", level, conf->compIDs[level].VersionMajor);
+        if (conf->compIDs[level].VersionMinor != NULL)
+            fprintf(fp, "rm.compid.%d.VersionMinor=%s\n", level, conf->compIDs[level].VersionMinor);
+        if (conf->compIDs[level].VersionBuild != NULL)
+            fprintf(fp, "rm.compid.%d.VersionBuild=%s\n", level, conf->compIDs[level].VersionBuild);
+        if (conf->compIDs[level].VersionString != NULL)
+            fprintf(fp, "rm.compid.%d.VersionString=%s\n", level, conf->compIDs[level].VersionString);
+        if (conf->compIDs[level].MfgDate != NULL)
+            fprintf(fp, "rm.compid.%d.MfgDate=%s\n", level, conf->compIDs[level].MfgDate);
+        if (conf->compIDs[level].PatchLevel != NULL)
+            fprintf(fp, "rm.compid.%d.PatchLevel=%s\n", level, conf->compIDs[level].PatchLevel);
+        if (conf->compIDs[level].DiscretePatches != NULL)
+            fprintf(fp, "rm.compid.%d.DiscretePatches=%s\n", level, conf->compIDs[level].DiscretePatches);
+        if (conf->compIDs[level].VendorID_Name != NULL)
+            fprintf(fp, "rm.compid.%d.VendorID_Name=%s\n", level, conf->compIDs[level].VendorID_Name);
+        if (conf->compIDs[level].VendorID_Value != NULL) {
+            fprintf(fp, "rm.compid.%d.", level);
+            switch (conf->compIDs[level].VendorID_type) {
+                case VENDORID_TYPE_TCG: fprintf(fp, "TcgVendorId="); break;
+                case VENDORID_TYPE_SMI: fprintf(fp, "SmiVendorId="); break;
+                case VENDORID_TYPE_GUID: fprintf(fp, "VendorGUID="); break;
+            }
+            fprintf(fp, "%s\n", conf->compIDs[level].VendorID_Value);
+        }
+    }
+}
+#endif
 
 /**
  * Write target conf
@@ -965,7 +1215,7 @@ int writeTargetConf(OPENPTS_CONFIG *conf, PTS_UUID *uuid, char *filename) {
             conf->pubkey_length,
             &buf_len);
         fprintf(fp, "target.pubkey=%s\n", buf);  // base64
-        free(buf);
+        xfree(buf);
     }
 
     fprintf(fp, "verifier.logging.dir=./\n");
@@ -1012,7 +1262,7 @@ int writeTargetConf(OPENPTS_CONFIG *conf, PTS_UUID *uuid, char *filename) {
     fprintf(fp, "hostname=%s\n", conf->hostname);
 
     fclose(fp);
-    free(str_uuid);
+    xfree(str_uuid);
 
     return rc;
 }
@@ -1097,30 +1347,22 @@ int readOpenptsConf(OPENPTS_CONFIG *conf, char *filename) {
  */
 int setModelFile(OPENPTS_CONFIG *conf, int index, int level, char *filename) {
     /* check */
-    if (conf == NULL) {
-        ERROR("setModelFile()- conf is NULL\n");
-        return PTS_INTERNAL_ERROR;
+    ASSERT(NULL != conf, "setModelFile()- conf is NULL\n");
+
+    if (level >= MAX_RM_NUM) {
+        ERROR("setModelFile()- PCR[%d] trying to affect a model file(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
+        index, filename, level, MAX_RM_NUM);
+        return PTS_FATAL;
     }
 
-    if (level == 0) {
-        /* Platform */
-        if (conf->platform_model_filename[index] != NULL) {
-            /* free previous filename */
-            free(conf->platform_model_filename[index]);
-        }
-        /* copy */
-        conf->platform_model_filename[index] = smalloc(filename);
-    } else if (level == 1) {
-        /* Runtime */
-        if (conf->runtime_model_filename[index] != NULL) {
-            /* free previous filename */
-            free(conf->runtime_model_filename[index]);
-        }
-        /* copy */
-        conf->runtime_model_filename[index] = smalloc(filename);
-    } else {
-        ERROR("setModelFile()- conf is NULL\n");
-        return PTS_INTERNAL_ERROR;
+    if (conf->model_filename[level][index] != NULL) {
+        xfree(conf->model_filename[level][index]);
+    }
+
+    conf->model_filename[level][index] = smalloc(filename);
+
+    if (conf->model_filename[level][index] == NULL) {
+        return PTS_FATAL;
     }
 
     return PTS_SUCCESS;

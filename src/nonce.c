@@ -117,39 +117,35 @@ OPENPTS_NONCE *newNonceContext() {
     DEBUG_CAL("newNonceContext\n");
 
     /* malloc */
-    ctx = malloc(sizeof(OPENPTS_NONCE));
+    ctx = xmalloc(sizeof(OPENPTS_NONCE));
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_NONCE));
 
     /* malloc req */
-    ctx->req = (PTS_IF_M_DH_Nonce_Parameters_Request *)malloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Request));
+    ctx->req = (PTS_IF_M_DH_Nonce_Parameters_Request *)xmalloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Request));
     if (ctx->req == NULL) {
-        ERROR("no memory\n");
-        free(ctx);
+        xfree(ctx);
         return NULL;
     }
     memset(ctx->req, 0, sizeof(PTS_IF_M_DH_Nonce_Parameters_Request));
 
     /* malloc res */
-    ctx->res = malloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Responce));
+    ctx->res = xmalloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Responce));
     if (ctx->res == NULL) {
-        ERROR("no memory\n");
-        free(ctx->req);
-        free(ctx);
+        xfree(ctx->req);
+        xfree(ctx);
         return NULL;
     }
     memset(ctx->res, 0, sizeof(PTS_IF_M_DH_Nonce_Parameters_Responce));
 
     /* malloc fin */
-    ctx->fin = malloc(sizeof(PTS_IF_M_DH_Nonce_Finish));
+    ctx->fin = xmalloc(sizeof(PTS_IF_M_DH_Nonce_Finish));
     if (ctx->fin == NULL) {
-        ERROR("no memory\n");
-        free(ctx->req);
-        free(ctx->res);
-        free(ctx);
+        xfree(ctx->req);
+        xfree(ctx->res);
+        xfree(ctx);
         return NULL;
     }
     memset(ctx->fin, 0, sizeof(PTS_IF_M_DH_Nonce_Finish));
@@ -176,37 +172,36 @@ int freeNonceContext(OPENPTS_NONCE *ctx) {
 
     /* free req */
     if (ctx->req != NULL) {
-        free(ctx->req);
+        xfree(ctx->req);
     }
     /* free res */
     if (ctx->res != NULL) {
         if (ctx->res->dh_respondor_nonce != NULL) {
-            free(ctx->res->dh_respondor_nonce);
+            xfree(ctx->res->dh_respondor_nonce);
         }
         if (ctx->res->dh_respondor_public != NULL) {
-            free(ctx->res->dh_respondor_public);
+            xfree(ctx->res->dh_respondor_public);
         }
-        free(ctx->res);
+        xfree(ctx->res);
     }
     /* free fin */
     if (ctx->fin != NULL) {
         if (ctx->fin->dh_initiator_nonce != NULL) {
-            free(ctx->fin->dh_initiator_nonce);
+            xfree(ctx->fin->dh_initiator_nonce);
         }
         if (ctx->fin->dh_initiator_public != NULL) {
-            free(ctx->fin->dh_initiator_public);
+            xfree(ctx->fin->dh_initiator_public);
         }
-        free(ctx->fin);
+        xfree(ctx->fin);
     }
     /* free secret */
     if (ctx->secret != NULL) {
         memset(ctx->secret, 0, ctx->secret_length);
-        free(ctx->secret);
+        xfree(ctx->secret);
     }
     /* free nonce */
     if (ctx->nonce != NULL) {
-        // TODO corrupted double-linked list: 0x00000000007b3240 ***
-        // free(ctx->nonce);
+        xfree(ctx->nonce);
     }
 
     /* free DH */
@@ -214,20 +209,9 @@ int freeNonceContext(OPENPTS_NONCE *ctx) {
         DH_free(ctx->dh);
     }
 
-    free(ctx);
+    xfree(ctx);
 
     return PTS_SUCCESS;
-}
-
-
-// TODO move to misc.c?
-void printHex3(char *msg, BYTE *data, int len) {
-    int i;
-    printf("%s[%d] = ", msg, len);
-    for (i = 0; i < len; i ++) {
-        printf("%02x", data[i]);
-    }
-    printf("\n");
 }
 
 /**
@@ -242,7 +226,7 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
     // DEBUG("calcExternalDataValue\n");
 
     ctx->nonce_length = SHA1_DIGEST_SIZE;
-    ctx->nonce = malloc(SHA1_DIGEST_SIZE);
+    ctx->nonce = xmalloc_assert(SHA1_DIGEST_SIZE);
 
     SHA1_Init(&sha_ctx);
     SHA1_Update(&sha_ctx, &c, 1);
@@ -251,12 +235,12 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
     SHA1_Update(&sha_ctx, ctx->secret, ctx->secret_length);
     SHA1_Final(ctx->nonce, &sha_ctx);
 
-    if (verbose == DEBUG_FLAG) {
+    if (isDebugFlagSet(DEBUG_FLAG)) {
         TODO("calcExternalDataValue - nonce\n");
-        printHex("\t\tinitiator_nonce:", ctx->initiator_nonce, ctx->initiator_nonce_length, "\n");
-        printHex("\t\trespondor_nonce:", ctx->respondor_nonce, ctx->respondor_nonce_length, "\n");
-        printHex("\t\tsecret         :", ctx->secret, ctx->secret_length, "\n");
-        printHex("\t\tnonce          :", ctx->nonce, 20, "\n");
+        debugHex("\t\tinitiator_nonce:", ctx->initiator_nonce, ctx->initiator_nonce_length, "\n");
+        debugHex("\t\trespondor_nonce:", ctx->respondor_nonce, ctx->respondor_nonce_length, "\n");
+        debugHex("\t\tsecret         :", ctx->secret, ctx->secret_length, "\n");
+        debugHex("\t\tnonce          :", ctx->nonce, 20, "\n");
     }
 
     return PTS_SUCCESS;
@@ -334,9 +318,8 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     /* respondor nonce */
 
     /* malloc */
-    res->dh_respondor_nonce = malloc(res->nonce_length);
+    res->dh_respondor_nonce = xmalloc(res->nonce_length);
     if (res->dh_respondor_nonce == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -354,9 +337,8 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     /* pubkey */
 
     /* malloc */
-    res->dh_respondor_public = malloc(DH_size(ctx->dh));
+    res->dh_respondor_public = xmalloc(DH_size(ctx->dh));
     if (res->dh_respondor_public == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -474,9 +456,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
     ctx->secret_length = DH_size(ctx->dh);
 
     /* malloc */
-    ctx->secret = malloc(ctx->secret_length);
+    ctx->secret = xmalloc(ctx->secret_length);
     if (ctx->secret == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -484,9 +465,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
     DH_compute_key(ctx->secret, pub_key, ctx->dh);
 
     /* initiator nonce */
-    fin->dh_initiator_nonce = malloc(fin->nonce_length);
+    fin->dh_initiator_nonce = xmalloc(fin->nonce_length);
     if (fin->dh_initiator_nonce == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -502,9 +482,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
     ctx->initiator_nonce = fin->dh_initiator_nonce;
 
     /* pubkey */
-    fin->dh_initiator_public = malloc(DH_size(ctx->dh));
+    fin->dh_initiator_public = xmalloc(DH_size(ctx->dh));
     if (fin->dh_initiator_public == NULL) {
-        ERROR("no memory");
         return PTS_INTERNAL_ERROR;
     }
     BN_bn2bin(ctx->dh->pub_key, fin->dh_initiator_public);
@@ -543,7 +522,7 @@ int calcDhFin(OPENPTS_NONCE *ctx) {
 
     /* calc secret */
     ctx->secret_length = DH_size(ctx->dh);
-    ctx->secret = malloc(ctx->secret_length);
+    ctx->secret = xmalloc_assert(ctx->secret_length);
     DH_compute_key(ctx->secret, pub_key, ctx->dh);
 
     /* calc ExternalDataValue */

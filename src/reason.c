@@ -38,8 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h> /* va_ */
-
+#include <stdarg.h>  /* va_ */
 
 #include <openpts.h>
 
@@ -52,8 +51,8 @@ void freeReason(OPENPTS_REASON *reason) {
         return;
     }
 
-    free(reason->message);
-    free(reason);
+    xfree(reason->message);
+    xfree(reason);
 
     return;  // PTS_SUCCESS;
 }
@@ -78,7 +77,7 @@ int freeReasonChain(OPENPTS_REASON *reason) {
 /**
  * add reason
  */
-int addReason_old(OPENPTS_CONTEXT *ctx, char *message) {
+int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
     OPENPTS_REASON *start;
     OPENPTS_REASON *end;
     OPENPTS_REASON *reason;
@@ -91,7 +90,7 @@ int addReason_old(OPENPTS_CONTEXT *ctx, char *message) {
     start = ctx->reason_start;
     end   = ctx->reason_end;
 
-    reason = (OPENPTS_REASON *) malloc(sizeof(OPENPTS_REASON));
+    reason = (OPENPTS_REASON *) xmalloc(sizeof(OPENPTS_REASON));
     if (reason == NULL) {
         ERROR("");
         return -1;
@@ -111,8 +110,8 @@ int addReason_old(OPENPTS_CONTEXT *ctx, char *message) {
         ctx->reason_end = reason;
         reason->next = NULL;
     }
-
-    reason->message = malloc(len +1);
+    reason->pcr = pcr;
+    reason->message = xmalloc(len +1);
     memcpy(reason->message, message, len);
     reason->message[len] = 0;
     ctx->reason_count++;
@@ -126,38 +125,61 @@ int addReason_old(OPENPTS_CONTEXT *ctx, char *message) {
  * addReason with format
  */
 #define MAX_REASON_SIZE 2048
-int addReason(OPENPTS_CONTEXT *ctx, const char *format, ...) {
+int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...) {
     char buf[MAX_REASON_SIZE +1];  // TODO size
     int rc;
     va_list list;
-
     va_start(list, format);
 
     vsnprintf(buf, MAX_REASON_SIZE, format, list);
-    // DEBUG("buf %s\n", buf);
 
-    va_end(list);
-
-    rc = addReason_old(ctx, (char *)buf);
+    rc = addReason_old(ctx, pcr, (char *)buf);
 
     return rc;
 }
 
+#ifdef AIX_TARGET
+char *reason_pcr_hints[] = {
+    "IBM Partition Firmware Images",
+    "Basic Partition Configuration (e.g. CPUs, memory)",
+    "Third-party Adapter Firmware",
+    "Partition Device Tree",
+    "OS Boot Image",
+    "OS Boot Info (e.g. boot device, or firmware prompt)",
+    NULL, /* PCR6 Unused */
+    NULL, /* PCR7 Unused */
+    NULL, /* PCR8 Unused */
+    NULL, /* PCR9 Unused */
+    "Trusted Execution Database"
+};
+#else
+char *reason_pcr_hints[] = {
+    NULL
+};
+#endif
 
 /**
  * print Reason
  *
  */
-void printReason(OPENPTS_CONTEXT *ctx) {
+void printReason(OPENPTS_CONTEXT *ctx, int print_pcr_hints) {
     OPENPTS_REASON *reason;
-    int i = 0;
+    unsigned int i = 0, pcrmask = 0;
     reason = ctx->reason_start;
 
-    printf("Reasons\n");
     while (reason != NULL) {
-        printf("%5d %s\n", i, reason->message);
+    if (reason->pcr >= 0)
+        pcrmask |= 1 << reason->pcr;
+        OUTPUT("%5d %s\n", i, reason->message);
         reason = reason->next;
         i++;
+    }
+    if (print_pcr_hints) {
+    for (i = 0; i < sizeof(reason_pcr_hints) / sizeof(char *); i++) {
+        if (!(pcrmask & (1 << i)) || reason_pcr_hints[i] == NULL)
+        continue;
+        OUTPUT("PCR%02d corresponds to: %s\n", i, reason_pcr_hints[i]);
+    }
     }
 }
 

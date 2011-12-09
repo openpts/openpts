@@ -23,7 +23,7 @@
 # http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-RELEASE = "0.0.2.5"
+RELEASE = "0.0.2.6"
 
 # Gettext support
 localedir = $(datadir)/locale
@@ -40,7 +40,7 @@ endif
 
 
 sbin_PROGRAMS = ptsc
-bin_PROGRAMS = openpts uml2dot rm2dot ir2text
+bin_PROGRAMS = openpts uml2dot rm2dot ir2text ptsevt ptsevtd
 
 #
 # Common Library
@@ -97,8 +97,13 @@ ir2text_SOURCES = ir2text.c
 
 #base64.c log.c
 
+ptsevt_CFLAGS = $(AM_CFLAGS)
+ptsevt_LDFLAGS = $(AM_LDFLAGS)
+ptsevt_SOURCES = ptsevt.c
 
-
+ptsevtd_CFLAGS = $(AM_CFLAGS)
+ptsevtd_LDFLAGS = $(AM_LDFLAGS) -lrt
+ptsevtd_SOURCES = ptsevtd.c
 
 
 if HAVE_LIBUUID
@@ -204,6 +209,7 @@ tboot2iml_LDFLAGS = $(AM_LDFLAGS)
 tboot2iml_SOURCES = tboot2iml.c
 #log.c misc.c
 endif
+
 
 
 if OPENPTS_BUILD_SQLITE

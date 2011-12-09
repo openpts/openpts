@@ -54,13 +54,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openpts.h>
-
 #include <tncifimc.h>
+#include <openpts.h>
 
 // ifm.c
 char* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len);
-
 
 /* global variables */
 static int initialized = 0;
@@ -74,7 +72,7 @@ static TNC_TNCC_SendMessagePointer           sendMessagePtr;
 static OPENPTS_CONFIG *conf = NULL;
 static OPENPTS_CONTEXT *ctx = NULL;
 
-int verbose = 0;
+// int verbose = 0;
 // int verbose = DEBUG_IFM_FLAG;
 // int verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
 
@@ -129,7 +127,7 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     /* initialize PTS Collector */
     conf = newPtsConfig();
     if (conf == NULL) {
-        ERROR("Can not allocate OPENPTS_CONFIG\n");
+        // ERROR("Can not allocate OPENPTS_CONFIG\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -200,10 +198,14 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     return TNC_RESULT_SUCCESS;
 
   error:
-    if (ctx != NULL) freePtsContext(ctx);
-    ctx = NULL;
-    if (conf != NULL) freePtsConfig(conf);
-    conf = NULL;
+    if (ctx != NULL) {
+        freePtsContext(ctx);
+        ctx = NULL;
+    }
+    if (conf != NULL) {
+        freePtsConfig(conf);
+        conf = NULL;
+    }
 
     return rc;
 }
@@ -376,7 +378,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
         case NONCE:
             DEBUG_IFM("[C<-V]  NONCE[%d]\n", 12 + length);
             ctx->nonce->nonce_length = length;
-            ctx->nonce->nonce = malloc(length);
+            ctx->nonce->nonce = xmalloc_assert(length);
             memcpy(ctx->nonce->nonce, value, length);
             break;
 

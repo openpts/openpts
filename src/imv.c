@@ -50,8 +50,8 @@
 #include <string.h>
 
 #include <tncifimv.h>
-
 #include <openpts.h>
+// #include <log.h>
 
 // ifm.c
 BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len);
@@ -64,7 +64,7 @@ static OPENPTS_CONFIG *conf = NULL;
 static OPENPTS_CONTEXT *ctx = NULL;
 static int result = OPENPTS_RESULT_UNKNOWN;
 
-int verbose = 0;
+// int verbose = 0;
 // int verbose = DEBUG_IFM_FLAG;
 // int verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
 
@@ -98,10 +98,21 @@ static TNC_TNCS_SendMessagePointer           sendMessagePtr;
 
 
 /* List of receive message types */
+// static TNC_MessageType messageTypes[] = {
+//    TNCMESSAGENUM(TNC_VENDORID_TCG, TNC_SUBTYPE_ANY),  // generic
+//    TNCMESSAGENUM(VENDORID,  0),
+//    TNCMESSAGENUM(VENDORID,  2),
+//    TNCMESSAGENUM(VENDORID,  4),
+//    TNCMESSAGENUM(VENDORID,  6),
+//    TNCMESSAGENUM(VENDORID,  8),
+//    TNCMESSAGENUM(VENDORID, 10),
+// };
 static TNC_MessageType messageTypes[] = {
-    ((TNC_VENDORID_TCG_PEN << 8) | TNC_SUBTYPE_TCG_PTS),  // generic
+    ((TNC_VENDORID_PA_TNC << 8) | TNC_VENDORID_PA_TNC),   // TNC generic (Error)
+//    ((TNC_VENDORID_TCG_PEN << 8) | TNC_SUBTYPE_TCG_PTS),  // PTS generic
     ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS)   // OpenPTS
 };
+
 
 /* IMV Functions */
 
@@ -173,14 +184,14 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
     /* initialize PTS */
     conf =  newPtsConfig();
     if (conf == NULL) {
-        ERROR("Can not allocate OPENPTS_CONFIG\n");
+        // ERROR("Can not allocate OPENPTS_CONFIG\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
 
     ctx =  newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("Can not allocate OPENPTS_CONTEXT\n");
+        // ERROR("Can not allocate OPENPTS_CONTEXT\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -496,7 +507,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                     (TNC_BufferReference)msg,
                     len,
                     ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-            free(msg);
+            xfree(msg);
             DEBUG_IFM("[C<-V] OPENPTS_CAPABILITIES[%d]\n", len);
 
 
@@ -510,13 +521,13 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                         (TNC_BufferReference)msg,
                         len,
                         ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-                free(msg);
+                xfree(msg);
                 DEBUG_IFM("[C<-V] REQUEST_TPM_PUBKEY[%d]\n", len);
             } else {
                 /*start verify, send NONCE and IR REQ*/
                 /* Next : Send NONCE */
                 ctx->nonce->nonce_length = 20;
-                ctx->nonce->nonce = malloc(20);
+                ctx->nonce->nonce = xmalloc_assert(20);
                 rc = getRandom(ctx->nonce->nonce, 20);
                 if (rc != PTS_SUCCESS) {
                     ERROR("getRandom() fail\n");
@@ -530,7 +541,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                         (TNC_BufferReference)msg,
                         len,
                         ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-                free(msg);
+                xfree(msg);
                 DEBUG_IFM("[C<-V] NONCE[%d]\n", len);
 
                 /* Next : REQ IR */
@@ -542,7 +553,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                         (TNC_BufferReference)msg,
                         len,
                         ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-                free(msg);
+                xfree(msg);
                 DEBUG_IFM("[C<-V] REQUEST_INTEGRITY_REPORT[%d]\n", len);
             }
             break;
@@ -556,9 +567,8 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             } else {
                 /* PUBKEY -> target_conf */
                 ctx->target_conf->pubkey_length = length;
-                ctx->target_conf->pubkey = malloc(ctx->target_conf->pubkey_length);
+                ctx->target_conf->pubkey = xmalloc(ctx->target_conf->pubkey_length);
                 if (ctx->target_conf->pubkey == NULL) {
-                    ERROR("no memory");
                     return TNC_RESULT_FATAL;
                 }
 
@@ -578,7 +588,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                         (TNC_BufferReference)msg,
                         len,
                         ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-                free(msg);
+                xfree(msg);
                 DEBUG_IFM("[C<-V] REQUEST_RIMM_SET[%d]\n", len);
             }
             break;
@@ -601,7 +611,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
 
             /* Next : Send NONCE */
             ctx->nonce->nonce_length = 20;
-            ctx->nonce->nonce = malloc(20);
+            ctx->nonce->nonce = xmalloc_assert(20);
             rc = getRandom(ctx->nonce->nonce, 20);
             if (rc != PTS_SUCCESS) {
                 ERROR("getRandom() fail\n");
@@ -615,7 +625,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                     (TNC_BufferReference)msg,
                     len,
                     ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-            free(msg);
+            xfree(msg);
             DEBUG_IFM("[C<-V] NONCE[%d]\n", len);
 
             /* Next : REQ IR */
@@ -627,7 +637,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                     (TNC_BufferReference)msg,
                     len,
                     ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
-            free(msg);
+            xfree(msg);
             DEBUG_IFM("[C<-V] REQUEST_INTEGRITY_REPORT[%d]\n", len);
 
             break;

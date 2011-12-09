@@ -40,8 +40,9 @@
 #include <sys/socket.h>
 
 #include <openpts.h>
+// #include <log.h>
 
-/* remote command */
+/* chanegd by unit test */
 char *ptsc_command = "/usr/sbin/ptsc -m";
 
 /** 
@@ -109,7 +110,20 @@ pid_t ssh_connect(char *host, char *ssh_username, char *ssh_port, char *key_file
         }
         arguments[arg_idx++] = host;
         arguments[arg_idx++] = ptsc_command;
+        // arguments[arg_idx++] = "ptsc";
+        // arguments[arg_idx++] = "-m";
+#if 0
+        /* Sync verbose level between verifier and collector? */
+        // {
+           int verboseLevel;
+            for ( verboseLevel = 0; (verboseLevel < getVerbosity()) && (arg_idx < 15); verboseLevel++ ) {
+                arguments[arg_idx++] = "-v";
+            }
+        // }
+#endif
         arguments[arg_idx++] = NULL;
+
+DEBUG("ptsc_command %s\n", ptsc_command);
 
         execvp("ssh", arguments);
         ERROR("execvp(ssh)");

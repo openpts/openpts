@@ -82,6 +82,7 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 /**
  * New Snapshot
@@ -93,9 +94,8 @@
 OPENPTS_SNAPSHOT * newSnapshot() {
     OPENPTS_SNAPSHOT *ss = NULL;
 
-    ss = (OPENPTS_SNAPSHOT*) malloc(sizeof(OPENPTS_SNAPSHOT));  // leaked
+    ss = (OPENPTS_SNAPSHOT*) xmalloc(sizeof(OPENPTS_SNAPSHOT));  // leaked
     if (ss == NULL) {
-        ERROR("newSnapshot - no memory\n");  // TODO(munetoh)
         return NULL;
     }
     memset(ss, 0, sizeof(OPENPTS_SNAPSHOT));
@@ -115,10 +115,7 @@ OPENPTS_SNAPSHOT * newSnapshot() {
  * return 0:success, -1:error
  */
 int freeSnapshot(OPENPTS_SNAPSHOT * ss) {
-    if (ss == NULL) {
-        ERROR(" OPENPTS_SNAPSHOT was NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != ss, "freeSnapshot - ss is NULL\n");
 
     /* Event Wrapper Chain - free */
     if (ss->start != NULL) {
@@ -138,7 +135,7 @@ int freeSnapshot(OPENPTS_SNAPSHOT * ss) {
         ss->fsm_binary = NULL;
     }
 
-    free(ss);
+    xfree(ss);
 
     return PTS_SUCCESS;
 }
@@ -154,9 +151,8 @@ int freeSnapshot(OPENPTS_SNAPSHOT * ss) {
 OPENPTS_SNAPSHOT_TABLE * newSnapshotTable() {
     OPENPTS_SNAPSHOT_TABLE *sst = NULL;
 
-    sst = (OPENPTS_SNAPSHOT_TABLE *) malloc(sizeof(OPENPTS_SNAPSHOT_TABLE));  // leaked
+    sst = (OPENPTS_SNAPSHOT_TABLE *) xmalloc(sizeof(OPENPTS_SNAPSHOT_TABLE));  // leaked
     if (sst == NULL) {
-        ERROR("newSnapshotTable - no memory\n");
         return NULL;
     }
     memset(sst, 0, sizeof(OPENPTS_SNAPSHOT_TABLE));
@@ -187,7 +183,7 @@ int freeSnapshotTable(OPENPTS_SNAPSHOT_TABLE * sst) {
         }
     }
 
-    free(sst);
+    xfree(sst);
     return PTS_SUCCESS;
 }
 
@@ -198,14 +194,9 @@ int freeSnapshotTable(OPENPTS_SNAPSHOT_TABLE * sst) {
  */
 int addSnapshotToTable(OPENPTS_SNAPSHOT_TABLE * sst, OPENPTS_SNAPSHOT * ss, int pcr_index, int level) {
     /* check 1 */
-    if (sst == NULL) {
-        ERROR("OPENPTS_SNAPSHOT_TABLE is null\n");
-        return PTS_INTERNAL_ERROR;
-    }
-    if (ss == NULL) {
-        ERROR("OPENPTS_SNAPSHOT is null\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != sst, "addSnapshotToTable - sst is NULL\n");
+    ASSERT(NULL != ss, "addSnapshotToTable - ss is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index )) {
         ERROR("bad PCR index, %d\n", pcr_index);
         return PTS_INTERNAL_ERROR;
@@ -232,10 +223,8 @@ int addSnapshotToTable(OPENPTS_SNAPSHOT_TABLE * sst, OPENPTS_SNAPSHOT * ss, int 
  */
 OPENPTS_SNAPSHOT *getSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index, int level) {
     /* check 1 */
-    if (sst == NULL) {
-        ERROR("getSnapshotFromTable() - OPENPTS_SNAPSHOT_TABLE is null, pcr=%d,level=%d\n", pcr_index, level);
-        return NULL;
-    }
+    ASSERT(NULL != sst, "getSnapshotFromTable - sst is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index)) {
         ERROR("getSnapshotFromTable() - bad PCR index, %d\n", pcr_index);
         return NULL;
@@ -263,10 +252,8 @@ OPENPTS_SNAPSHOT *getSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_ind
  */
 OPENPTS_SNAPSHOT *getNewSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index, int level) {
     /* check 1 */
-    if (sst == NULL) {
-        ERROR("getSnapshotFromTable() - OPENPTS_SNAPSHOT_TABLE is null\n");
-        return NULL;
-    }
+    ASSERT(NULL != sst, "getNewSnapshotFromTable - sst is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index)) {
         ERROR("getSnapshotFromTable() - bad PCR index, %d\n", pcr_index);
         return NULL;
@@ -298,10 +285,8 @@ OPENPTS_SNAPSHOT *getNewSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_
 OPENPTS_SNAPSHOT *getActiveSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index) {
     int level;
     /* check 1 */
-    if (sst == NULL) {
-        ERROR("getSnapshotFromTable() - OPENPTS_SNAPSHOT_TABLE is null\n");
-        return NULL;
-    }
+    ASSERT(NULL != sst, "getActiveSnapshotFromTable - sst is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index)) {
         ERROR("getSnapshotFromTable() - bad PCR index, %d\n", pcr_index);
         return NULL;
@@ -319,11 +304,8 @@ OPENPTS_SNAPSHOT *getActiveSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int p
  */
 int setActiveSnapshotLevel(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index, int level) {
     /* check */
-    if (sst == NULL) {
-        ERROR("setActiveSnapshotLevel() - OPENPTS_SNAPSHOT_TABLE is null, pcr=%d,level=%d\n",
-            pcr_index, level);
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != sst, "setActiveSnapshotLevel - sst is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index)) {
         ERROR("setActiveSnapshotLevel() - bad PCR index, %d\n", pcr_index);
         return PTS_INTERNAL_ERROR;
@@ -343,10 +325,8 @@ int setActiveSnapshotLevel(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index, int leve
  */
 int incActiveSnapshotLevel(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index) {
     /* check */
-    if (sst == NULL) {
-        ERROR("OPENPTS_SNAPSHOT_TABLE is null\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != sst, "incActiveSnapshotLevel - sst is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index)) {
         ERROR("bad PCR index, %d\n", pcr_index);
         return PTS_INTERNAL_ERROR;
@@ -362,10 +342,8 @@ int incActiveSnapshotLevel(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index) {
  */
 int getActiveSnapshotLevel(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_index) {
     /* check */
-    if (sst == NULL) {
-        ERROR("OPENPTS_SNAPSHOT_TABLE is null\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != sst, "incActiveSnapshotLevel - sst is NULL\n");
+
     if ((pcr_index < 0) || (MAX_PCRNUM <= pcr_index)) {
         ERROR("bad PCR index, %d\n", pcr_index);
         return PTS_INTERNAL_ERROR;

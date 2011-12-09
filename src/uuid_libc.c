@@ -32,6 +32,7 @@
 
 #include <memory.h>
 #include <stdint.h>
+#include <time.h>
 
 #if 1
 #include <uuid.h>
@@ -49,6 +50,9 @@ void uuid_from_string(unsigned_char_t *string_uuid, uuid_t *uuid,
 #endif
 
 #include <openpts.h>
+#include <log.h>
+
+
 
 #if UUIDSIZE < 16
 #error Insufficient space in PTS_UUID
@@ -71,9 +75,8 @@ PTS_UUID *newUuid() {
     PTS_UUID *uuid;
     unsigned32 status;
 
-    uuid = malloc(sizeof(PTS_UUID));
+    uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
 
@@ -81,8 +84,9 @@ PTS_UUID *newUuid() {
     uuid_create((uuid_p_t)uuid, &status);
 
     if (uuid_s_ok != status) {
-        ERROR("failed to generate an UUID: %s\n", uuid_s_message[status]);
-        free(uuid);
+        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FAILED_GEN_NEW,
+            "Failed to generate an UUID: %s\n"), uuid_s_message[status]);
+        xfree(uuid);
         return NULL;
     }
 
@@ -93,13 +97,7 @@ PTS_UUID *newUuid() {
  * free UUID
  */
 void freeUuid(PTS_UUID *uuid) {
-    /* check */
-    if (uuid == NULL) {
-        ERROR("null input\n");
-        return;
-    }
-
-    free(uuid);
+    xfree(uuid);
 }
 
 /**
@@ -110,9 +108,8 @@ PTS_UUID *getUuidFromString(char *str) {
     uuid_t uu;
     unsigned32 status;
 
-    uuid = malloc(sizeof(PTS_UUID));
+    uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(uuid, 0, UUIDSIZE);
@@ -122,7 +119,7 @@ PTS_UUID *getUuidFromString(char *str) {
     if (uuid_s_ok != status) {
         ERROR("getUuidFromString() - uuid_from_string failed UUID='%s': %s\n",
             str, uuid_s_message[status]);
-        free(uuid);
+        xfree(uuid);
         return NULL;
     }
 
@@ -137,9 +134,8 @@ char * getStringOfUuid(PTS_UUID *uuid) {
     char *str_uuid_backup;
     unsigned32 status;
 
-    str_uuid = malloc(UUID_STRLEN + 1);
+    str_uuid = xmalloc(UUID_STRLEN + 1);
     if (str_uuid == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
 
@@ -152,14 +148,14 @@ char * getStringOfUuid(PTS_UUID *uuid) {
     if (uuid_s_ok != status) {
         ERROR("getStringFromUuid() - uuid_to_string failed: %s\n",
             uuid_s_message[status]);
-        free(str_uuid);
+        xfree(str_uuid);
         return NULL;
     }
 
     /* WA
      * the uuid_to_string implementation shouldn't malloc... */
     if (str_uuid_backup != str_uuid) {
-        free(str_uuid_backup);
+        xfree(str_uuid_backup);
     }
 
     return str_uuid;
@@ -190,11 +186,10 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
     clunks  = ((uint64_t)(uu->time_hi_and_version & 0x0fff)) << 48;
     clunks += ((uint64_t)uu->time_mid) << 32;
     clunks += uu->time_low;
-    t = (clunks - (uint64_t)0x01B21DD213814000) / 10000000;
+    t = (clunks - 0x01B21DD213814000ULL) / 10000000;
 
-    pdt = malloc(sizeof(PTS_DateTime));
+    pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     // TODO gmtime or local?

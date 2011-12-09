@@ -90,6 +90,7 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 #ifdef CONFIG_TBOOT
 #include <openpts_tboot.h>
@@ -106,8 +107,6 @@ BYTE pcr[24][20];
 //       0 no
 // -v    1 show event data contents
 // -v -v 2 DEBUG
-int verbose_cnt = 0;
-int verbose = 0;
 
 char *indent = "                                                              ";
 
@@ -124,7 +123,6 @@ int verify = 0;
  */
 
 int hex2bin(void *dest, const void *src, size_t n);
-void printhex(char *str, unsigned char *buf, int len);
 
 
 #define BUFSIZE 4096
@@ -206,13 +204,6 @@ void fprintBin(FILE* fp, BYTE* data, UINT32 len) {
     }
 }
 
-void fprintHex(FILE* fp, BYTE* data, UINT32 len) {
-    int i;
-    for (i = 0; i < (int)len; i++) {
-        fprintf(fp, "%02x", data[i]);
-    }
-}
-
 
 void fprintChar(FILE* fp, BYTE* data, UINT32 len) {
     int i;
@@ -258,9 +249,10 @@ void fprintEventData(
         UINT32 len,  // event length
         UINT32 pcrindex,
         UINT32 type,
-        BYTE*  digest) {
+        BYTE*  digest,
+        int endian) {
     char buf[BUFSIZE];
-    char *b64buf; //[BUFSIZE];
+    char *b64buf;  // [BUFSIZE];
     int b64buf_len;
     int i;
 
@@ -380,7 +372,7 @@ EventData
                 fprintHex(fp, digest2, 20);
                 fprintf(fp, " <= SHA1(Version[%d])", len);
             }
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 fprintf(fp, "\n");
                 fprintf(fp, "%sVersion(hex) : ", indent);
                 fprintHex(fp, data, len);
@@ -424,7 +416,7 @@ EventData
             break;
         case 0x0e:
             if (pcr5_grub == 0) {
-                fprintf(fp, "[BIOS:EV_IPL_PERTITION_DATA]");
+                fprintf(fp, "[BIOS:EV_IPL_PARTITION_DATA]");
                 pcr5_grub = 1;
             } else {
                 fprintf(fp, "[GRUB:grub.conf]");
@@ -558,22 +550,79 @@ EventData
             /* OpenPTS*/
         case EV_COLLECTOR_START:
             fprintf(fp, "[OpenPTS:EV_COLLECTOR_START[%d]]", len);
-#if 0
-            if (verbose_cnt > 0) {
-                fprintf(fp, "%sUUID");
-                for (i = 0; i < (int)len; i++) {
-                    fprintf(fp, "%02x", (BYTE)buf[i]);
-                }
-                encodeBase64(
-                    (unsigned char *)b64buf,
-                    (unsigned char *)buf, len);
-                fprintf(fp, ", base64(%s)", b64buf);
+            if (getVerbosity() > 0) {
+                OPENPTS_EVENT_COLLECTOR_START *start = (OPENPTS_EVENT_COLLECTOR_START*) buf;
+                char * ptsc_uuid;
+                char * rm_uuid;
+
+                ptsc_uuid  = getStringOfUuid((PTS_UUID *)&start->collector_uuid);
+                rm_uuid =  getStringOfUuid((PTS_UUID *)&start->manifest_uuid);
+
+                fprintf(fp, "\n");
+
+                // fprintHex(fp, (BYTE *)buf, len);
+                // fprintf(fp, "\n");
+
+                fprintf(fp, "%sptsc UUID     : %s\n", indent, ptsc_uuid);
+                fprintf(fp, "%smanifest UUID : %s\n", indent, rm_uuid);
+                fprintf(fp, "%sPCR           : ", indent);
+                fprintHex(fp, start->pcr_value, SHA1_DIGEST_SIZE);
+                fprintf(fp, "\n");
             }
-#endif
             break;
+#ifdef CONFIG_AUTO_RM_UPDATE
+        case EV_UPDATE_START:
+            fprintf(fp, "[OpenPTS:EV_UPDATE_START]");
+            if (getVerbosity() > 0) {
+                OPENPTS_EVENT_UPDATE_START *start = (OPENPTS_EVENT_UPDATE_START*) buf;
+                fprintf(fp, "\n");
+
+                if (endian == 0) {
+                    fprintf(fp, "%starget pcr index      : 0x%x\n", indent, start->target_pcr_index);
+                    fprintf(fp, "%starget snapshot level : 0x%x\n", indent, start->target_snapshot_level);
+                    fprintf(fp, "%sevent num             : 0x%x\n", indent, start->event_num);
+
+                    if (start->update_type == UPDATE_IPL_IMAGE) {
+                        // start->data_length must be 4
+                        fprintf(fp, "%supdate type           : 0x%x (IPL IMAGE)\n", indent, start->update_type);
+                        fprintf(fp, "%siml.ipl.count         : 0x%x\n", indent, start->data[0]);
+                    } else {
+                        fprintf(fp, "%supdate type           : 0x%x\n", indent, start->update_type);
+                        fprintf(fp, "%sdata length           : 0x%x\n", indent, start->data_length);
+                    }
+                } else {
+                    fprintf(fp, "%starget pcr index      : 0x%x\n", indent, b2l(start->target_pcr_index));
+                    fprintf(fp, "%starget snapshot level : 0x%x\n", indent, b2l(start->target_snapshot_level));
+                    fprintf(fp, "%sevent num             : 0x%x\n", indent, b2l(start->event_num));
+                    fprintf(fp, "%supdate type           : 0x%x\n", indent, b2l(start->update_type));
+                    fprintf(fp, "%sdata length           : 0x%x\n", indent, b2l(start->data_length));
+                }
+            }
+            break;
+        case EV_NEW_EVENTS:
+            fprintf(fp, "[OpenPTS:EV_NEW_EVENTS]");
+            break;
+        case EV_UPDATE_END:
+            fprintf(fp, "[OpenPTS:EV_UPDATE_END]");
+            break;
+        case EV_COLLECTOR_UPDATE:
+            fprintf(fp, "[OpenPTS:EV_COLLECTOR_UPDATE[%d]]", len);
+            // fprintHex(fp, (BYTE*)buf, len);
+            if (getVerbosity() > 0) {
+                char * ptsc_uuid;
+                char * rm_uuid;
+                OPENPTS_EVENT_COLLECTOR_UPDATE *update = (OPENPTS_EVENT_COLLECTOR_UPDATE*) buf;
+                fprintf(fp, "\n");
+                ptsc_uuid  = getStringOfUuid((PTS_UUID *)&update->collector_uuid);
+                rm_uuid =  getStringOfUuid((PTS_UUID *)&update->new_manifest_uuid);
+                fprintf(fp, "%sptsc UUID     : %s\n", indent, ptsc_uuid);
+                fprintf(fp, "%smanifest UUID : %s\n", indent, rm_uuid);
+            }
+            break;
+#endif  // CONFIG_AUTO_RM_UPDATE
         case EV_FILE_SCAN:
             fprintf(fp, "[OpenPTS:EV_FILE_SCAN]");
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_FILE_SCAN *fscan;
                 fscan = (OPENPTS_EVENT_FILE_SCAN *) buf;
                 /* show event data */
@@ -603,7 +652,7 @@ EventData
                 fprintf(fp, " <= SHA1(%d(pcrindex) || %d(eventtype) || eventdata[%d])",
                     pcrindex, type, len);
             }
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_FILE_SCAN *fscan;
                 fscan = (OPENPTS_EVENT_FILE_SCAN *) buf;
                 /* show event data */
@@ -620,7 +669,7 @@ EventData
 #ifdef CONFIG_TBOOT
         case EV_TBOOT_SINIT_V6:
             fprintf(fp, "[tboot:sinit(v6)]");
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_TBOOT_SINIT_V6 *ed;
                 ed = (OPENPTS_EVENT_TBOOT_SINIT_V6 *) buf;
                 /* show event data */
@@ -634,7 +683,7 @@ EventData
             break;
         case EV_TBOOT_SINIT_V7:
             fprintf(fp, "[tboot:sinit(v7)]");
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_TBOOT_SINIT_V7 *ed;
                 ed = (OPENPTS_EVENT_TBOOT_SINIT_V7 *) buf;
                 /* show event data */
@@ -648,7 +697,7 @@ EventData
             break;
         case EV_TBOOT_STM_V6:
             fprintf(fp, "[tboot:stm(v6)]");
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_TBOOT_STM_V6 *ed;
                 ed = (OPENPTS_EVENT_TBOOT_STM_V6 *) buf;
                 /* show event data */
@@ -665,7 +714,7 @@ EventData
             break;
         case EV_TBOOT_POLCTL:
             fprintf(fp, "[tboot:tb_policy_control]");
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_TBOOT_POLCTL *pc;
                 pc = (OPENPTS_EVENT_TBOOT_POLCTL *) buf;
                 /* show event data */
@@ -679,7 +728,7 @@ EventData
             break;
         case EV_TBOOT_MODULE:
             fprintf(fp, "[tboot:module]");
-            if (verbose_cnt > 0) {
+            if (getVerbosity() > 0) {
                 OPENPTS_EVENT_TBOOT_MODULE *ed;
                 ed = (OPENPTS_EVENT_TBOOT_MODULE *) buf;
                 UINT32 size;
@@ -713,13 +762,13 @@ EventData
             break;
 #endif
         default:
-            if ((verbose) && (len < 64)) {
+            if (isAnyDebugFlagSet() && (len < 64)) {
                 fprintf(fp, "[Unknown Event[%d]=0x", len);
                 for (i = 0; i < (int)len; i++) {
                     fprintf(fp, "%02x", (BYTE)buf[i]);
                 }
                 b64buf = encodeBase64(
-                    //(unsigned char *)b64buf,
+                    // (unsigned char *)b64buf,
                     (unsigned char *)buf,
                     len,
                     &b64buf_len);
@@ -809,7 +858,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
 
     /* open file */
     if ((fp = fopen(filename, "rb")) == NULL) {
-        ERROR("%s missing", filename);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2TEXT_FILE_MISSING, "Could not open file '%s'\n"), filename);
         return TSS_E_INTERNAL_ERROR;
     }
 
@@ -827,18 +876,16 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
             break;
 
         /* create wrapper */
-        ew = (OPENPTS_PCR_EVENT_WRAPPER *)malloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
+        ew = (OPENPTS_PCR_EVENT_WRAPPER *)xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         if (ew == NULL) {
-            ERROR("no memory\n");
             rc =  TSS_E_INTERNAL_ERROR;
             goto close;
         }
         memset(ew, 0, sizeof(OPENPTS_PCR_EVENT_WRAPPER));
 
         /* alloc new event */
-        ew->event = (TSS_PCR_EVENT *) malloc(sizeof(TSS_PCR_EVENT));
+        ew->event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (ew->event == NULL) {
-            printf("no memory\n");
             rc =  TSS_E_INTERNAL_ERROR;
             goto close;
         }
@@ -858,8 +905,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
 
         /* Digest */
         ew->event->ulPcrValueLength = SHA1_DIGEST_SIZE;
-        if ((ew->event->rgbPcrValue = (BYTE *) malloc(SHA1_DIGEST_SIZE)) == NULL) {
-            ERROR("no memory");
+        if ((ew->event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE)) == NULL) {
             rc =  TSS_E_INTERNAL_ERROR;
             goto close;
         }
@@ -870,9 +916,9 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
             goto close;
         }
 
-        if (verbose == DEBUG_FLAG) {
+        if (isDebugFlagSet(DEBUG_FLAG)) {
             DEBUG("digest");
-            printHex("\t\t\t\t", ew->event->rgbPcrValue, 20, "\n");
+            debugHex("\t\t\t\t", ew->event->rgbPcrValue, 20, "\n");
         }
 
         /* EventData len */
@@ -900,8 +946,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
         DEBUG("\tevent size = 0x%x (%d)\n", ew->event->ulEventLength, ew->event->ulEventLength);
 
         /* EventData  */
-        if ((ew->event->rgbEvent = malloc(aligned_length)) == NULL) {
-            ERROR("no memory");
+        if ((ew->event->rgbEvent = xmalloc(aligned_length)) == NULL) {
             rc =  TSS_E_INTERNAL_ERROR;
             goto close;
         }
@@ -915,9 +960,10 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
             goto close;
         }
 
-        if (verbose == DEBUG_FLAG) {
+        if (isDebugFlagSet(DEBUG_FLAG)) {
             DEBUG("");
-            printHex("\tevent data", ew->event->rgbEvent, ew->event->ulEventLength, "\n");
+            debugHex(NLS(MS_OPENPTS, OPENPTS_IML2TEXT_EVENT_DATA, "\tevent data"),
+                ew->event->rgbEvent, ew->event->ulEventLength, "\n");
         }
 
         /* move to EW chain */
@@ -943,7 +989,6 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
     /* maloc */
     *pcr_events = calloc(*event_num, sizeof(TSS_PCR_EVENT));
     if ((*pcr_events) == NULL) {
-        ERROR("no memory\n");
         rc = TSS_E_INTERNAL_ERROR;
         goto close;
     }
@@ -958,8 +1003,8 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
         /* free event, ew (PCR.EventData are linked to pcr_events) */
         ew_last->event->rgbPcrValue = NULL;
         ew_last->event->rgbEvent = NULL;
-        free(ew_last->event);
-        free(ew_last);
+        xfree(ew_last->event);
+        xfree(ew_last);
     }
     ew = NULL;
 
@@ -974,11 +1019,15 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
     /* free for error */
     if (ew != NULL) {
         if (ew->event != NULL) {
-            if (ew->event->rgbPcrValue != NULL) free(ew->event->rgbPcrValue);
-            if (ew->event->rgbEvent != NULL) free(ew->event->rgbEvent);
-            free(ew->event);
+            if (ew->event->rgbPcrValue != NULL) {
+                xfree(ew->event->rgbPcrValue);
+            }
+            if (ew->event->rgbEvent != NULL) {
+                xfree(ew->event->rgbEvent);
+            }
+            xfree(ew->event);
         }
-        free(ew);
+        xfree(ew);
     }
 
     return rc;  // TSS_E_INTERNAL_ERROR;
@@ -988,17 +1037,18 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
  * Usage
  */
 void usage(void) {
-    fprintf(stderr, "OpenPTS command\n\n");
-    fprintf(stderr, "Usage: iml2text [options]\n\n");
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -i filename           Set binary eventlog file (at securityfs)\n");
-    fprintf(stderr, "  -p pcr_index          Select pcr (TSS)\n");
-    fprintf(stderr, "  -I mode               Select IMA's log format (Kernel 2.6.32:32)\n");
-    fprintf(stderr, "  -V                    Verify\n");
-    fprintf(stderr, "  -D                    DRTM\n");
-    fprintf(stderr, "  -E                    Enable endian conversion (BE->LE or LE->BE)\n");
-    fprintf(stderr, "  -h                    Show this help message\n");
-    fprintf(stderr, "\n");
+    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IML2TEXT_USAGE,
+        "OpenPTS command\n\n"
+        "Usage: iml2text [options]\n\n"
+        "Options:\n"
+        "  -i filename           Set binary eventlog file (at securityfs)\n"
+        "  -p pcr_index          Select pcr (TSS)\n"
+        "  -I mode               Select IMA's log format (Kernel 2.6.32:32)\n"
+        "  -V                    Verify\n"
+        "  -D                    DRTM\n"
+        "  -E                    Enable endian conversion (BE->LE or LE->BE)\n"
+        "  -h                    Show this help message\n"
+        "\n"));
 }
 
 /**
@@ -1027,6 +1077,8 @@ int main(int argc, char *argv[]) {
     BYTE *blob;
     UINT32 blobLength;
 
+    initCatalog();
+
     /* init */
     memset(zero, 0, 20);
     memset(fox, 0xff, 20);
@@ -1053,7 +1105,7 @@ int main(int argc, char *argv[]) {
             aligned = 4;
             break;
         case 'v':  /* DEBUG */
-            verbose_cnt++;
+            incVerbosity();
             break;
         case 'V':  /* verify  */
             verify = 1;
@@ -1065,7 +1117,7 @@ int main(int argc, char *argv[]) {
             usage();
             return 0;
         default:
-            fprintf(stderr, "bad option '%c'\n", c);
+            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IML2TEXT_BAD_OPTION_C, "bad option '%c'\n"), c);
             usage();
             return -1;
         }
@@ -1086,8 +1138,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (verbose_cnt > 1) {
-       verbose = DEBUG_FLAG;
+
+    if (getVerbosity() > 1) {
+       setDebugFlags(DEBUG_FLAG);
     }
 
     /* TSS and Verify */
@@ -1095,14 +1148,14 @@ int main(int argc, char *argv[]) {
         /* in both cases, we have to connect to TCSD */
         result = Tspi_Context_Create(&hContext);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Context_Create failed rc=0x%x\n",
+            ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n",
                    result);
             goto close;
         }
 
         result = Tspi_Context_Connect(hContext, SERVER);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
+            ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1110,7 +1163,7 @@ int main(int argc, char *argv[]) {
         /* Get TPM handles */
         result = Tspi_Context_GetTpmObject(hContext, &hTPM);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
+            ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1124,7 +1177,7 @@ int main(int argc, char *argv[]) {
                     &ulEventNumber,
                     &PcrEvents);
         if (result != TSS_SUCCESS) {  // ERROR
-            printf("ERROR: Tspi_TPM_GetEventLog failed rc=0x%x\n",
+            ERROR("ERROR: Tspi_TPM_GetEventLog failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1157,7 +1210,8 @@ int main(int argc, char *argv[]) {
                 PcrEvents[i].ulEventLength,
                 PcrEvents[i].ulPcrIndex,
                 PcrEvents[i].eventType,
-                PcrEvents[i].rgbPcrValue);
+                PcrEvents[i].rgbPcrValue,
+                endian);
 
             fprintf(fp, "\n");
 
@@ -1243,10 +1297,14 @@ int main(int argc, char *argv[]) {
     } else {
         // TODO free PcrEvents
         for (i = 0; i < (int)ulEventNumber; i++) {
-            if (PcrEvents[i].rgbPcrValue != NULL) free(PcrEvents[i].rgbPcrValue);
-            if (PcrEvents[i].rgbEvent != NULL) free(PcrEvents[i].rgbEvent);
+            if (PcrEvents[i].rgbPcrValue != NULL) {
+                xfree(PcrEvents[i].rgbPcrValue);
+            }
+            if (PcrEvents[i].rgbEvent != NULL) {
+                xfree(PcrEvents[i].rgbEvent);
+            }
         }
-        free(PcrEvents);
+        xfree(PcrEvents);
     }
     /* Close TSS/TPM */
 

@@ -47,14 +47,46 @@
  *
  */
 
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include <libxml/encoding.h>
 #include <libxml/xmlwriter.h>
 #include <libxml/parser.h>
 
 #include <openpts.h>
+// #include <log.h>
+
+enum {
+    TEXT_WRITER_START_ELEMENT,
+    TEXT_WRITER_WRITE_ATTR,
+    TEXT_WRITER_WRITE_FORMAT_ELEMENT,
+    TEXT_WRITER_END_ELEMENT,
+    TEXT_WRITER_WRITE_BASE64,
+    TEXT_WRITER_START_DOC,
+    TEXT_WRITER_FLUSH,
+    TEXT_WRITER_END_DOC,
+    XML_FUNC_END
+};
+
+void displayXmlError(int errorIndex, int rc) {
+    char *xmlFuncStrings[XML_FUNC_END] = {
+        "xmlTextWriterStartElement",
+        "xmlTextWriterWriteAttribute",
+        "xmlTextWriterWriteFormatElement",
+        "xmlTextWriterEndElement",
+        "xmlTextWriterWriteBase64",
+        "xmlTextWriterStartDocument",
+        "xmlTextWriterFlush",
+        "xmlTextWriterEndDocument",
+    };
+
+    ERROR("XML function '%s' returned '%d'\n", xmlFuncStrings[errorIndex], rc);
+}
 
 /**
  * free  All FSM in ctx
@@ -121,17 +153,15 @@ int freeAllFsm(OPENPTS_CONTEXT *ctx) {
 OPENPTS_IR_CONTEXT *newIrContext() {
     OPENPTS_IR_CONTEXT *ctx;
 
-    ctx = (OPENPTS_IR_CONTEXT *) malloc(sizeof(OPENPTS_IR_CONTEXT));
+    ctx = (OPENPTS_IR_CONTEXT *) xmalloc(sizeof(OPENPTS_IR_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory\n");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_IR_CONTEXT));
 
-    ctx->buf = malloc(EVENTDATA_BUF_SIZE);
+    ctx->buf = xmalloc(EVENTDATA_BUF_SIZE);
     if (ctx->buf == NULL) {
-        ERROR("no memory\n");
-        free(ctx);
+        xfree(ctx);
         return NULL;
     }
     memset(ctx->buf, 0, EVENTDATA_BUF_SIZE);
@@ -151,10 +181,10 @@ void freeIrContext(OPENPTS_IR_CONTEXT *ctx) {
     }
 
     if (ctx->buf != NULL) {
-        free(ctx->buf);
+        xfree(ctx->buf);
     }
 
-    free(ctx);
+    xfree(ctx);
 }
 
 
@@ -193,7 +223,7 @@ int writeComponentID(
     /* element "core:ComponentID" */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "core:ComponentID");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");  // TODO(munetoh) SYSLOG
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);  // TODO(munetoh) SYSLOG
         goto error;
     }
 
@@ -204,7 +234,7 @@ int writeComponentID(
             BAD_CAST "Id",
             BAD_CAST id);  // TODO(munetoh)
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
     }
 
@@ -214,7 +244,7 @@ int writeComponentID(
             BAD_CAST "ModelSystemClass",
             BAD_CAST "745749J");  // TODO(munetoh)
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
     }
 
@@ -224,7 +254,7 @@ int writeComponentID(
             BAD_CAST "SimpleName",
             BAD_CAST simpleName);  // "745749J 6DET58WW (3.08 )");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
     }
 
@@ -234,7 +264,7 @@ int writeComponentID(
             BAD_CAST "VersionBuild",
             BAD_CAST "1250694000000");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
     }
 
@@ -245,7 +275,7 @@ int writeComponentID(
             BAD_CAST "VersionString",
             BAD_CAST versionString);  // "6DET58WW (3.08 )");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
     }
 
@@ -254,7 +284,7 @@ int writeComponentID(
             writer,
             BAD_CAST "core:VendorID");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         goto error;
     }
 
@@ -264,7 +294,7 @@ int writeComponentID(
             BAD_CAST "Name",
             BAD_CAST vendor);  // "LENOVO");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
     }
 
@@ -274,7 +304,7 @@ int writeComponentID(
             writer,
             BAD_CAST "core:SmiVendorId", "%d", 0);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteFormatElement\n");
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         goto error;
     }
 
@@ -284,21 +314,21 @@ int writeComponentID(
             writer,
             BAD_CAST "core:TcgVendorId", "%s", "DEMO");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteFormatElement\n");
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         goto error;
     }
 
     /* Close the element "core:VendorID". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        printf("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         goto error;
     }
 
     /* Close the element"core:ComponentID". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         goto error;
     }
 
@@ -310,11 +340,11 @@ int writeComponentID(
 
  free:
     if (simpleName != NULL)
-        free(simpleName);
+        xfree(simpleName);
     if (vendor != NULL)
-        free(vendor);
+        xfree(vendor);
     if (versionString != NULL)
-        free(versionString);
+        xfree(versionString);
 
     return rc;
 }
@@ -334,7 +364,7 @@ int writeDigestMethod(xmlTextWriterPtr writer) {
             writer,
             BAD_CAST "core:DigestMethod");
     if (rc < 0) {
-        printf("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -344,7 +374,7 @@ int writeDigestMethod(xmlTextWriterPtr writer) {
             BAD_CAST "Algorithm",
             BAD_CAST "unknown");
     if (rc < 0) {
-        printf("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -354,14 +384,14 @@ int writeDigestMethod(xmlTextWriterPtr writer) {
             BAD_CAST "Id",
             BAD_CAST "sha1");
     if (rc < 0) {
-        printf("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Close the element named "core:DigestMethod". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        printf("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -391,97 +421,129 @@ int writeStuffObjects(
         int ss_level,
         int eventindex) {
     char id[256];  // TODO(munetoh)
+    int rc;
 
-    if (event == NULL) {
-        ERROR("writeStuffObjects, event == NULL\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != event, "writeStuffObjects, event == NULL\n");
 
     snprintf(id, sizeof(id), "PCR_%d_LV%d_%d_%d_EVENT",
         event->ulPcrIndex, ss_level, event->eventType, eventindex);
 
-    DEBUG_XML("writeStuffObjects - pcr %d,id %s\n", event->ulPcrIndex, id);
+    DEBUG_XML("addStuffObjects - pcr %d,id %s\n", event->ulPcrIndex, id);
 
     /* start "stuff:Objects" */
-    if (xmlTextWriterStartElement(
+    rc = xmlTextWriterStartElement(
             writer,
-            BAD_CAST "stuff:Objects") < 0)
+            BAD_CAST "stuff:Objects");
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         goto error;
+    }
 
     /* start "stuff:Hash" */
-    if (xmlTextWriterStartElement(
+    rc = xmlTextWriterStartElement(
             writer,
-            BAD_CAST "stuff:Hash") < 0)
+            BAD_CAST "stuff:Hash");
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         goto error;
+    }
 
     /* Add an attribute with name "AlgRef" */
-    if (xmlTextWriterWriteAttribute(
+    rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "AlgRef",
             // BAD_CAST ALG_NAME[algtype]) < 0)
-            BAD_CAST getAlgString(algtype)) < 0)
+            BAD_CAST getAlgString(algtype));
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Add an attribute with name "Id" */
-    if (xmlTextWriterWriteAttribute(
+    rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "Id",
-            BAD_CAST id) < 0)
+            BAD_CAST id);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Write a text  */
-    if (xmlTextWriterWriteBase64(
+    rc = xmlTextWriterWriteBase64(
             writer,
             (const char *) event->rgbPcrValue,
             0,
-            event->ulPcrValueLength) < 0)
+            event->ulPcrValueLength);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
         goto error;
+    }
 
     /* Close the element named "stuff:Hash". */
-    if (xmlTextWriterEndElement(writer) < 0)
+    rc = xmlTextWriterEndElement(writer);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         goto error;
+    }
 
     /* Write an element named "pcrindex" */
-    if (xmlTextWriterWriteFormatElement(
+    rc = xmlTextWriterWriteFormatElement(
             writer,
             BAD_CAST "pcrindex",
-            "%d", event->ulPcrIndex) < 0)
+            "%d", event->ulPcrIndex);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         goto error;
+    }
 
     /* Write an element named "eventtype" */
-    if (xmlTextWriterWriteFormatElement(
+    rc = xmlTextWriterWriteFormatElement(
             writer,
             BAD_CAST "eventtype",
-            "%d", event->eventType) < 0)
+            "%d", event->eventType);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         goto error;
+    }
 
     if (event->ulEventLength > 0) {
         /* Start an element named "eventdata" as child of "eventdata". */
-        if (xmlTextWriterStartElement(
+        rc = xmlTextWriterStartElement(
                 writer,
-                BAD_CAST "eventdata") < 0)
+                BAD_CAST "eventdata");
+        if (rc < 0) {
+            displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
             goto error;
+        }
 
         /* Write a text */
-        if (xmlTextWriterWriteBase64(
+        rc = xmlTextWriterWriteBase64(
                 writer,
                 (const char *) event->rgbEvent,
                 0,
-                event->ulEventLength) < 0) {
-            ERROR("rgbEvent  len %d \n", event->ulEventLength);
+                event->ulEventLength);
+        if (rc < 0) {
+            displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
             goto error;
         }
 
         /* Close the element named "eventdata". */
-        if (xmlTextWriterEndElement(writer) < 0)
+        rc = xmlTextWriterEndElement(writer);
+        if (rc < 0) {
+            displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
             goto error;
+        }
     } else {
         // printf("SM DEBUG no eventdata\n");
     }
 
     /* Close the element named "stuff:Objects". */
-    if (xmlTextWriterEndElement(writer) < 0)
+    rc = xmlTextWriterEndElement(writer);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         goto error;
+    }
 
     return PTS_SUCCESS;
 
@@ -515,57 +577,80 @@ int writePcrHash(
         int algtype) {
     // int rc = PTS_SUCCESS;
     char id[256];  // TODO(munetoh) 11+1+1 = 12?
+    int rc;
 
     DEBUG_CAL("writePcrHash - PCR[%d] level %d \n", pcrIndex, ss_level);
 
     snprintf(id, sizeof(id), "PCR_%d_LV%d_HASH", pcrIndex, ss_level);
 
     /* Start an element named "eventdata" as child of "PcrHash". */
-    if (xmlTextWriterStartElement(writer, BAD_CAST "PcrHash") < 0)
+    rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrHash");
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         goto error;
+    }
 
     /* Add an attribute with name "AlgRef" */
-    if (xmlTextWriterWriteAttribute(
+    rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "AlgRef",
             // BAD_CAST ALG_NAME[algtype]) < 0)
-            BAD_CAST getAlgString(algtype)) < 0)
+            BAD_CAST getAlgString(algtype));
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Add an attribute with name "Id" */
-    if (xmlTextWriterWriteAttribute(writer, BAD_CAST "Id", BAD_CAST id)
-            < 0)
+    rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Id", BAD_CAST id);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Add an attribute with name "IsResetable" */
-    if (xmlTextWriterWriteAttribute(
+    rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "IsResetable",
-            BAD_CAST "false") < 0)
+            BAD_CAST "false");
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Add an attribute with name "Number" */
     snprintf(id, sizeof(id), "%d", pcrIndex);
-    if (xmlTextWriterWriteAttribute(writer, BAD_CAST "Number", BAD_CAST id) < 0)
+    rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Number", BAD_CAST id);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Add an attribute with name "StartHash" */
     // TODO(munetoh) convert startHash to base64 string
-    if (xmlTextWriterWriteAttribute(
+    rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "StartHash",
-            BAD_CAST "AAAAAAAAAAAAAAAAAAAAAAAAAAA=") < 0)
+            BAD_CAST "AAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
+    }
 
     /* Write a text */
-    if (xmlTextWriterWriteBase64(writer, (const char *) hash, 0, 20) < 0) {
-        printf("SM DEBUG ERROR  digest len %d \n", 20);
+    rc = xmlTextWriterWriteBase64(writer, (const char *) hash, 0, 20);
+    if (rc < 0) {
+        // printf("SM DEBUG ERROR  digest len %d \n", 20);
+        displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
         goto error;
     }
 
     /* Close the element named "PcrHash". */
-    if (xmlTextWriterEndElement(writer) < 0)
+    rc = xmlTextWriterEndElement(writer);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         goto error;
+    }
 
     return PTS_SUCCESS;
 
@@ -589,7 +674,7 @@ int writeSnapshot(
     int j;
     PTS_UUID *ir_uuid;
     char *str_ir_uuid;
-    char id[256]; // TODO 3 + UUID = 3 + 36 = 39
+    char id[256];  // TODO 3 + UUID = 3 + 36 = 39
     int level;
 
     level = ss->level;
@@ -613,7 +698,7 @@ int writeSnapshot(
     /* Start an element named "SnapshotCollection" as child of Report. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SnapshotCollection");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto error;
     }
@@ -629,7 +714,7 @@ int writeSnapshot(
     if (str_ir_uuid == NULL) {
         ERROR("UUID \n");
         rc = PTS_INTERNAL_ERROR;
-        free(ir_uuid);
+        xfree(ir_uuid);
         goto error;
     }
 
@@ -638,7 +723,7 @@ int writeSnapshot(
     /* Add an attribute with name "Id" */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Id", BAD_CAST id);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -647,14 +732,14 @@ int writeSnapshot(
     rc = xmlTextWriterWriteAttribute(
             writer, BAD_CAST "UUID", BAD_CAST str_ir_uuid);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
     /* Add an attribute with name "RevLevel" */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "RevLevel", BAD_CAST "0");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -666,7 +751,7 @@ int writeSnapshot(
     /* Start an element named "core:Values" as child of "SnapshotCollection". */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "core:Values");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -675,7 +760,7 @@ int writeSnapshot(
     rc = xmlTextWriterStartElement(
             writer, BAD_CAST "stuff:SimpleSnapshotObject");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -703,7 +788,7 @@ int writeSnapshot(
     /* Close the element named "stuff:SimpleSnapshotObject". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        printf("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -711,7 +796,7 @@ int writeSnapshot(
     /* Close the element named "core:Values". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        printf("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -730,7 +815,7 @@ int writeSnapshot(
     /* Close the element named "SnapshotCollection". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        printf("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -738,8 +823,8 @@ int writeSnapshot(
     rc = PTS_SUCCESS;
 
   free:
-    free(ir_uuid);
-    free(str_ir_uuid);
+    xfree(ir_uuid);
+    xfree(str_ir_uuid);
 
   error:
     DEBUG_CAL("addSnapshot - done, rc=%d\n", rc);
@@ -788,7 +873,7 @@ int writeQuote(
     int b64buf_len;
     int size_of_select = 0;
     int select_int = 0;
-    BYTE select_byte[3]; // TODO TPM1.2, 24PCRs => 3 bytes
+    BYTE select_byte[3];  // TODO TPM1.2, 24PCRs => 3 bytes
     char tagbuf[128];
 
     if (ctx->pcrs == NULL) {
@@ -803,28 +888,28 @@ int writeQuote(
     /* Start an element named "QuoteData" as child of Report. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "QuoteData");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Add an attribute with name "ID" */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ID", BAD_CAST "TBD");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Start an element named "Quote" as child of QuoteData. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "Quote");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Start an element named "PcrComposit" as child of Quote. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrComposit");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -856,7 +941,7 @@ int writeQuote(
     /* Start an element named "PcrSelection" as child of PcrComposit. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -864,7 +949,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -874,12 +959,13 @@ int writeQuote(
         size_of_select,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64 fail");
+        ERROR("encodeBase64 fail");  // TODO ERROR => displayXmlError
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     free(b64buf);
@@ -888,7 +974,8 @@ int writeQuote(
     /* Close the element named "PcrSelection". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        // ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -897,7 +984,7 @@ int writeQuote(
     /* Write an element named "ValueSize" as child of PcrComposit */
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "ValueSize", "%d", ctx->pcrs->value_size);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteFormatElement\n");
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -908,7 +995,7 @@ int writeQuote(
             /* Start an element named "PcrValue" as child of PcrComposit. */
             rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrValue");
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterStartElement\n");
+                displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
             /* Add an attribute with name "PcrNumber", int */
@@ -916,7 +1003,7 @@ int writeQuote(
             rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST tagbuf);
             // rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST "0");
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterWriteAttribute\n");
+                displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
                 return PTS_INTERNAL_ERROR;
             }
 
@@ -927,14 +1014,14 @@ int writeQuote(
                     0,
                     20);  // TODO add length to OPENPTS_PCRS
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterWriteBase64\n");
+                displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
                 return PTS_INTERNAL_ERROR;
             }
 
             /* Close the element named "PcrValue" */
             rc = xmlTextWriterEndElement(writer);
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterEndElement\n");
+                displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
         }  // selected
@@ -943,7 +1030,7 @@ int writeQuote(
     /* Close the element named "PcrComposit". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -951,7 +1038,7 @@ int writeQuote(
     /* Start an element named "QuoteInfo" as child of Quote. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "QuoteInfo");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -959,21 +1046,24 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bMajor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionMajor", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "VersionMinor", int */
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bMinor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionMinor", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "VersionRevMajor", int */
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bRevMajor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionRevMajor", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -981,14 +1071,16 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bRevMinor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionRevMinor", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Add an attribute with name "Fixed", int */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Fixed", BAD_CAST "QUOT");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return -1;
     }
 
@@ -1003,11 +1095,11 @@ int writeQuote(
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "DigestValue", BAD_CAST b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     free(b64buf);
-    b64buf=NULL;
+    b64buf = NULL;
 
     // TODO we used DH-nonce exchange but here, we put plain nonce:-P
     // TODO is this option attribute? can we suppress?
@@ -1022,23 +1114,26 @@ int writeQuote(
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ExternalData", BAD_CAST b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     free(b64buf);
-    b64buf=NULL;
+    b64buf = NULL;
 
     /* Close the element named "QuoteInfo". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        // ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Close the element named "Quote". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        // ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1047,7 +1142,7 @@ int writeQuote(
     /* Start an element named "TpmSignature" as child of QuoteData. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "TpmSignature");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1056,7 +1151,7 @@ int writeQuote(
     /* Start an element named "SignatureMethod" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureMethod");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "Algorithm", string */
@@ -1064,13 +1159,13 @@ int writeQuote(
             BAD_CAST "Algorithm",
             BAD_CAST "http://www.w3.org/2000/09/xmldsig#rsa-sha1");  // TODO
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Close the element named "SignatureMethod". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1079,7 +1174,7 @@ int writeQuote(
     /* Start an element named "SignatureValue" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureValue");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Write a text, signature, base64  */
@@ -1089,27 +1184,27 @@ int writeQuote(
             0,
             ctx->validation_data->ulValidationDataLength);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteBase64\n");
+        displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Close the element named "SignatureValue". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Close the element named "TpmSignature". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Close the element named "QuoteData". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1187,28 +1282,28 @@ int writeQuote2(
     /* QuoteData - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "QuoteData");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "ID" */
     // TODO Set UUID based on now
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ID", BAD_CAST "TBD");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Quote2 - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "Quote2");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* QuoteInfo2 - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "QuoteInfo2");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1216,15 +1311,15 @@ int writeQuote2(
     snprintf(tagbuf, sizeof(tagbuf), "%d", tag);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Tag", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* QuoteInfo2 - attribute - Fixed - char */
     DEBUG("fixed : %s", fixed);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Fixed", BAD_CAST fixed);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute, rc = %d\n", rc);
-        return -1;
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
+        return PTS_INTERNAL_ERROR;
     }
     /* QuoteInfo2 - attribute - ExternalData - base64 */
     b64buf = encodeBase64(
@@ -1238,28 +1333,32 @@ int writeQuote2(
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ExternalData", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* PcrInfoShort - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrInfoShort");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        // ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* PcrSelection - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        // ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "SizeOfSelect", int */
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "PcrSelect", base64 */
@@ -1274,13 +1373,13 @@ int writeQuote2(
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* PcrSelection - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1288,7 +1387,7 @@ int writeQuote2(
     /* LocalityAtRelease - element */
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "LocalityAtRelease", "%d", locality);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteFormatElement\n");
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1304,7 +1403,7 @@ int writeQuote2(
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "CompositeHash", "%s", b64buf);
     free(b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteFormatElement\n");
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1312,21 +1411,24 @@ int writeQuote2(
     /* PcrComposite - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrComposit");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        // ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* PcrSelection - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        // ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "SizeOfSelect", int */
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "PcrSelect", base64 */
@@ -1341,19 +1443,19 @@ int writeQuote2(
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* PcrSelection - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* ValueSize - element */
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "ValueSize", "%d", ctx->pcrs->value_size);
     if (rc < 0) {
-         ERROR("Error at xmlTextWriterWriteFormatElement\n");
+         displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* PcrValue, loop */
@@ -1362,14 +1464,16 @@ int writeQuote2(
             /* PcrValue - start */
             rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrValue");
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterStartElement\n");
+                // ERROR("Error at xmlTextWriterStartElement\n");
+                displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
             /* Add an attribute - PcrNumber - int */
             snprintf(tagbuf, sizeof(tagbuf), "%d", i);
             rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST tagbuf);
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterWriteAttribute\n");
+                // ERROR("Error at xmlTextWriterWriteAttribute\n");
+                displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
                 return PTS_INTERNAL_ERROR;
             }
 
@@ -1381,14 +1485,14 @@ int writeQuote2(
                     0,
                     20);  // TODO add length to OPENPTS_PCRS
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterWriteBase64\n");
+                displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
                 return PTS_INTERNAL_ERROR;
             }
 
             /* PcrValue - end */
             rc = xmlTextWriterEndElement(writer);
             if (rc < 0) {
-                ERROR("Error at xmlTextWriterEndElement\n");
+                displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
         }  // selected
@@ -1396,14 +1500,14 @@ int writeQuote2(
     /* PcrComposite - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* PcrInfoShort - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1413,14 +1517,14 @@ int writeQuote2(
     /* QuoteInfo2 - end  */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Quote2 - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1429,7 +1533,7 @@ int writeQuote2(
     /* Start an element named "TpmSignature" as child of QuoteData. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "TpmSignature");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1438,7 +1542,7 @@ int writeQuote2(
     /* Start an element named "SignatureMethod" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureMethod");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Add an attribute with name "Algorithm", string */
@@ -1446,13 +1550,13 @@ int writeQuote2(
             BAD_CAST "Algorithm",
             BAD_CAST "http://www.w3.org/2000/09/xmldsig#rsa-sha1");  // TODO
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Close the element named "SignatureMethod". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1461,7 +1565,7 @@ int writeQuote2(
     /* Start an element named "SignatureValue" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureValue");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Write a text, signature, base64  */
@@ -1471,27 +1575,27 @@ int writeQuote2(
             0,
             ctx->validation_data->ulValidationDataLength);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteBase64\n");
+        displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Close the element named "SignatureValue". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Close the element named "TpmSignature". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* Close the element named "QuoteData". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterEndElement\n");
+        displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1515,17 +1619,21 @@ int writeQuote2(
  *
  */
 // TODO remove file
-int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
+int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
+//int writeIr(OPENPTS_CONTEXT *ctx, int *savedFd) {
     int rc = PTS_SUCCESS;
     int i;
+    int irFd;
+    int lengthOfIrFile;
     xmlTextWriterPtr writer;
     xmlBufferPtr xmlbuf;
-    FILE *fp;
+    // FILE *fp;
     PTS_ComponentId cid;
     OPENPTS_TPM_CONTEXT tpm;  // to calc snapshot PCR
     PTS_UUID *ir_uuid;
     char *str_ir_uuid;
-    char filename[256];  // TODO UUID_UUID.xml
+    char *filename = NULL;
+    // char filename[256];  // TODO UUID_UUID.xml
 
     PTS_Byte smbios[12] = { 0x4A, 0x4A, 0x4A, 0x4A, 0x4A,
                             0x4A, 0x4A, 0x4A, 0x4A, 0x4A,
@@ -1534,7 +1642,17 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
     char id[256];
     OPENPTS_SNAPSHOT *ss;
 
-    DEBUG_CAL("genIr - start\n");
+    DEBUG_CAL("writeIr - start\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("ctx == NULL");
+        return PTS_FATAL;
+    }
+    //if (filename == NULL) {
+    //    ERROR("filename == NULL");
+    //    return PTS_FATAL;
+    //}
 
     // TODO(munetoh) dummy data
     cid.vendor.offset = 0;
@@ -1595,7 +1713,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
     /* Start the document */
     rc = xmlTextWriterStartDocument(writer, "1.0", XML_ENCODING, "no");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartDocument\n");
+        displayXmlError(TEXT_WRITER_START_DOC, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1603,7 +1721,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
     /* Start an element named "Report", the root element of the document. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "Report");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1618,7 +1736,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
             BAD_CAST "xmlns:core",
             BAD_CAST XMLNS_CORE);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1628,7 +1746,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
             BAD_CAST "xmlns:stuff",
             BAD_CAST XMLNS_STUFF);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1639,7 +1757,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
             BAD_CAST "xmlns:xsi",
             BAD_CAST "http://www.w3.org/2001/XMLSchema-instance");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1649,7 +1767,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
             BAD_CAST "xmlns",
             BAD_CAST XMLNS_IR);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1666,7 +1784,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
     if (str_ir_uuid == NULL) {
         ERROR("fail UUID generation\n");
         rc = PTS_INTERNAL_ERROR;
-        free(ir_uuid);
+        xfree(ir_uuid);
         goto freexml;
     }
 
@@ -1675,7 +1793,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
 
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ID", BAD_CAST id);
     if (rc < 0) {
-        printf("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1684,7 +1802,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
     rc = xmlTextWriterWriteAttribute(
             writer, BAD_CAST "UUID", BAD_CAST str_ir_uuid);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1737,14 +1855,29 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
         if (ss != NULL) {
             if (ss->event_num > 0) {
                 // ERROR("writeIr PCR[%d] LV1 num=%d\n", i,ss->event_num);
-                writeSnapshot(writer, &tpm, &cid, i, ss);
+                // writeSnapshot(writer, &tpm, &cid, i, ss);
+                if (i == OPENPTS_PCR_INDEX) {
+                    DEBUG("genIr - Not writing snapshot for OPENPTS_PCR_INDEX (%d)\n",
+                        OPENPTS_PCR_INDEX);
+                } else {
+                    writeSnapshot(writer, &tpm, &cid, i, ss);
+                }
             }
         }
     }  // PCR LOOP
 
+    /* Close all elements */
+    rc = xmlTextWriterEndDocument(writer);
+    if (rc < 0) {
+        displayXmlError(TEXT_WRITER_END_DOC, rc);
+        rc = PTS_INTERNAL_ERROR;
+        goto free;
+    }
+
     rc = xmlTextWriterFlush(writer);
     if (rc < 0) {
-        ERROR("writeRm: Error at xmlTextWriterFlush\n");
+        // ERROR("writeRm: Error at xmlTextWriterFlush\n");
+        displayXmlError(TEXT_WRITER_FLUSH, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1757,9 +1890,9 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
         goto free;
     }
 
-
+#if 0
     /* set IR file */
-    if (file != NULL) {
+    if (filename != NULL) {
         /* use given filename */
         ctx->conf->ir_filename = smalloc((char *)file);
     } else {
@@ -1777,10 +1910,31 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
 
         ctx->conf->ir_filename = getFullpathName(ctx->conf->ir_dir, filename);
     }
+#endif
+    if (ctx->ir_filename != NULL) {
+        /* use given filename  for the Unit Test*/
+        // filename = smalloc(ctx->conf->ir_filename);        filename = ctx->conf->ir_filename;
+    } else {
+        char buf[1024];
+        /* use default filename */
+        if (ctx->conf->ir_dir == NULL) {
+            ERROR("Set ir.dir in %s.\n", ctx->conf->config_file);
+            ctx->conf->ir_dir = smalloc("/tmp/.ptsc");
+        }
+        snprintf(buf, sizeof(buf), "%s_%s.xml",
+            ctx->str_uuid,
+            str_ir_uuid);
+
+        ctx->ir_filename = getFullpathName(ctx->conf->ir_dir, buf);
+    }
+
+    filename = ctx->ir_filename;
+    DEBUG("Write Integrity Report (IR)  : %s\n", filename);
 
     /* write to file */
     xmlFreeTextWriter(writer);
 
+#if 0
     fp = fopen(ctx->conf->ir_filename, "w");
     if (fp == NULL) {
         ERROR("testXmlwriterMemory: Error at fopen, %s\n", ctx->conf->ir_filename);
@@ -1793,18 +1947,54 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *file) {
     rc = PTS_SUCCESS;  // 0
 
     fclose(fp);
+#endif
+
+    irFd = open(filename, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
+    if (-1 == irFd) {
+        ERROR("Failed to open ir file '%s' for writing, errno = %d\n", filename, errno);
+        rc = PTS_INTERNAL_ERROR;
+        goto free;
+    }
+
+    /* If savedFd is not NULL, the user wanted a little bit extra security
+       by not leaving the file lying around on the filesystem to be read/hacked/etc.
+       This is most useful during verification when running "ptsc -m". Anyway,
+       serious hackers probably wouldn't be deterred by this ... */
+    if (NULL != savedFd &&
+        -1 == unlink(filename)) {
+        ERROR("Failed to unlink file '%s', errno = %d\n", filename, errno);
+    }
+
+    lengthOfIrFile = xmlbuf->use;
+    {
+        int writeRc = write(irFd, xmlbuf->content, lengthOfIrFile);
+        if ( lengthOfIrFile != writeRc ) {
+            ERROR("Failed to write contents to IR file - rc %d, errno %d\n", writeRc, errno);
+            rc = PTS_INTERNAL_ERROR;
+            close(irFd);
+        } else {
+            rc = PTS_SUCCESS;  // 0
+            if (NULL != savedFd) {
+                *savedFd = irFd;
+                /* keep the file open - the caller will close it later */
+            } else {
+                close(irFd);
+            }
+        }
+    }
 
  free:
-    free(ir_uuid);
-    free(str_ir_uuid);
+    xfree(ir_uuid);
+    xfree(str_ir_uuid);
+    //if (filename != NULL) xfree(filename);
 
  freexml:
     xmlBufferFree(xmlbuf);
 
  error:
 
-    DEBUG("Write Integrity Report (IR)  : %s\n", file);
-    DEBUG_CAL("genIr - done\n");
+    
+    DEBUG_CAL("writeIr - done\n");
 
     return rc;
 }
@@ -1858,6 +2048,19 @@ void  irStartDocument(void * ctx) {
  */
 void  irEndDocument(void * ctx) {
     // printf("END DOC \n");
+}
+
+/* This prevents real world buffer over-run attacks using malformed IRs
+   where pcr is basically an index onto the heap or stack. It has been 
+   already been demonstrated that this type of attack could fool the verifier
+   wrongly into presenting a valid attestation of a compromised system. */
+static int getPcrIndexFromIR(char *value) {
+    unsigned int index = atoi(value);
+    if ( index > MAX_PCRNUM ) {
+        return -1;
+    } else {
+        return index;
+    }
 }
 
 /**
@@ -1924,7 +2127,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                     value= (char *)atts[i];
                     // printf("%s'", value);
                     if (!strcmp(type, "Number")) {
-                        ir_ctx->pcr_index = atoi(value);
+                        ir_ctx->pcr_index = getPcrIndexFromIR(value);
                     }
                 }
             }
@@ -1932,9 +2135,8 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
     } else if (!strcmp((char *)name, "stuff:Objects")) {
         /* New event */
         /* malloc */
-        ir_ctx->event = (TSS_PCR_EVENT *) malloc(sizeof(TSS_PCR_EVENT));
+        ir_ctx->event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (ir_ctx->event == NULL) {
-            ERROR("no memory\n");
             return;
         }
         memset(ir_ctx->event, 0, sizeof(TSS_PCR_EVENT));
@@ -1944,14 +2146,14 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         // <QuoteData ID="TBD">...
         // TODO check ID?
         if (pcrs == NULL) {
-            pcrs = malloc(sizeof(OPENPTS_PCRS));
+            pcrs = xmalloc_assert(sizeof(OPENPTS_PCRS));
             // TODO check
             memset(pcrs, 0, sizeof(OPENPTS_PCRS));
             pctx->pcrs = pcrs;
             // DEBUG("malloc OPENPTS_PCRS %p\n", pcrs);
         }
         if (validation_data == NULL) {
-            validation_data = malloc(sizeof(TSS_VALIDATION));
+            validation_data = xmalloc_assert(sizeof(TSS_VALIDATION));
             // TODO check
             memset(validation_data, 0, sizeof(TSS_VALIDATION));
             pctx->validation_data = validation_data;
@@ -1992,8 +2194,15 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             (char *)value,
                             strlen(value),
                             &b64buf_len);
-                        attr_cnt++;
+                        // attr_cnt++;
                         // DEBUG("PcrSelect = 0x%02x %02x %02x \n", buf[0],buf[1],buf[2]);
+                        if (b64buf == NULL) {
+                            ERROR("Failed to decode base64 string\n");
+                            ir_ctx->sax_error++;
+                            pcrs->pcr_select_size = 0;
+                        } else {
+                            attr_cnt++;
+                        }
                     }
                 }
             }
@@ -2003,17 +2212,17 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         if (attr_cnt == 2) {
             // ir_ctx->pcrs->pcr_select_byte
             if (pcrs->pcr_select_byte != NULL) {
-                free(pcrs->pcr_select_byte);
+                xfree(pcrs->pcr_select_byte);
             }
-            pcrs->pcr_select_byte = malloc(pcrs->pcr_select_size);
-            if (pcrs->pcr_select_byte == NULL) {
-                ERROR("no memory\n");
-            } else {
+            pcrs->pcr_select_byte = xmalloc(pcrs->pcr_select_size);
+            if (pcrs->pcr_select_byte != NULL) {
                 if (b64buf != NULL) {
                     memcpy(pcrs->pcr_select_byte, b64buf, pcrs->pcr_select_size);
                 } else {
                     ERROR("pcr_select_byte is missing");
                 }
+            } else {
+                ERROR("no memory\n");
             }
         } else {
             /* BAD IR */
@@ -2022,7 +2231,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         /* free Base64 buffer */
         if (b64buf != NULL) {
             free(b64buf);
-            b64buf=NULL;
+            b64buf = NULL;
         }
     } else if (!strcmp((char *)name, "ValueSize")) {
         // <ValueSize>200</ValueSize>
@@ -2039,7 +2248,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                     value= (char *)atts[i];
                     // printf("%s'", value);
                     if (!strcmp(type, "PcrNumber")) {
-                        ir_ctx->pcr_index = atoi(value);
+                        ir_ctx->pcr_index = getPcrIndexFromIR(value);
                     }
                 }
             }
@@ -2059,7 +2268,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                 if (validation_data->rgbData == NULL) {
                     // TODO 1.2 only
                     validation_data->ulDataLength = 48;
-                    validation_data->rgbData = malloc(48);
+                    validation_data->rgbData = xmalloc_assert(48);
                 }
 
                 // printf(", %s='", type);
@@ -2098,14 +2307,16 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                         if (b64buf == NULL) {
                             ERROR("decodeBase64 fail");
                             ir_ctx->sax_error++;
-                            return;
+                            return;  // TODO  return?
                         }
-                        if (b64buf_len < 20) {
-                            ERROR("decodeBase64 out is too small, %d < 20", b64buf_len);
+                        if (b64buf_len == 20) {
+                            memcpy(&validation_data->rgbData[8], b64buf, 20);
+                        } else {
+                            ERROR("size of decodeBase64 out is not 20 but %d", b64buf_len);
                             ir_ctx->sax_error++;
-                            return;
+                            return;  // TODO
                         }
-                        memcpy(&validation_data->rgbData[8], b64buf, 20);
+
                         free(b64buf);
                     }
                     if (!strcmp(type, "ExternalData")) {
@@ -2116,15 +2327,22 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                         if (b64buf == NULL) {
                             ERROR("decodeBase64 fail");
                             ir_ctx->sax_error++;
-                            return;
+                            return;  // TODO
                         }
-                        validation_data->ulExternalDataLength = b64buf_len;
-                        if (validation_data->rgbExternalData != NULL) {
-                            free(validation_data->rgbExternalData);
+                        if (b64buf_len == 20) {
+                            validation_data->ulExternalDataLength = b64buf_len;
+                            if (validation_data->rgbExternalData != NULL) {
+                                free(validation_data->rgbExternalData);
+                            }
+                            validation_data->rgbExternalData = b64buf;
+                            // TODO remove?
+                            // memcpy(validation_data->rgbExternalData, buf, rc);
+                            memcpy(&validation_data->rgbData[28], b64buf, 20);
+                        } else {
+                            ERROR("Failed to decode base64 string, len = %d not 20\n", b64buf_len);
+                            ir_ctx->sax_error++;
+                            return;  // TODO
                         }
-                        validation_data->rgbExternalData = b64buf;
-                        //memcpy(validation_data->rgbExternalData, buf, rc);
-                        memcpy(&validation_data->rgbData[28], b64buf, 20);
                     }
                 }
             }
@@ -2138,7 +2356,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                 if (validation_data->rgbData == NULL) {
                     // TODO 1.2 only
                     validation_data->ulDataLength = 52;
-                    validation_data->rgbData = malloc(52);
+                    validation_data->rgbData = xmalloc_assert(52);
                 }
 
                 // printf(", %s='", type);
@@ -2167,10 +2385,16 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             ir_ctx->sax_error++;
                             return;
                         }
-                        validation_data->ulExternalDataLength = b64buf_len;
-                        validation_data->rgbExternalData = b64buf;
-                        //memcpy(validation_data->rgbExternalData, b64buf, rc);
-                        memcpy(&validation_data->rgbData[6], b64buf, 20);
+                        if (b64buf_len == 20) {
+                            validation_data->ulExternalDataLength = b64buf_len;
+                            validation_data->rgbExternalData = b64buf;
+                            // memcpy(validation_data->rgbExternalData, b64buf, rc);
+                            memcpy(&validation_data->rgbData[6], b64buf, 20);
+                        } else {
+                            ERROR("Failed to decode base64 string, len = %d not 20\n", b64buf_len);
+                            ir_ctx->sax_error++;
+                            return;  // TODO
+                        }
                     }
                 }
             }
@@ -2221,9 +2445,8 @@ void irEndElement(void * ctx, const xmlChar * name) {
         ir_ctx->ew_last = ir_ctx->ew_new;
         /* malloc */
         ir_ctx->ew_new = (OPENPTS_PCR_EVENT_WRAPPER *)
-            malloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
+            xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         if (ir_ctx->ew_new == NULL) {
-            ERROR("no memory\n");
             ir_ctx->sax_error++;
             return;
         }
@@ -2276,7 +2499,8 @@ void irEndElement(void * ctx, const xmlChar * name) {
         }
     } else if (!strcmp((char *)name, "pcrindex")) {
         ir_ctx->buf[ir_ctx->char_size] = 0;
-        ir_ctx->event->ulPcrIndex = atoi(ir_ctx->buf);
+        // ir_ctx->event->ulPcrIndex = atoi(ir_ctx->buf);
+        ir_ctx->event->ulPcrIndex = getPcrIndexFromIR(ir_ctx->buf);
     } else if (!strcmp((char *)name, "stuff:Hash")) {
         ir_ctx->buf[ir_ctx->char_size] = 0;
         /* base64 -> plain */
@@ -2287,9 +2511,10 @@ void irEndElement(void * ctx, const xmlChar * name) {
         if (ir_ctx->event->rgbPcrValue == NULL) {
             ERROR("decodeBase64 fail");
             ir_ctx->sax_error++;
-            return;
+            return;  // TODO
+        } else {
+            ir_ctx->event->ulPcrValueLength = b64buf_len;
         }
-        ir_ctx->event->ulPcrValueLength = b64buf_len;
     } else if (!strcmp((char *)name, "eventtype")) {
         ir_ctx->buf[ir_ctx->char_size] = 0;
         ir_ctx->event->eventType = atoi(ir_ctx->buf);
@@ -2303,9 +2528,10 @@ void irEndElement(void * ctx, const xmlChar * name) {
         if (ir_ctx->event->rgbEvent == NULL) {
             ERROR("decodeBase64 fail");
             ir_ctx->sax_error++;
-            return;
+            return;  // TODO
+        } else {
+            ir_ctx->event->ulEventLength = b64buf_len;
         }
-        ir_ctx->event->ulEventLength = b64buf_len;
     } else if (!strcmp((char *)name, "PcrHash")) {
         /* PCR value */
         ir_ctx->buf[ir_ctx->char_size] = 0;  // null terminate
@@ -2317,29 +2543,29 @@ void irEndElement(void * ctx, const xmlChar * name) {
         if (b64buf == NULL) {
             ERROR("decodeBase64 fail");
             ir_ctx->sax_error++;
-            return;
+            return;  // TODO
         }
         if (b64buf_len > MAX_DIGEST_SIZE) {
             ERROR("decodeBase64 out is too latge, %d > %d",
                 b64buf_len, MAX_DIGEST_SIZE);
             ir_ctx->sax_error++;
-            return;
+            return;  // TODO
+        } else {
+            memcpy(ir_ctx->pcr, b64buf, b64buf_len);
         }
-        memcpy(ir_ctx->pcr, b64buf, b64buf_len);
         free(b64buf);
-
         /* Check with PCR in TPM */
         rc = checkTpmPcr2(&pctx->tpm, ir_ctx->pcr_index, ir_ctx->pcr);
         if (rc != 0) {
             ERROR("ERROR PCR[%d] != IML\n", ir_ctx->pcr_index);
             ir_ctx->sax_error = 1;
             // verbose = DEBUG_FLAG | DEBUG_TPM_FLAG;  // switch DEBUG MODE
-            if (verbose & DEBUG_FLAG) {
+            if (isDebugFlagSet(DEBUG_FLAG)) {
                 BYTE pcr[20];
                 DEBUG("PCR[%d]\n", ir_ctx->pcr_index);
                 getTpmPcrValue(&pctx->tpm, ir_ctx->pcr_index, pcr);
-                printHex("", pcr, 20, " (emulated)\n");
-                printHex("", ir_ctx->pcr, 20, " (IR)\n");
+                debugHex("", pcr, 20, " (emulated)\n");
+                debugHex("", ir_ctx->pcr, 20, " (IR)\n");
             }
         } else {
             /* IML and PCR are consistent :-) */
@@ -2351,7 +2577,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
                 if (pcrs == NULL) {
                     /* malloc OPENPTS_PCRS */
                     // ERROR("PCR is not intialized - No QuoteData element\n");
-                    pcrs = malloc(sizeof(OPENPTS_PCRS));
+                    pcrs = xmalloc(sizeof(OPENPTS_PCRS));
                     if (pcrs == NULL) {
                         ERROR("no memory\n");
                         return;
@@ -2424,9 +2650,19 @@ void irEndElement(void * ctx, const xmlChar * name) {
         {
             // tpm.quote.pcr.0=base64
             // note) Do not use PCR10(IMA) as policy
-            char buf2[20];
-            snprintf(buf2, sizeof(buf2), "tpm.quote.pcr.%d", ir_ctx->pcr_index);
-            addProperty(ctx, buf2, ir_ctx->buf);
+            char name[64];
+            snprintf(name, sizeof(name), "disable.quote.pcr.%d", ir_ctx->pcr_index);
+            if (NULL != getProperty(ctx, name)) {
+                DEBUG("Found disabled quote property '%s'\n", name);
+                snprintf(name, sizeof(name), "# tpm.quote.pcr.%d", ir_ctx->pcr_index);
+            } else {
+                snprintf(name, sizeof(name), "tpm.quote.pcr.%d", ir_ctx->pcr_index);
+            }
+            addProperty(ctx, name, ir_ctx->buf);
+
+            // char buf2[20];
+            // snprintf(buf2, sizeof(buf2), "tpm.quote.pcr.%d", ir_ctx->pcr_index);
+            // addProperty(ctx, buf2, ir_ctx->buf);
         }
     } else if (!strcmp((char *)name, "QuoteInfo2")) {
         /* pcr select => validation_data */
@@ -2446,7 +2682,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ir_ctx->sax_error++;
         } else {
             if (validation_data->rgbValidationData != NULL) {
-                free(validation_data->rgbValidationData);
+                xfree(validation_data->rgbValidationData);
             }
             /* base64 -> plain */
             validation_data->rgbValidationData = decodeBase64(
@@ -2456,7 +2692,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
             if (validation_data->rgbValidationData == NULL) {
                 ERROR("decodeBase64 fail");
                 ir_ctx->sax_error++;
-                return;
+                return;  // TODO
             }
             validation_data->ulValidationDataLength = b64buf_len;
         }
@@ -2480,24 +2716,27 @@ void irEndElement(void * ctx, const xmlChar * name) {
         /* check Nonce */
         /* Validate QuoteData */
 
-        rc = validateQuoteData(pcrs, validation_data);
-        // DEBUG("validateQuoteData = %d\n", rc);
-        if (rc != PTS_SUCCESS) {
-            ERROR("---------------------------------------------------------------------------\n");
-            ERROR("BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!\n");
-            ERROR("---------------------------------------------------------------------------\n");
-            addProperty(pctx, "tpm.quote.signature", "invalid");
-            // TODO set error
-            ir_ctx->bad_quote = 1;
+        if ( ir_ctx->sax_error > 0 ) {
+            ERROR("Unable to validate quote data due to %d SAX parse errors\n", ir_ctx->sax_error);
         } else {
+            rc = validateQuoteData(pcrs, validation_data);
+            // DEBUG("validateQuoteData = %d\n", rc);
+            if (rc != PTS_SUCCESS) {
+                ERROR("---------------------------------------------------------------------------\n");
+                ERROR("BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!\n");
+                ERROR("---------------------------------------------------------------------------\n");
+                addProperty(pctx, "tpm.quote.signature", "invalid");
+                // TODO set error
+                ir_ctx->bad_quote = 1;
+            } else {
 #if 0
-            TODO("---------------------------------------------------------------------------\n");
-            TODO("GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!!\n");
-            TODO("---------------------------------------------------------------------------\n");
+                TODO("---------------------------------------------------------------------------\n");
+                TODO("GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!!\n");
+                TODO("---------------------------------------------------------------------------\n");
 #endif
-            addProperty(pctx, "tpm.quote.signature", "valid");
+                addProperty(pctx, "tpm.quote.signature", "valid");
+            }
         }
-
 
         pctx->conf->ir_without_quote = 0;
     } else {
@@ -2518,8 +2757,9 @@ void irCharacters(void* ctx, const xmlChar * ch, int len) {
     OPENPTS_CONTEXT * pctx = (OPENPTS_CONTEXT *)ctx;
     OPENPTS_IR_CONTEXT * ir_ctx = pctx->ir_ctx;
 
-    /* copy to buf at ir_ctx */
-    if (ir_ctx->char_size + len > EVENTDATA_BUF_SIZE) {
+    /* copy to buf at ir_ctx, but check length first, ensuring additional space
+       for NULL terminator */
+    if ((ir_ctx->char_size + len + 1) > EVENTDATA_BUF_SIZE) {
         ERROR("Buffer for EVENTDATA is too small, %d + %d > %d\n", ir_ctx->char_size, len, EVENTDATA_BUF_SIZE);
         return;
     }
@@ -2557,9 +2797,10 @@ void irCharacters(void* ctx, const xmlChar * ch, int len) {
  *    valgrind --leak-check=full --show-reachable=yes -v tests/check_fsm
  *
  */
-int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
+// int validateIr(OPENPTS_CONTEXT *ctx, const char *filenameNG) {
+int validateIr(OPENPTS_CONTEXT *ctx) {
     xmlSAXHandler  sax_handler;
-    int rc = PTS_SUCCESS;
+    int rc = PTS_VERIFY_FAILED;  // guilty until proven innocent
     OPENPTS_CONFIG *conf;
     OPENPTS_PCRS *pcrs;
 
@@ -2567,22 +2808,17 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
     DEBUG("validateIr - start\n");
 
     /* check */
-    if (ctx == NULL) {
-        ERROR("ctx == NULL\n");
-        return PTS_FATAL;
-    }
-    if (ctx->target_conf == NULL) {
-        ERROR("ctx->target_conf == NULL\n");
-        return PTS_FATAL;
-    }
+    ASSERT(NULL != ctx, "ctx == NULL\n");
+    ASSERT(NULL != ctx->target_conf, "ctx->target_conf == NULL\n");
+    ASSERT(NULL != ctx->ir_filename, "ctx->ir_filename == NULL\n");
+
     conf = ctx->target_conf;
 
     /* new */
     if (ctx->pcrs == NULL) {
         /* malloc OPENPTS_PCRS */
-        ctx->pcrs = malloc(sizeof(OPENPTS_PCRS));
+        ctx->pcrs = xmalloc(sizeof(OPENPTS_PCRS));
         if (ctx->pcrs == NULL) {
-            ERROR("no memory\n");
             rc = PTS_FATAL;
             goto free;
         }
@@ -2596,7 +2832,6 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
     if (ctx->ir_ctx == NULL) {
         ctx->ir_ctx = newIrContext();
         if (ctx->ir_ctx == NULL) {
-            ERROR("no memory\n");
             rc = PTS_FATAL;
             goto free;
         }
@@ -2651,10 +2886,10 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
 
     /* read IR, IR -> IML SAX */
 
-    DEBUG("validateIr - Validate IR     : %s\n", filename);
+    DEBUG("validateIr - Validate IR     : %s\n", ctx->ir_filename);
 
     // http://xmlsoft.org/html/libxml-parser.html#xmlSAXUserParseFile
-    if ((rc = xmlSAXUserParseFile(&sax_handler, (void *)ctx, filename)) != 0) {
+    if ((rc = xmlSAXUserParseFile(&sax_handler, (void *)ctx, ctx->ir_filename)) != 0) {
         // SAX parse error
         DEBUG("validateIr() - SAX parse error rc=%d\n", rc);
         rc = PTS_INTERNAL_ERROR;
@@ -2693,13 +2928,14 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
             if (rc == PTS_SUCCESS) {
                 addProperty(ctx, "tpm.quote.pcrs", "valid");
             } else if (rc == PTS_VERIFY_FAILED) {
-                // ptscd - if FSM config in ptscd.conf is wrong this happen
-                addReason(ctx,
-                    "[QUOTE] verification of PCR Composite was failed, (tscd - bad FSM configuration in ptscd.conf)");
+                // ptsc - if FSM config in ptsc.conf is wrong this happen
+                addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_IR_PCR_COMPOSITE_VERIFY_FAILED,
+                    "[QUOTE] verification of PCR Composite has failed, "
+                    "(tscd - bad FSM configuration in /etc/ptsc.conf)"));
                 addProperty(ctx, "tpm.quote.pcrs", "invalid");
             } else {
-                addReason(ctx,
-                    "[QUOTE] verification of PCR Composite was failed");
+                addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_IR_PCR_COMPOSITE_VERIFY_FAILED,
+                               "[QUOTE] verification of PCR Composite has failed"));
                 addProperty(ctx, "tpm.quote.pcrs", "invalid");
             }
         } else {
@@ -2734,15 +2970,16 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
     if (ctx->ima_unknown > 0) {
         if (conf->ima_validation_unknown == 1) {
             DEBUG("ctx->ima_unknown = %d, result is INVALID\n", ctx->ima_unknown);
-            addReason(ctx,
-                "[LINUX-IMA] There are several unknown IMA measurments. check and update your AIDE ignore list");
+            addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_IR_SEVERAL_UNKNOWN_IMA,
+                "[LINUX-IMA] There are several unknown IMA measurements. "
+                "Please check and update your AIDE ignore list."));
             rc = OPENPTS_RESULT_UNKNOWN;
         }
     }
 
     if (ctx->ir_ctx->bad_quote == 1) {
-        addReason(ctx,
-            "[QUOTE] verification of quote signature was failed");
+        addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_IR_QUOTE_VERIFY_FAILED,
+            "[QUOTE] verification of quote signature has failed."));
         rc = OPENPTS_RESULT_INVALID;
     }
 
@@ -2757,14 +2994,16 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
 #endif
     // TODO Keep PCRs?
     if (ctx->pcrs != NULL) {
-        free(ctx->pcrs);
+        xfree(ctx->pcrs);
         ctx->pcrs = NULL;
     }
 
 
     if (ctx->ir_ctx != NULL) {
-        if (ctx->ir_ctx->buf != NULL) free(ctx->ir_ctx->buf);
-        free(ctx->ir_ctx);
+        if (ctx->ir_ctx->buf != NULL) {
+            xfree(ctx->ir_ctx->buf);
+        }
+        xfree(ctx->ir_ctx);
         ctx->ir_ctx = NULL;
     }
 
@@ -2780,7 +3019,7 @@ int validateIr(OPENPTS_CONTEXT *ctx, const char *filename) {
  * @retval PTS_SUCCESS
  * @retval PTS_INTERNAL_ERROR
  */
-int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx) {
+int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx, int *savedFd) {
     int rc;
     /* get IML via securityfs */
 
@@ -2830,8 +3069,14 @@ int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx) {
         // return -1;
     }
 
+    // do not use tempnum,
+    // if (ctx->conf->ir_filename != NULL) {
+    //    ERROR("Redefining the IR file location %s", ctx->conf->ir_filename);
+    // }
+    // ctx->conf->ir_filename = tempnam(NULL, "ir_");
+
     /* save IR */
-    rc = writeIr(ctx, ctx->conf->ir_filename);
+    rc = writeIr(ctx, ctx->conf->ir_filename, savedFd);
     if (rc != 0) {
         ERROR("fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
@@ -2847,7 +3092,7 @@ int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx) {
  * @retval PTS_SUCCESS
  * @retval PTS_INTERNAL_ERROR 
  */
-int genIrFromTss(OPENPTS_CONTEXT *ctx) {
+int genIrFromTss(OPENPTS_CONTEXT *ctx, int *savedFd) {
     int rc;
     UINT32 ps_type = TSS_PS_TYPE_SYSTEM;  // TODO move to context?
 
@@ -2861,7 +3106,7 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx) {
 
     /* reset OPENPTS_PCRS */
     if (ctx->pcrs == NULL) {
-        ctx->pcrs = malloc(sizeof(OPENPTS_PCRS));  // TODO NULL check, or gen at newCtx
+        ctx->pcrs = xmalloc_assert(sizeof(OPENPTS_PCRS));  // TODO NULL check, or gen at newCtx
         // TODO check
     }
     memset(ctx->pcrs, 0, sizeof(OPENPTS_PCRS));
@@ -2876,13 +3121,23 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx) {
 
     /* TSS_VALIDATION */
     if (ctx->validation_data == NULL) {
-        ctx->validation_data = malloc(sizeof(TSS_VALIDATION));
+        ctx->validation_data = xmalloc_assert(sizeof(TSS_VALIDATION));
     }
 
     /* Nonce */
     if (ctx->nonce->nonce_length > 0) {
         ctx->validation_data->ulExternalDataLength = ctx->nonce->nonce_length;
-        ctx->validation_data->rgbExternalData= ctx->nonce->nonce;
+        // NG ctx->validation_data->rgbExternalData= ctx->nonce->nonce;
+        /* copy */
+        ctx->validation_data->rgbExternalData = malloc(ctx->nonce->nonce_length);
+        if (ctx->validation_data->rgbExternalData == NULL) {
+            ERROR("no memory");
+            return PTS_FATAL;
+        }
+        memcpy(
+            ctx->validation_data->rgbExternalData,
+            ctx->nonce->nonce,
+            ctx->nonce->nonce_length);
     } else {
         ERROR("genIrFromTss - nonce is missing, DH-nonce? \n");
         ctx->validation_data->ulExternalDataLength = 0;
@@ -2937,8 +3192,14 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx) {
         return PTS_INTERNAL_ERROR;
     }
 
+    if (ctx->conf->ir_filename != NULL) {
+        ERROR("Redefining the IR file location %s", ctx->conf->ir_filename);
+    }
+    //ctx->conf->ir_filename = tempnam(NULL, "ir_");
+    //DEBUG("ctx->conf->ir_filename : %s\n", ctx->conf->ir_filename);
+
     /* save IR */
-    rc = writeIr(ctx, ctx->conf->ir_filename);  // ir.c
+    rc = writeIr(ctx, ctx->conf->ir_filename, savedFd);  // ir.c
     if (rc != 0) {
         ERROR("fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
@@ -2954,10 +3215,10 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx) {
  * @retval PTS_SUCCESS
  * @retval PTS_INTERNAL_ERROR
  */
-int genIr(OPENPTS_CONTEXT *ctx) {
+int genIr(OPENPTS_CONTEXT *ctx, int *savedFd) {
     int rc = PTS_INTERNAL_ERROR;
     if (ctx->conf->iml_mode == 1) {
-        rc = genIrFromSecurityfs(ctx);
+        rc = genIrFromSecurityfs(ctx, savedFd);
         if (rc != PTS_SUCCESS) {
             ERROR("writePtsTlvToSock - gen IR failed\n");
             return rc;
@@ -2967,7 +3228,7 @@ int genIr(OPENPTS_CONTEXT *ctx) {
         TODO("OpenPTS was build with --without-tss and config option iml.mode=tssand, skip IR gen.\n");
 #else
         // DEBUG("get IML/PCR via TSS is not ready\n");
-        rc = genIrFromTss(ctx);
+        rc = genIrFromTss(ctx, savedFd);
         if (rc != PTS_SUCCESS) {
             ERROR("gen IR failed\n");
             return rc;

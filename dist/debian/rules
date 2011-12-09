@@ -20,7 +20,7 @@ configure-stamp:
 
 build: build-stamp
 
-build-stamp: configure-stamp  
+build-stamp: configure-stamp
 	dh_testdir
 
 	# Add here commands to compile the package.
@@ -36,12 +36,12 @@ clean:
 
 	$(MAKE) clean
 
-	dh_clean 
+	dh_clean
 
 install: build
 	dh_testdir
 	dh_testroot
-	dh_clean -k 
+	dh_clean -k
 	dh_installdirs
 
 	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install

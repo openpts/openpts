@@ -6,7 +6,7 @@
 Name:           %{name}
 Version:        %{version}
 Release:        %{release}
-Summary:        TCG Platform Trust Service (PTS) for emdedded devices
+Summary:        TCG Platform Trust Service (PTS)
 
 Group:          Applications/System
 License:        CPL
@@ -39,7 +39,7 @@ specifications set forth by the Trusted Computing Group (TCG).
 
 %build
 
-%configure --disable-static --prefix=/usr --libdir=%{_libdir} --with-tss --with-aide --enable-tnc \
+%configure --disable-static --prefix=/usr --libdir=%{_libdir} --with-tss --enable-tnc \
 %if %{with_tboot}
   --with-tboot \
 %endif
@@ -127,15 +127,15 @@ getent group ptsc >/dev/null || groupadd -r ptsc
 
 %post -p /sbin/ldconfig
 
-
 %postun -p /sbin/ldconfig
 
 %changelog
+* Fri Oct  7 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.6
 * Fri Jun 24 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.5
 - added TNC IMV/IMC, configure --enable-tnc
 - added libopenpts.so
 
-* Fri May 6 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.4
+* Fri May  6 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.4
 * Thu Mar 10 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.3
 * Sun Jul 25 2010 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.0
 * Fri Mar 12 2010 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.0.1

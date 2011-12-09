@@ -51,9 +51,10 @@
 #define EVENTTYPE_FLAG_NOT_EQUAL 2  // !=
 
 /* digest flag */
-#define DIGEST_FLAG_SKIP      0
-#define DIGEST_FLAG_EQUAL     1  // BIN-FSM
-#define DIGEST_FLAG_IGNORE    2  // BHV-FSM
+#define DIGEST_FLAG_SKIP        0
+#define DIGEST_FLAG_EQUAL       1  // BIN-FSM
+#define DIGEST_FLAG_IGNORE      2  // BHV-FSM
+#define DIGEST_FLAG_TRANSPARENT 3
 
 /* Counter flag */
 #define COUNTER_FLAG_SKIP   0
@@ -121,6 +122,10 @@ typedef struct {
     int counter_flag; /**< */
     char *counter_name;   /**< */
 
+    /* counter */
+    int fatal_counter_flag; /**< */
+    char *fatal_counter_name;   /**< */
+
     /* last */
     int last_flag; /**< */
 
@@ -159,6 +164,7 @@ typedef struct {
     int status; /**< FSM status */
     int pcr_index;
     int level;
+    int numTransparencies;
 
     char * uml_file;
 
@@ -188,6 +194,7 @@ typedef struct {
     int event_type;
     int push_count;
     int index; /**< index */
+    int transparent;
 
 #ifdef CONFIG_AIDE
     /* AIDE */
@@ -239,7 +246,7 @@ char * getSubvertexId(OPENPTS_FSM_CONTEXT *ctx, char * name);
 OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm);
 int getTypeFlag(char * cond, UINT32 *eventtype);
 int getDigestFlag(char * cond, BYTE **digest, int *digest_size);
-int getCounterFlag(char * cond, char **name);
+int getCounterFlag(char *cond, char *name, char **flag);
 int getLastFlag(char * cond);
 int addFsmTransition(
     OPENPTS_FSM_CONTEXT *ctx,

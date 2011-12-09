@@ -45,6 +45,7 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 
 /* TPM functions */
@@ -58,7 +59,7 @@ int resetTpm(OPENPTS_TPM_CONTEXT *tctx, int drtm) {
     DEBUG_TPM("tpm.c - RESET (POR)\n");
 
     if (tctx == NULL) {
-        printf("ERROR TPM_CONTEXT is NULL");
+        ERROR("ERROR TPM_CONTEXT is NULL");
         return -1;
     }
 
@@ -77,7 +78,7 @@ int resetTpm(OPENPTS_TPM_CONTEXT *tctx, int drtm) {
 
     DEBUG_TPM("tpm.c - RESET (POR)\n");
 
-    // iml = (IML *) malloc(sizeof(IML) * MAX_PCRNUM);
+    // iml = (IML *) xmalloc(sizeof(IML) * MAX_PCRNUM);
     return 0;
 }
 
@@ -90,7 +91,7 @@ int resetTpmPcr(OPENPTS_TPM_CONTEXT *tctx, int index) {
     DEBUG_TPM("resetTpmPcr - RESET just one PCR %d\n", index);
 
     if (tctx == NULL) {
-        printf("ERROR TPM_CONTEXT is NULL");
+        ERROR("ERROR TPM_CONTEXT is NULL");
         return -1;
     }
 
@@ -137,15 +138,13 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
     int index;
     BYTE * digest;
 
-    // if (verbose>0) printf("extendTpm - start \n");
-
     if (tctx == NULL) {
-        printf("ERROR TPM_CONTEXT is NULL\n");
+        ERROR("TPM_CONTEXT is NULL\n");
         return -1;
     }
 
     if (event == NULL) {
-        printf("ERROR TSS_PCR_EVENT is NULL\n");
+        ERROR("TSS_PCR_EVENT is NULL\n");
         return -1;
     }
 
@@ -153,17 +152,17 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
     digest = event->rgbPcrValue;
 
     if (digest == NULL) {
-        printf("event->rgbPcrValue is NULL\n");
+        ERROR("event->rgbPcrValue is NULL\n");
         return -1;
     }
 
     if (index >= MAX_PCRNUM) {
-        printf("ERROR BAD PCR INDEX %d\n", index);
+        ERROR("BAD PCR INDEX %d\n", index);
         return -1;
     }
 
     if (index < 0) {
-        printf("ERROR BAD PCR INDEX %d\n", index);
+        ERROR("ERROR BAD PCR INDEX %d\n", index);
         return -1;
     }
 
@@ -178,13 +177,13 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
     SHA1_Update(&ctx, digest, SHA1_DIGEST_SIZE);
     SHA1_Final(&tctx->pcr[index][0], &ctx);
 
-    if (verbose & DEBUG_TPM_FLAG) {
+    if (isDebugFlagSet(DEBUG_TPM_FLAG)) {
         int i;
         DEBUG_TPM("\ttpm.c - extend pcr=%d digest=", index);
-        for (i = 0; i < SHA1_DIGEST_SIZE; i++) printf("%02x", digest[i]);
-        printf("  -> ");
-        for (i = 0; i < SHA1_DIGEST_SIZE; i++) printf("%02x", tctx->pcr[index][i]);
-        printf("\n");
+        for (i = 0; i < SHA1_DIGEST_SIZE; i++) OUTPUT("%02x", digest[i]);
+        OUTPUT("  -> ");
+        for (i = 0; i < SHA1_DIGEST_SIZE; i++) OUTPUT("%02x", tctx->pcr[index][i]);
+        OUTPUT("\n");
     }
 
     // if (verbose>0) printf("extendTpm - done \n");
@@ -217,11 +216,11 @@ int extendTpm2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
     SHA1_Update(&ctx, digest, SHA1_DIGEST_SIZE);
     SHA1_Final(&tctx->pcr[index][0], &ctx);
 
-    if (verbose & DEBUG_TPM_FLAG) {
+    if (isDebugFlagSet(DEBUG_TPM_FLAG)) {
         int i;
         DEBUG_TPM("tpm.c - extend pcr=%d digest=", index);
-        for (i = 0; i < SHA1_DIGEST_SIZE; i++) printf("%02x", digest[i]);
-        printf("\n");
+        for (i = 0; i < SHA1_DIGEST_SIZE; i++) OUTPUT("%02x", digest[i]);
+        OUTPUT("\n");
     }
 
     return 0;  // TODO(munetoh)
@@ -251,19 +250,19 @@ int printTpm(OPENPTS_TPM_CONTEXT *tctx) {
     DEBUG_FSM("tpm.c - pprint pcrs\n");
 
     if (tctx == NULL) {
-        printf("ERROR TPM_CONTEXT is NULL");
+        ERROR("TPM_CONTEXT is NULL");
         return -1;
     }
 
     for (i = 0; i < MAX_PCRNUM; i++) {
-        printf("PCR[%2d] = ", i);
+        OUTPUT("PCR[%2d] = ", i);
         for (j = 0; j < SHA1_DIGEST_SIZE; j++) {
-            printf("%02x", tctx->pcr[i][j]);
+            OUTPUT("%02x", tctx->pcr[i][j]);
         }
-        printf("\n");
+        OUTPUT("\n");
     }
 
-    // iml = (IML *) malloc(sizeof(IML) * MAX_PCRNUM);
+    // iml = (IML *) xmalloc(sizeof(IML) * MAX_PCRNUM);
     return 0;
 }
 
@@ -277,7 +276,7 @@ int getTpmPcrValue(OPENPTS_TPM_CONTEXT *tpm, int index, BYTE *digest) {
     DEBUG_CAL("getTpmPcrValue - pcr[%d]\n", index);
 
     if (digest == NULL) {
-        printf("ERROR null \n");
+        ERROR("null \n");
         return -1;
     }
 

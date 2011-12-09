@@ -32,11 +32,16 @@
  *
  */
 
+#ifdef AIX
+#include <sys/lockf.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/socketvar.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -45,13 +50,8 @@
 #include <sys/stat.h>  // chmod
 
 #include <openpts.h>
+// #include <log.h>
 
-
-int verbose = 0; /**< DEBUG */
-static int terminate = 0;
-
-#define STDIN 0
-#define STDOUT 1
 
 int prop_num = 0;
 OPENPTS_PROPERTY *start = NULL;
@@ -66,10 +66,9 @@ OPENPTS_PROPERTY *end = NULL;
  */ 
 int collector2(OPENPTS_CONFIG *conf) {
     int rc;
+    int terminate = 0;
     OPENPTS_CONTEXT *ctx = NULL;
     PTS_IF_M_Attribute *read_tlv = NULL;
-    int count = 0;
-    int len;
 
     /* Init RMs */
     rc = getRmSetDir(conf);
@@ -84,62 +83,65 @@ int collector2(OPENPTS_CONFIG *conf) {
         DEBUG("collector() - getNewRmSetDir() was failed - never mind\n");
     }
 
-    /* syslog message */
-    INFO("start collector (System UUID=%s, RM UUID = %s, timeout=%d)\n",
-        conf->uuid->str, conf->rm_uuid->str, conf->ifm_timeout);
+
+    INFO("start collector (System UUID=%s, RM UUID = %s)\n",
+        conf->uuid->str, conf->rm_uuid->str);
 
     /* Collector <-> Verifier - handshake loop */
-    do {
-        INFO("open  IF-M PTS connection\n");
 
-        ctx = newPtsContext(conf);
+    ctx = newPtsContext(conf);
 
-        // TODO new ctx for the new connection
+    addPropertiesFromConfig(conf, ctx);
 
-        /* handshake loop */
-        for (;;) {
-            /* V->C request */
+    /* protocol loop */
+    while (!terminate) {
+        /* V->C request */
 
-            read_tlv = readPtsTlv(STDIN);  // ifm.c, malloc tlv
-            if (read_tlv == NULL) {
-                INFO("close IF-M PTS connection\n");
-                /* free current context */
-                freePtsContext(ctx);
-                sleep(1);
-                count++;
-                if (count >= conf->ifm_timeout) {  // 5sec
-                    terminate = 1;
-                    TODO("collector2 terminate\n");
-                }
-                break;
-            }
+        /* read() will block forever unless STDIN was explicitly set to
+           be non-blocking or we receive an interrupt. even then wrapRead() will
+           ignore EAGAIN and EINTR and keep attempting to call read(). the only way
+           this could fail is if the other end of the connection closed, in which case
+           we should exit. if timeouts are required then poll() or select() can be
+           used on blocking file descriptors to listen for input. */
+        read_tlv = readPtsTlv(STDIN_FILENO);  // ifm.c, malloc tlv
+        if (read_tlv == NULL) {
+            DEBUG("close IF-M PTS connection\n");
+            break;
+        }
 
-            /* check bad TLV */
-            if (read_tlv->type == 0)
-                break;
+        /* check bad TLV */
+        if (read_tlv->type == 0) {
+            ERROR("Bad TLV type received - quit");
+            break;
+        }
 
-            if (read_tlv->length > 0 && read_tlv->value == NULL)
-                break;
+        if (read_tlv->length > 0 && read_tlv->value == NULL) {
+            ERROR("Malformed TLV message (ghost body) - quit");
+            break;
+        }
 
-            INFO("IF-M read type = 0x%X, len %d\n",
+        INFO("IF-M read type = 0x%X, len %d\n",
                 read_tlv->type,
                 read_tlv->length);
 
-            /* C->V responces */
-            switch (read_tlv->type) {
+        /* C->V responces */
+        switch (read_tlv->type) {
             case OPENPTS_CAPABILITIES:
                 // TODO define CAPABILITIES structure
-                TODO("IF-M OPENPTS_CAPABILITIES\n");
+                DEBUG("IF-M OPENPTS_CAPABILITIES\n");
                 /* check the UUID */
                 if (read_tlv->length != sizeof(OPENPTS_IF_M_Capability)) {  // TODO use defined name
-                    ERROR("Bad PTS_CAPABILITIES, len = %d != 32\n", read_tlv->length);
+                    ERROR("Bad PTS_CAPABILITIES, len = %d != %d\n",
+                        read_tlv->length, sizeof(OPENPTS_IF_M_Capability));
+                    terminate = 1;
                 } else {
+                    // TODO copy
                     OPENPTS_IF_M_Capability *cap;
                     cap = (OPENPTS_IF_M_Capability *) read_tlv->value;
                     /* get version */
                     // TODO
                     /* get verifier's UUID */
-                    ctx->uuid = malloc(sizeof(PTS_UUID));
+                    ctx->uuid = xmalloc_assert(sizeof(PTS_UUID));
                     memcpy(ctx->uuid, &cap->platform_uuid, 16);
                     ctx->str_uuid = getStringOfUuid(ctx->uuid);
 
@@ -147,19 +149,20 @@ int collector2(OPENPTS_CONFIG *conf) {
                     INFO("verifier (UUID=%s)\n", ctx->str_uuid);
 
                     /* send PTS_CAPABILITIES msg. to verifier (=UUID) */
-                    len = writePtsTlv(ctx, STDOUT, OPENPTS_CAPABILITIES);
-                    if (len < 0) {
-                        ERROR("send OPENPTS_CAPABILITIES was failed\n");
+                    rc = writePtsTlv(ctx, STDOUT_FILENO, OPENPTS_CAPABILITIES);
+                    if (rc < 0) {
+                        ERROR("Send CAPABILITY answer failed - quit");
+                        terminate = 1;
                     }
-                    TODO("IF-M OPENPTS_CAPABILITIES rc=%d (0x%x)\n", rc, rc);
                 }
                 break;
 
             case DH_NONCE_PARAMETERS_REQUEST:
-                TODO("IF-M DH_NONCE_PARAMETERS_REQUEST\n");
+                DEBUG("IF-M DH_NONCE_PARAMETERS_REQUEST\n");
                 /* check */
                 if (read_tlv->length != 4) {
                     ERROR("Bad DH_NONCE_PARAMETERS_REQUEST, len = %d != 4\n", read_tlv->length);
+                    terminate = 1;
                 } else {
                     /* req -> res */
                     ctx->nonce->req->reserved      = read_tlv->value[0];
@@ -170,18 +173,20 @@ int collector2(OPENPTS_CONFIG *conf) {
                     rc = getDhResponce(ctx->nonce);
 
                     /* send responce */
-                    len = writePtsTlv(
-                            ctx, STDOUT, DH_NONCE_PARAMETORS_RESPONSE);
-                    if (len < 0) {
-                        ERROR("send DH_NONCE_PARAMETORS_RESPONSE was failed\n");
+                    rc = writePtsTlv(
+                            ctx, STDOUT_FILENO, DH_NONCE_PARAMETORS_RESPONSE);
+                    if (rc < 0) {
+                        ERROR("Send NONCE answer failed - quit");
+                        terminate = 1;
                     }
                 }
                 break;
             case DH_NONCE_FINISH:
-                TODO("IF-M DH_NONCE_FINISH\n");
+                DEBUG("IF-M DH_NONCE_FINISH\n");
                 /* check */
                 if (read_tlv->length != 152) {  // TODO  how to calc this size?
                     ERROR("Bad DH_NONCE_FINISH, len = %d != 152\n", read_tlv->length);
+                    terminate = 1;
                 } else {
                     /* finish  */
                     ctx->nonce->fin->reserved            = read_tlv->value[0];
@@ -190,14 +195,14 @@ int collector2(OPENPTS_CONFIG *conf) {
                     ctx->nonce->fin->selected_hash_alg   = (read_tlv->value[2]<<8) | read_tlv->value[3];
 
                     /* public */
-                    ctx->nonce->fin->dh_initiator_public = malloc(ctx->nonce->pubkey_length);
+                    ctx->nonce->fin->dh_initiator_public = xmalloc_assert(ctx->nonce->pubkey_length);
                     memcpy(
                         ctx->nonce->fin->dh_initiator_public,
                         &read_tlv->value[4],
                         ctx->nonce->pubkey_length);
 
                     /* nonce */
-                    ctx->nonce->fin->dh_initiator_nonce = malloc(ctx->nonce->fin->nonce_length);
+                    ctx->nonce->fin->dh_initiator_nonce = xmalloc_assert(ctx->nonce->fin->nonce_length);
                     memcpy(
                         ctx->nonce->fin->dh_initiator_nonce,
                         &read_tlv->value[4 + ctx->nonce->pubkey_length],
@@ -209,43 +214,47 @@ int collector2(OPENPTS_CONFIG *conf) {
                 }
                 break;
             case REQUEST_RIMM_SET:  // 5
-                TODO("IF-M REQUEST_RIMM_SET\n");
+                DEBUG("IF-M REQUEST_RIMM_SET\n");
                 /* check */
                 if (read_tlv->length != 0) {
                     ERROR("Bad REQUEST__RIMM_SET, len = %d != 0\n", read_tlv->length);
+                    terminate = 1;
                 } else {
-                    len = writePtsTlv(
-                            ctx, STDOUT, RIMM_SET);
-                    if (len < 0) {
-                        ERROR("send RIMM_SET was failed\n");
+                    rc = writePtsTlv(
+                            ctx, STDOUT_FILENO, RIMM_SET);
+                    if (rc < 0) {
+                        ERROR("Send RIMM_SET answer failed - quit");
+                        terminate = 1;
                     }
                 }
                 break;
             case REQUEST_NEW_RIMM_SET:
-                TODO("IF-M REQUEST_NEW_RIMM_SET\n");
+                DEBUG("IF-M REQUEST_NEW_RIMM_SET\n");
                 /* check */
                 if (read_tlv->length != 0) {
                     ERROR("Bad REQUEST_NEW_RIMM_SET, len = %d != 0\n", read_tlv->length);
+                    terminate = 1;
                 } else {
-                    len = writePtsTlv(
-                            ctx, STDOUT, NEW_RIMM_SET);
-                    if (len < 0) {
-                        ERROR("sendNEW_RIMM_SET was failed\n");
+                    rc = writePtsTlv(
+                            ctx, STDOUT_FILENO, NEW_RIMM_SET);
+                    if (rc < 0) {
+                        ERROR("Send NEW_RIMM_SET answer failed - quit");
+                        terminate = 1;
                     }
-                    TODO("IF-M REQUEST_NEW_RIMM_SET, len = %d\n", rc);
                 }
                 break;
             case REQUEST_INTEGRITY_REPORT:
-                TODO("IF-M REQUEST_INTEGRITY_REPORT\n");
+                DEBUG("IF-M REQUEST_INTEGRITY_REPORT\n");
                 /* check */
                 if (read_tlv->length != 0) {
                     ERROR("Bad REQUEST_INTEGRITY_REPORT, len = %d != 0\n", read_tlv->length);
+                    terminate = 1;
                 } else {
-                    len = writePtsTlv(ctx, STDOUT, INTEGRITY_REPORT);
-                    if (len < 0) {
-                        ERROR("send INTEGRITY_REPORT was failed\n");
+                    rc = writePtsTlv(ctx, STDOUT_FILENO, INTEGRITY_REPORT);
+                    if (rc < 0) {
+                        ERROR("Send INTEGRITY_REPORT answer failed - quit");
+                        terminate = 1;
                     }
-                    TODO("IF-M INTEGRITY_REPORT len=%d (0x%x)\n", rc, rc);
                 }
                 break;
             case VERIFICATION_RESULT:
@@ -260,10 +269,12 @@ int collector2(OPENPTS_CONFIG *conf) {
                 /* check */
                 if (read_tlv->length != 0) {
                     ERROR("Bad REQUEST_AIDE_DATABASE, len = %d != 0\n", read_tlv->length);
+                    terminate = 1;
                 } else {
-                    len = writePtsTlv(ctx, STDOUT, AIDE_DATABASE);
-                    if (len < 0) {
-                        ERROR("send AIDE_DATABASE was failed\n");
+                    rc = writePtsTlv(ctx, STDOUT_FILENO, AIDE_DATABASE);
+                    if (rc < 0) {
+                        ERROR("Send REQUEST_AIDE_DATABASE answer failed - quit");
+                        terminate = 1;
                     }
                 }
                 break;
@@ -272,10 +283,12 @@ int collector2(OPENPTS_CONFIG *conf) {
                 /* check */
                 if (read_tlv->length != 0) {
                     ERROR("Bad REQUEST_TPM_PUBKEY, len = %d != 0\n", read_tlv->length);
+                    terminate = 1;
                 } else {
-                    len = writePtsTlv(ctx, STDOUT, TPM_PUBKEY);  // ifm.c
-                    if (len < 0) {
-                        ERROR("send TPM_PUBKEY was failed\n");
+                    rc = writePtsTlv(ctx, STDOUT_FILENO, TPM_PUBKEY);  // ifm.c
+                    if (rc < 0) {
+                        ERROR("Send TPM_PUBKEY answer failed - quit");
+                        terminate = 1;
                     }
                 }
                 break;
@@ -283,13 +296,14 @@ int collector2(OPENPTS_CONFIG *conf) {
                 /* check */
                 if (read_tlv->length != 20) {
                     ERROR("Bad NONCE, len = %d != 20\n", read_tlv->length);
+                    terminate = 1;
                 } else {
                     /* set nonce */
                     ctx->nonce->nonce_length = 20;
                     if (ctx->nonce->nonce != NULL) {
-                        free(ctx->nonce->nonce);
+                        xfree(ctx->nonce->nonce);
                     }
-                    ctx->nonce->nonce = malloc(20);
+                    ctx->nonce->nonce = xmalloc_assert(20);
                     memcpy(ctx->nonce->nonce, read_tlv->value, 20);
                     DEBUG_IFM("nonce[%d] : \n", ctx->nonce->nonce_length);
                 }
@@ -302,31 +316,24 @@ int collector2(OPENPTS_CONFIG *conf) {
                 ERROR("PTS IF-M type 0x%08x is not supported\n", read_tlv->type);
                 INFO("send OPENPTS_ERROR msg to verifier, then terminate the conenction");
                 ctx->ifm_errno = PTS_UNRECOGNIZED_COMMAND;
-                if (ctx->ifm_strerror != NULL) free(ctx->ifm_strerror);
-                ctx->ifm_strerror = smalloc("Unknown message type");
-
-                len = writePtsTlv(ctx, STDOUT, OPENPTS_ERROR);  // ifm.c
-                if (len < 0) {
-                    ERROR("send OPENPTS_ERROR was failed\n");
+                if (ctx->ifm_strerror != NULL) {
+                    xfree(ctx->ifm_strerror);
                 }
+                ctx->ifm_strerror = smalloc_assert("Unknown message type");
+                rc = writePtsTlv(ctx, STDOUT_FILENO, OPENPTS_ERROR);  // ifm.c
                 terminate = 1;
                 break;
-            }  // switch case
+        }  // switch case
 
-            /* free TLV */
-            if (read_tlv != NULL) {
-                freePtsTlv(read_tlv);
-            }
-        }  // GET loop
-        /* out */
-        /* free TLV for break out */
+        /* free TLV */
         if (read_tlv != NULL) {
             freePtsTlv(read_tlv);
         }
-    } while (terminate == 0);
+    }
 
-  // err:
-    return (-1);
+    freePtsContext(ctx);
+
+    return 0;
 }
 
 
@@ -334,33 +341,31 @@ int collector2(OPENPTS_CONFIG *conf) {
  * Usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(1,  1, "OpenPTS Collector\n\n"));
-    fprintf(stderr, NLS(1,  2, "Usage: ptsc [options] [command]\n\n"));
-    fprintf(stderr, NLS(1,  3, "Commands: (forgrand)\n"));
-    fprintf(stderr, NLS(1,  4, "  -i                    Initialize PTS collector\n"));
-    fprintf(stderr, NLS(1,  5, "  -t                    Self test (attestation)\n"));
-    fprintf(stderr, NLS(1,  6, "  -s                    Startup (selftest + timestamp)\n"));
-    fprintf(stderr, NLS(1,  7, "  -u                    Update the RM\n"));
+    fprintf(stderr, NLS(MS_OPENPTS,  OPENPTS_COLLECTOR_USAGE_1, "OpenPTS Collector\n\n"
+                    "Usage: ptsc [options] [command]\n\n"
+                    "Commands: (foreground)\n"
+                    "  -i                    Initialize PTS collector\n"
+                    "  -t                    Self test (attestation)\n"
+                    "  -s                    Startup (selftest + timestamp)\n"
+                    "  -u                    Update the RM\n"
+                    "  -e                    Clear PTS collector\n"));
 #ifdef CONFIG_AUTO_RM_UPDATE
-    fprintf(stderr, NLS(1,  8, "  -U                    Update the RM (auto)\n"));
+    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_USAGE_2,
+                    "  -U                    Update the RM (auto)\n"));
 #endif
-    fprintf(stderr, NLS(1,  9, "  -D                    Display the configuration\n"));
-    fprintf(stderr, NLS(1, 10, "  -m                    IF-M mode\n"));
-    fprintf(stderr, "\n");
-    fprintf(stderr, NLS(1, 11, "Miscellaneous:\n"));
-    fprintf(stderr, NLS(1, 12, "  -h                    Show this help message\n"));
-    fprintf(stderr, NLS(1, 13, "  -v                    Verbose mode. Multiple -v options increase the verbosity.\n"));
-    fprintf(stderr, "\n");
-    fprintf(stderr, NLS(1, 14, "Options:\n"));
-    fprintf(stderr, NLS(1, 15, "  -c configfile         Set configuration file. defalt is %s\n"), PTSC_CONFIG_FILE);
-    // fprintf(stderr, NLS(1, 14, "  -f                    foreground, run in the foreground."));
-    // fprintf(stderr, NLS(1, 15, "                        Logging goes to stderr " "instead of syslog.\n"));
-    fprintf(stderr, NLS(1, 16, "  -P name=value         Set properties.\n"));
-    fprintf(stderr, NLS(1, 17, "  -R                    Remove RMs\n"));
-    fprintf(stderr, NLS(1, 18, "  -z                    Use the SRK secret to all zeros (20 bytes of zeros)"));
-    // fprintf(stderr, "  -d dirname            Debug\n");
-
-    fprintf(stderr, "\n");
+    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_USAGE_3,
+                    "  -D                    Display the configuration\n"
+                    "  -m                    IF-M mode\n"
+                    "\n"
+                    "Miscellaneous:\n"
+                    "  -h                    Show this help message\n"
+                    "  -v                    Verbose mode. Multiple -v options increase the verbosity.\n"
+                    "\n"
+                    "Options:\n"
+                    "  -c configfile         Set configuration file. defalt is %s\n"
+                    "  -P name=value         Set properties.\n"
+                    "  -R                    Remove RMs\n"
+                    "  -z                    Set the SRK secret to all zeros (20 bytes of zeros)\n"), PTSC_CONFIG_FILE);
 }
 
 enum COMMAND {
@@ -370,6 +375,7 @@ enum COMMAND {
     COMMAND_SELFTEST,
     COMMAND_UPDATE,
     COMMAND_STARTUP,
+    COMMAND_CLEAR,
 #ifdef CONFIG_AUTO_RM_UPDATE
     COMMAND_AUTO_UPDATE,
 #endif
@@ -393,37 +399,130 @@ OPENPTS_PROPERTY *getPropertyFromArg(char *arg) {
         prop = newProperty(name, value);
         return prop;
     } else {
-        fprintf(stderr, "bad property %s\n", arg);
+        ERROR("bad property %s\n", arg);
         return NULL;
     }
 }
 
+#ifdef AIX
+#define LOCK_DIR    "/var/ptsc/"
+#else  // LINUX
+#define LOCK_DIR    "/var/lib/openpts/"
+#endif
+#define LOCK_FILE    LOCK_DIR "ptsc.lock"
+
+void ptsc_lock(void) {
+    int fd, oldmask, oldgrp = 0;
+    struct group *grpent = NULL;
+    struct group grp;
+    char *buf = NULL;
+    size_t buf_len;
+    int rc;
+
+    if (geteuid() == 0) {
+        // grpent = getgrnam(PTSC_GROUP_NAME);
+        // if (grpent) {
+        //     oldgrp = getegid();
+        //     setegid(grpent->gr_gid);
+        // }
+        buf_len = sysconf(_SC_GETGR_R_SIZE_MAX);
+        if (buf_len < 0) {
+            buf_len = 4096;
+        }
+        buf = xmalloc(buf_len);
+        if (buf == NULL) {
+            ERROR("no memory");
+            exit(1);
+        }
+
+        rc = getgrnam_r(PTSC_GROUP_NAME, &grp, buf, buf_len, &grpent);
+        if (rc != 0) {
+            // TODO
+            exit(1);
+        }
+        if (grpent == NULL) {
+            // TODO
+            exit(1);
+        }
+        oldgrp = getegid();
+        setegid(grp.gr_gid);
+    }
+
+    oldmask = umask(0);
+    if (mkdir(LOCK_DIR, 0775) < 0 && errno != EEXIST) {
+        perror(LOCK_DIR);
+        exit(1);
+    }
+    if (grpent) {
+        chmod(LOCK_DIR, 02775);
+        setegid(oldgrp);
+    }
+    fd = open(LOCK_FILE, O_RDWR | O_CREAT | O_TRUNC, 0660);
+    if (fd < 0) {
+        perror(LOCK_FILE);
+        exit(1);
+    }
+    umask(oldmask);
+    if (lockf(fd, F_LOCK, 0) < 0) {
+        perror(LOCK_FILE);
+        exit(1);
+    }
+
+    if (buf != NULL) xfree(buf);
+}
 
 static int preparePriv() {
-    int rc = 0;
-    struct group *ptsc_grp;
+    int rc = PTS_SUCCESS;
+    struct group *ptsc_grp = NULL;
+    struct group grp;
+    char *buf = NULL;
+    size_t buf_len;
 
 #if 0
     /* check UID */
-    if ((ptscd_pwd = getpwnam(PTSCD_USER_NAME)) == NULL) {
+    if ((ptscd_pwd = getpwnam_r(PTSCD_USER_NAME)) == NULL) {
         ERROR("Looking up for user %s", PTSCD_USER_NAME);
         return PTS_FATAL;
     }
 #endif
 
     /* check GID */
-    ptsc_grp = getgrnam(PTSC_GROUP_NAME);  // TODO use getgrnam_r
-    if (ptsc_grp == NULL) {
-        ERROR("Looking up for group %s", PTSC_GROUP_NAME);
+    // ptsc_grp = getgrnam(PTSC_GROUP_NAME);  // TODO use getgrnam_r
+    // if (ptsc_grp == NULL) {
+    //     ERROR("Looking up for group (name=%s) fail", PTSC_GROUP_NAME);
+    //     return PTS_FATAL;
+    // }
+    buf_len = sysconf(_SC_GETGR_R_SIZE_MAX);
+    if (buf_len < 0) {
+        buf_len = 4096;
+    }
+    buf = xmalloc(buf_len);
+    if (buf == NULL) {
+        ERROR("no memory");
         return PTS_FATAL;
     }
 
+    rc = getgrnam_r(PTSC_GROUP_NAME, &grp, buf, buf_len, &ptsc_grp);
+    if (rc != 0) {
+        ERROR("getgrnam_r");
+        rc = PTS_FATAL;
+        goto free;
+    }
+    if (ptsc_grp == NULL) {
+        ERROR("ptsc_grp == NULL");
+        rc = PTS_FATAL;
+        goto free;
+    }
+
     /* set GID */
-    rc = setgid(ptsc_grp->gr_gid);
+    // rc = setgid(ptsc_grp->gr_gid);
+    rc = setgid(grp.gr_gid);
     if (rc < 0) {
         // TODO do not need for IF-M access (read only)
-        ERROR("Switching group fail. %s\n", strerror(errno));
-        return PTS_FATAL;
+        ERROR("Switching group (gid=%d) fail. %s\n", grp.gr_gid, strerror(errno));
+        // TODO 20110927 FAIL
+        rc = PTS_FATAL;
+        goto free;
     }
 
 #if 0
@@ -434,8 +533,10 @@ static int preparePriv() {
 #endif
 
     /*  */
+  free:
+    if (buf != NULL) xfree(buf);
 
-    return PTS_SUCCESS;
+    return rc;
 }
 
 /**
@@ -444,14 +545,39 @@ static int preparePriv() {
  * flag 0:read, 1:read/write
  */
 static int chmodDir(char *dirpath, int flag) {
-    int rc;
+    int rc = PTS_SUCCESS;
     struct group *ptsc_grp;
+    struct group grp;
+    char *buf = NULL;
+    size_t buf_len;
+
 
     /* check GID */
-    ptsc_grp = getgrnam(PTSC_GROUP_NAME);  // TODO use getgrnam_r
-    if (ptsc_grp == NULL) {
-        ERROR("Looking up for group %s", PTSC_GROUP_NAME);
+    // ptsc_grp = getgrnam(PTSC_GROUP_NAME);  // TODO use getgrnam_r
+    // if (ptsc_grp == NULL) {
+    //     ERROR("Looking up for group %s", PTSC_GROUP_NAME);
+    //     return PTS_FATAL;
+    // }
+    buf_len = sysconf(_SC_GETGR_R_SIZE_MAX);
+    if (buf_len < 0) {
+        buf_len = 4096;
+    }
+    buf = xmalloc(buf_len);
+    if (buf == NULL) {
+        ERROR("no memory");
         return PTS_FATAL;
+    }
+
+    rc = getgrnam_r(PTSC_GROUP_NAME, &grp, buf, buf_len, &ptsc_grp);
+    if (rc != 0) {
+        ERROR("getgrnam_r");
+        rc = PTS_FATAL;
+        goto free;
+    }
+    if (ptsc_grp == NULL) {
+        ERROR("ptsc_grp == NULL");
+        rc = PTS_FATAL;
+        goto free;
     }
 
     /* chgep */
@@ -460,7 +586,8 @@ static int chmodDir(char *dirpath, int flag) {
             -1,
             ptsc_grp->gr_gid);
     if (rc <0) {
-        return PTS_FATAL;
+        rc = PTS_FATAL;
+        goto free;
     }
 
     if (flag == 0) {
@@ -469,7 +596,8 @@ static int chmodDir(char *dirpath, int flag) {
                 S_IRUSR | S_IWUSR | S_IXUSR |
                 S_IRGRP | S_IXGRP);
         if (rc <0) {
-            return PTS_FATAL;
+            rc = PTS_FATAL;
+            goto free;
         }
     } else {  // write
         rc = chmod(
@@ -477,10 +605,14 @@ static int chmodDir(char *dirpath, int flag) {
                 S_IRUSR | S_IWUSR | S_IXUSR |
                 S_IRGRP | S_IWGRP | S_IXGRP);
         if (rc <0) {
-            return PTS_FATAL;
+            rc = PTS_FATAL;
+            goto free;
         }
     }
-    return PTS_SUCCESS;
+
+  free:
+    if (buf != NULL) xfree(buf);
+    return rc;
 }
 
 
@@ -489,31 +621,22 @@ static int chmodDir(char *dirpath, int flag) {
  */
 int main(int argc, char *argv[]) {
     int rc;
-    int debug = 0;
     OPENPTS_CONFIG *conf = NULL;
     char *config_filename = NULL;
     int command = COMMAND_STATUS;
     int c;
+    int force = 0;
 #ifdef CONFIG_AUTO_RM_UPDATE
     int remove = 0;
 #endif
+    // extern int logLocation;
+    // void setLogLocation(int ll);
 
     /* properties by cmdline  */
     OPENPTS_PROPERTY *prop;
 
-#ifdef ENABLE_NLS
-#ifdef HAVE_CATGETS
-    /* catgets */
-    // nl_catd catd;
-    catd = catopen("ptscd", 0);
-#else
-    /* gettext */
-    setlocale(LC_ALL, "");
-    bindtextdomain(PACKAGE, LOCALEDIR);
-    textdomain(PACKAGE);
-#endif
-#endif
-
+#if 0
+    initCatalog();
 
     // TODO chgrp
     rc = preparePriv();
@@ -521,15 +644,15 @@ int main(int argc, char *argv[]) {
         ERROR("preparePriv fail\n");
     }
 
-
     conf = newPtsConfig();
     if (conf == NULL) {
         ERROR("internal error\n");  // TODO(munetoh)
         return -1;
     }
+#endif
 
     /* command option */
-    while ((c = getopt(argc, argv, "ic:uUDtsmvP:Rzh")) != EOF) {
+    while ((c = getopt(argc, argv, "ic:uUefDtsmvP:Rzh")) != EOF) {
         switch (c) {
         case 'i':
             command = COMMAND_INIT;
@@ -551,15 +674,26 @@ int main(int argc, char *argv[]) {
         case 's':
             command = COMMAND_STARTUP;
             break;
+        case 'e':
+            command = COMMAND_CLEAR;
+            break;
+        case 'f':
+            force = 1;
+            break;
         case 'm':
             command = COMMAND_IFM;
-            setenv("OPENPTS_SYSLOG", "1", 1);
+            /* not everything should go to syslog - on some systems
+               this could go to a log file - let default behaviour
+               in log.c decide this */
+            // setLogLocation(OPENPTS_LOG_SYSLOG, NULL);
+            // OK setLogLocation(OPENPTS_LOG_CONSOLE, NULL);  // OK
+            // setLogLocation(OPENPTS_LOG_FILE, "/var/log/ptsc.log");  // OK call this before any out
             break;
         case 'c':
             config_filename = optarg;
             break;
         case 'v':
-            debug++;
+            incVerbosity();
             break;
         case 'R':
 #ifdef CONFIG_AUTO_RM_UPDATE
@@ -571,16 +705,21 @@ int main(int argc, char *argv[]) {
             break;
         case 'P':
             prop = getPropertyFromArg(optarg);
-            if (start == NULL) {
-                start = prop;
-                end = prop;
-                prop->next = NULL;
+            if (prop != NULL) {
+                if (start == NULL) {
+                    start = prop;
+                    end = prop;
+                    prop->next = NULL;
+                } else {
+                    end->next = prop;
+                    end = prop;
+                    prop->next = NULL;
+                }
+                prop_num++;
             } else {
-                end->next = prop;
-                end = prop;
-                prop->next = NULL;
+                usage();
+                return -1;
             }
-            prop_num++;
             break;
         case 'h':
             /* help */
@@ -593,34 +732,57 @@ int main(int argc, char *argv[]) {
     argc -= optind;
     argv += optind;
 
-
-    /* DEBUG level, 1,2,3 */
-    if (debug > 2) {
-        verbose = DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG;
-        INFO("verbose mode 3");
-    } else if (debug > 1) {
-        verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
-        INFO("verbose mode 2");
-    } else if (debug > 0) {
-        verbose = DEBUG_FLAG;
-        INFO("verbose mode 1");
+    if (command == COMMAND_IFM) {
+        setLogLocation(OPENPTS_LOG_SYSLOG, NULL);
+    } else {
+        setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
     }
 
-    // verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
+    initCatalog();
+
+    // TODO chgrp
+    rc = preparePriv();
+    if (rc != PTS_SUCCESS) {
+        ERROR("preparePriv fail\n");
+    }
+
+    conf = newPtsConfig();
+    if (conf == NULL) {
+        ERROR("internal error\n");  // TODO(munetoh)
+        return -1;
+    }
+
+
+    /* DEBUG level, 1,2,3 */
+#ifdef OPENPTS_DEBUG
+    setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
+#else
+    /* set the DEBUG level, 1,2,3 */
+    if (getVerbosity() > 2) {
+        setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG | DEBUG_FSM_FLAG | DEBUG_CAL_FLAG );
+    } else if (getVerbosity() > 1) {
+        setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG);
+    } else if (getVerbosity() > 0) {
+        setDebugFlags(DEBUG_FLAG);
+    }
+#endif
+
+    DEBUG("VERBOSITY (%d), DEBUG mode (0x%x)\n", getVerbosity(), getDebugFlags());
+
+    ptsc_lock();
 
     /* load config */
     if (config_filename == NULL) {
-        DEBUG("config file               : %s\n", PTSC_CONFIG_FILE);
+        // this goto stdout and bad with "-m"
+        // VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE, "Config file: %s\n"), PTSC_CONFIG_FILE);
         rc = readPtsConfig(conf, PTSC_CONFIG_FILE);
         if (rc != PTS_SUCCESS) {
-            ERROR("read config file, '%s' was failed - abort\n", PTSC_CONFIG_FILE);
             goto free;
         }
     } else {
-        DEBUG("config file               : %s\n", config_filename);
+        // VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE, "Config file: %s\n"), config_filename);
         rc = readPtsConfig(conf, config_filename);
         if (rc != PTS_SUCCESS) {
-            ERROR("read config file, '%s' was failed - abort\n", config_filename);
             goto free;
         }
     }
@@ -628,32 +790,49 @@ int main(int argc, char *argv[]) {
     /* check dir */
     // TODO root only
 
-    /* check IR dir */
-    if (checkDir(conf->ir_dir) != PTS_SUCCESS) {
-        rc = makeDir(conf->ir_dir);
-        if (rc != PTS_SUCCESS) {
-            ERROR("Can not create the dir to store IR, %s\n", conf->ir_dir);
-            goto free;
-        }
-        rc = chmodDir(conf->ir_dir, 1);
-        if (rc != PTS_SUCCESS) {
-            ERROR("Can not create the dir to store IR, %s\n", conf->ir_dir);
-            goto free;
+    /* only do this when needed */
+    if (command != COMMAND_STATUS) {
+        /* check IR dir */
+        if (checkDir(conf->ir_dir) != PTS_SUCCESS) {
+            rc = makeDir(conf->ir_dir);
+            if (rc != PTS_SUCCESS) {
+                ERROR("Can not create the dir to store IR, %s\n", conf->ir_dir);
+                goto free;
+            }
+            rc = chmodDir(conf->ir_dir, 1);
+            if (rc != PTS_SUCCESS) {
+                ERROR("Can not create the dir to store IR, %s\n", conf->ir_dir);
+                goto free;
+            }
         }
     }
 
-    /* initialize the  collector */
+    /* initialize the PTS collector */
     if (command == COMMAND_INIT) {
-        DEBUG("Initialize Reference Manifest\n");
+        VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_INIT_RM, "Initializing Reference Manifest\n"));
         rc = init(conf, prop_num, start, end);
         /* Exit */
         goto free;
     }
 
+    /* Clear the PTS collector */
+    if (command == COMMAND_CLEAR) {
+        VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR, "Clear PTS collector\n"));
+        rc = clear(conf, force);
+        /* Exit */
+        goto free;
+    }
+
+
     /* RM UUID */
     rc = readOpenptsUuidFile(conf->rm_uuid);
     if (rc != PTS_SUCCESS) {
-        ERROR("read RM UUID file %s was failed, initialize ptscd first\n", conf->rm_uuid->filename);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_RM_UUID,
+               "Failed to read the Reference Manifest UUID file '%s':\n"
+               "Please ensure on the target that:\n"
+               "  * ptsc has been initialized (ptsc -i)\n"
+               "  * you (uid==%d) are allowed to attest (i.e. a member of group '%s')"),
+               conf->rm_uuid->filename, getuid(), PTSC_GROUP_NAME);
         goto free;
     } else {
         DEBUG("conf->str_rm_uuid         : %s\n", conf->rm_uuid->str);
@@ -671,10 +850,12 @@ int main(int argc, char *argv[]) {
     /* load RSA PUB key */
     // TODO single key => multiple keys?
 #ifdef CONFIG_NO_TSS
-        TODO("CONFIG_NO_TSS, no TPM_PUBKEY\n");
-        conf->pubkey_length = 0;
-        conf->pubkey = NULL;
+    TODO("CONFIG_NO_TSS, no TPM_PUBKEY\n");
+    conf->pubkey_length = 0;
+    conf->pubkey = NULL;
 #else
+    /* only do this when needed */
+    if (command != COMMAND_STATUS) {
         /* get PUBKEY */
         rc = getTssPubKey(
                 conf->uuid->uuid,
@@ -687,7 +868,11 @@ int main(int argc, char *argv[]) {
         if (rc != TSS_SUCCESS) {
             ERROR("getTssPubKey() fail rc=0x%x srk password mode=%d, key =%s\n",
                 rc, conf->srk_password_mode, conf->uuid->str);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE,
+                "TSS communications failure. Is tcsd running?\n"));
+            goto free;
         }
+    }
 #endif
 
     /* run */
@@ -695,11 +880,12 @@ int main(int argc, char *argv[]) {
 #ifdef CONFIG_AUTO_RM_UPDATE
         case COMMAND_AUTO_UPDATE:
             /* update by command, but HUP is better */
-            DEBUG("Update Reference Manifest\n");
+            VERBOSE(1, "Updating Reference Manifest\n");
+            //addDebugFlags(DEBUG_CAL_FLAG);
             /* update RMs */
             rc = update(conf, prop_num, start, end, remove);
             if (rc != PTS_SUCCESS) {
-                printf("update was fail\n");
+                ERROR("update was fail\n");
             }
             break;
 #endif
@@ -709,40 +895,40 @@ int main(int argc, char *argv[]) {
         case COMMAND_SELFTEST:
             rc = selftest(conf, prop_num, start, end);
             if (rc == OPENPTS_SELFTEST_SUCCESS) {
-                printf("selftest - OK\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SUCCESS, "selftest - OK\n"));
             } else if (rc == OPENPTS_SELFTEST_RENEWED) {
-                printf("selftest - Renewed\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_RENEWED, "selftest - Renewed\n"));
             } else if (rc == OPENPTS_SELFTEST_FALLBACK) {
-                printf("selftest -> fallback - TBD\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FALLBACK, "selftest - fallback\n"));
             } else if (rc == OPENPTS_SELFTEST_FAILED) {
-                printf("selftest -> fail\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAIL, "selftest - fail\n"));
             } else {
-                printf("TBD\n");
+                ERROR("TBD\n");
             }
             break;
         case COMMAND_STARTUP:
             rc = selftest(conf, prop_num, start, end);
             if (rc == OPENPTS_SELFTEST_SUCCESS) {
-                INFO("selftest - OK\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SUCCESS, "selftest - OK\n"));
                 /* timestamp */
                 extendEvCollectorStart(conf);  // collector.c
             } else if (rc == OPENPTS_SELFTEST_RENEWED) {
-                INFO("selftest - Renewed\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_RENEWED, "selftest - Renewed\n"));
                 /* timestamp */
                 extendEvCollectorStart(conf);
             } else if (rc == OPENPTS_SELFTEST_FALLBACK) {
-                INFO("selftest -> fallback - TBD\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FALLBACK, "selftest - fallback\n"));
                 /* timestamp */
                 extendEvCollectorStart(conf);
             } else if (rc == OPENPTS_SELFTEST_FAILED) {
-                INFO("selftest -> fail\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAIL, "selftest - fail\n"));
                 if (conf->autoupdate == 1) {
-                    TODO("selftest was failed, Try to generate new manifest\n");
+                    ERROR("selftest failed, trying to generate a new manifest\n");
                     /* del RM_UUID */
                     conf->rm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
                     if (conf->rm_uuid->uuid != NULL) freeUuid(conf->rm_uuid->uuid);
-                    if (conf->rm_uuid->str != NULL) free(conf->rm_uuid->str);
-                    if (conf->rm_uuid->time != NULL) free(conf->rm_uuid->time);
+                    if (conf->rm_uuid->str != NULL) xfree(conf->rm_uuid->str);
+                    if (conf->rm_uuid->time != NULL) xfree(conf->rm_uuid->time);
                     conf->rm_uuid->uuid = NULL;
                     conf->rm_uuid->str = NULL;
                     conf->rm_uuid->time = NULL;
@@ -750,31 +936,34 @@ int main(int argc, char *argv[]) {
                     /* gen new RM_UUID and RM */
                     rc = newrm(conf, prop_num, start, end);
                     if (rc != PTS_SUCCESS) {
-                        ERROR("newrm() fail\n");
+                        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_FAIL,
+                            "Failed to generated a reference manifest\n"));
                         goto free;
                     }
                     rc = selftest(conf, prop_num, start, end);
                     if (rc == OPENPTS_SELFTEST_SUCCESS) {
-                        DEBUG("selftest - OK\n");
-                        INFO("selftest was faild, new manifests has been generated\n");
+                        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SUCCESS, "selftest - OK\n"));
+                        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_SUCCESS,
+                            "Successfully generated the reference manifest\n"));
                     } else if (rc == OPENPTS_SELFTEST_RENEWED) {
-                        DEBUG("selftest - Renewed\n");
+                        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_RENEWED, "selftest - Renewed\n"));
                     } else {
-                        TODO("TBD\n");
+                        ERROR("TBD\n");
                     }
                 } else {
-                    INFO("selftest was faild, but keep existing manifests\n");
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_WONT,
+                        "selftest failed, keeping existing manifests as requested by configuration\n"));
                 }
             } else {
-                INFO("TBD\n");
+                ERROR("TBD\n");
             }
             break;
         case COMMAND_UPDATE:
             /* del RM_UUID */
             conf->rm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
             if (conf->rm_uuid->uuid != NULL) freeUuid(conf->rm_uuid->uuid);
-            if (conf->rm_uuid->str != NULL) free(conf->rm_uuid->str);
-            if (conf->rm_uuid->time != NULL) free(conf->rm_uuid->time);
+            if (conf->rm_uuid->str != NULL) xfree(conf->rm_uuid->str);
+            if (conf->rm_uuid->time != NULL) xfree(conf->rm_uuid->time);
             conf->rm_uuid->uuid = NULL;
             conf->rm_uuid->str = NULL;
             conf->rm_uuid->time = NULL;
@@ -789,7 +978,8 @@ int main(int argc, char *argv[]) {
             /* self test */
             rc = selftest(conf, prop_num, start, end);
             if (rc == OPENPTS_SELFTEST_SUCCESS) {
-                INFO("manifest generation - success\n");
+                VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_SUCCESS,
+                    "Successfully generated the reference manifest\n"));
             } else if (rc == OPENPTS_SELFTEST_RENEWED) {
                 TODO("TBD\n");
             } else {
@@ -805,7 +995,7 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-  free:
+ free:
     freePtsConfig(conf);
 
     return rc;

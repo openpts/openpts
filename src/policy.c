@@ -42,6 +42,7 @@
 #include <string.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 /**
  * Free policy chain
@@ -55,7 +56,7 @@ int freePolicyChain(OPENPTS_POLICY *pol) {
         freePolicyChain(pol->next);
     }
 
-    free(pol);
+    xfree(pol);
 
     return PTS_SUCCESS;
 }
@@ -80,7 +81,8 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
     /* open */
 
     if ((fp = fopen(filename, "r")) == NULL) {
-        ERROR("File %s open was failed\n", filename);
+        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_POLICY_FILE_OPEN_FAILED,
+            "Failed to open policy file '%s'\n"), filename);
         return -1;
     }
 
@@ -104,7 +106,7 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
             DEBUG("%4d [%s]=[%s]\n", cnt, name, value);
 
             /* new  */
-            pol = malloc(sizeof(OPENPTS_POLICY));
+            pol = xmalloc(sizeof(OPENPTS_POLICY));
             if (pol == NULL) {
                 ERROR("no mem");
                 cnt = -1;  // return -1;
@@ -182,7 +184,7 @@ int checkPolicy(OPENPTS_CONTEXT *ctx) {
         /* status */
         if (prop == NULL) {
             /* no prop -> Unknown */
-            addReason(ctx, "[POLICY-L%03d] %s is missing",
+            addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_POLICY_MISSING, "[POLICY-L%03d] %s is missing"),
                 pol->line,
                 pol->name);
             unknown++;
@@ -191,7 +193,11 @@ int checkPolicy(OPENPTS_CONTEXT *ctx) {
                 // hit
                 valid++;
             } else {
-                addReason(ctx, "[POLICY-L%03d] %s is %s, not %s",
+                int pcrIndex = -1;
+                if ( 0 == strncmp("tpm.quote.pcr.", pol->name, 14) ) {
+                    pcrIndex = atoi(&pol->name[14]);
+                }
+                addReason(ctx, pcrIndex, NLS(MS_OPENPTS, OPENPTS_POLICY_WRONG, "[POLICY-L%03d] %s is %s, not %s"),
                     pol->line,
                     pol->name, prop->value, pol->value);
                 invalid++;
@@ -226,19 +232,20 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
 
     pol = ctx->policy_start;
 
-    printf("   id ");  // id
-    printf("  name                  ");  // name
-    printf("  value(exp)  ");  // value
-    printf("  value(prop) ");  // value
-    printf("  status ");  // status
-    printf("\n");
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_POLICY,
+           "  id "
+           "  name "
+           "  value(exp) "
+           "  value(prop) "
+           "  status "
+           "\n"));
 
-    printf("------");  // id
-    printf("-------------------------");  // name
-    printf("-------------");  // value
-    printf("-------------");  // value
-    printf("----------");  // value
-    printf("\n");
+    OUTPUT("------");  // id
+    OUTPUT("-------------------------");  // name
+    OUTPUT("-------------");  // value
+    OUTPUT("-------------");  // value
+    OUTPUT("----------");  // value
+    OUTPUT("\n");
 
     while (pol != NULL) {
         /* look up prop */
@@ -259,11 +266,11 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
 
         /* print */
 #if 0
-        printf("%5d %-25s %-13s\n",
+        OUTPUT("%5d %-25s %-13s\n",
             pol->num,
             pol->name, pol->value);
 #else
-        printf("%5d %-35s %-28s %-28s %-10s\n",
+        OUTPUT("%5d %-35s %-28s %-28s %-10s\n",
             pol->num,
             pol->name, pol->value,
             proc_value, status);
@@ -271,7 +278,7 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
         pol = pol->next;
     }
 
-    printf("\n");
+    OUTPUT("\n");
 
     return 0;
 }

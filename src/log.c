@@ -32,6 +32,16 @@
  *
  *
  *  LOG("msg",format)
+ *
+ *  OUTPUT   console/stderr
+ *  VERBOSE  console/stderr
+ *  ASSERT   console/stderr
+ *
+ *  ERROR    console|file|syslog
+ *  INFO     console|file|syslog
+ *  TODO     console|file|syslog
+ *  DEBUG    console|file|syslog
+ *
  */
 
 #include <stdio.h>
@@ -40,13 +50,207 @@
 #include <stdarg.h> /* va_ */
 #include <syslog.h>
 
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/shm.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <openpts_log.h>
+
+
 #define SYSLOG_BUF_SIZE 1024
 
+
+
+#ifdef AIX
+
+#ifndef DEFAULT_LOG_LOCATION
+#define DEFAULT_LOG_LOCATION   OPENPTS_LOG_FILE
+#endif
+
+#ifndef DEFAULT_LOG_FILE
+#define DEFAULT_LOG_FILE       "/var/adm/ras/openpts/log"
+#endif
+
+#define DEFAULT_LOG_FILE_PERM  (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)
+#define DEFAULT_LOG_FILE_SIZE  0x100000
+#else  // AIX
+#define DEFAULT_LOG_LOCATION   OPENPTS_LOG_FILE
+#define DEFAULT_LOG_FILE       "~/.openpts/log"
+#define DEFAULT_LOG_FILE_PERM  (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)
+#define DEFAULT_LOG_FILE_SIZE  0x100000
+#endif
+
+#ifdef ENABLE_NLS
+#ifdef HAVE_CATGETS
+#include <nl_types.h>
+nl_catd catd;
+#endif
+#endif
+
+/* external variables for logging macros */
+int debugBits = 0;
+int verbosity = 0;
+
+/* global variables for this file */
+static int logLocation = OPENPTS_LOG_UNDEFINED;
+static char logFileName[256];
+static FILE *logFile = NULL;
+static int logFileFd = -1;
+static int alreadyWarnedAboutLogFile = 0;
+
+static int openLogFile(void);
+static void addToLog(char* log_entry);
+
+/**
+ *
+ */
+void initCatalog(void) {
+#ifdef ENABLE_NLS
+    (void) setlocale(LC_ALL, "");
+#ifdef HAVE_CATGETS
+    catd = catopen(MF_OPENPTS, NL_CAT_LOCALE);
+#else
+    bindtextdomain(PACKAGE, LOCALEDIR);
+    textdomain(PACKAGE);
+#endif
+#endif
+}
+
+/**
+ *
+ */
+static void expandLogFilePath(char *unexpandedPath) {
+    char *srcPtr = unexpandedPath;
+    char *destPtr = logFileName;
+    char *destEnd = destPtr + 255; /* leave space for '\0' */
+    char *homeDir = NULL;
+    int homeDirLen = 0;
+
+    while ((destPtr < destEnd) && ('\0' != srcPtr[0])) {
+        int destCharsWritten;
+        if ('~' == srcPtr[0]) {
+            int destSpaceLeft = destEnd - destPtr;
+            if (NULL == homeDir) {
+                homeDir = getenv("HOME");
+                homeDirLen = strlen(homeDir);
+            }
+            destCharsWritten = MIN(destSpaceLeft, homeDirLen);
+            memcpy(destPtr, homeDir, destCharsWritten);
+        } else {
+            destPtr[0] = srcPtr[0];
+            destCharsWritten = 1;
+        }
+        srcPtr++;
+        destPtr += destCharsWritten;
+    }
+
+    destPtr[0] = '\0';
+}
+
+/**
+ *
+ */
+static void determineLogLocation(void) {
+    char *tempLogFileName = NULL;
+
+    if (getenv("OPENPTS_LOG_SYSLOG") != NULL) {
+        logLocation = OPENPTS_LOG_SYSLOG;
+    } else if (getenv("OPENPTS_LOG_CONSOLE") != NULL) {
+        logLocation = OPENPTS_LOG_CONSOLE;
+        logFile = stderr;
+    } else if ((tempLogFileName = getenv("OPENPTS_LOG_FILE")) != NULL) {
+        logLocation = OPENPTS_LOG_FILE;
+    } else if (getenv("OPENPTS_LOG_NULL") != NULL) {
+        logLocation = OPENPTS_LOG_NULL;
+    } else {
+        logLocation = DEFAULT_LOG_LOCATION;
+        tempLogFileName = DEFAULT_LOG_FILE;
+    }
+
+    if (logLocation == OPENPTS_LOG_FILE) {
+        expandLogFilePath(tempLogFileName);
+    }
+}
+
+/**
+ * Force custom log location by app itself
+ */
+void setLogLocation(int ll, char *filename) {
+    logLocation = ll;
+
+    if (ll == OPENPTS_LOG_FILE) {
+        expandLogFilePath(filename);
+    }
+}
+
+/**
+ *
+ */
+static void createLogEntry(
+    int priority,
+    char *buf,
+    int bufLen,
+    const char *format,
+    va_list list) {
+
+    const char *priorities[1 + LOG_DEBUG] = {
+        "[EMERGENCY] ",
+        "[ALERT] ",
+        "[CRITICAL] ",
+        "[ERROR] ",
+        "[WARNING] ",
+        "[NOTICE] ",
+        "[INFO] ",
+        "[DEBUG] "
+    };
+    /* number of chars written (not including '\0') */
+    int charsWritten = 0;
+
+    if (priority > LOG_DEBUG) {
+        charsWritten = snprintf(buf, bufLen, "[UNKNOWN (%d)] ", priority);
+    } else {
+        charsWritten = snprintf(buf, bufLen, "%s", priorities[priority]);
+    }
+
+    if ( charsWritten >= bufLen ) {
+        /* string was truncated */
+        return;
+    }
+
+    charsWritten += vsnprintf(&buf[charsWritten], bufLen - charsWritten, format, list);
+
+    if ( charsWritten >= bufLen ) {
+        /* string was truncated */
+        return;
+    }
+
+    if ( (charsWritten + 1) < bufLen ) {
+        buf[charsWritten] = '\n';
+        buf[++charsWritten] = '\0';
+    }
+}
+
+/**
+ *
+ */
 void writeLog(int priority, const char *format, ...) {
     int len;
     char *format2 = NULL;
     va_list list;
-    char buf[SYSLOG_BUF_SIZE];
+    // char buf[SYSLOG_BUF_SIZE];
+    va_start(list, format);
+
+
+    if (logLocation == OPENPTS_LOG_UNDEFINED) {
+        determineLogLocation();
+    }
+
+    if (logLocation == OPENPTS_LOG_NULL) {
+        return;
+    }
 
     // TODO \n
     /* remove \n */
@@ -54,11 +258,57 @@ void writeLog(int priority, const char *format, ...) {
     if (format[len - 1] == '\n') {
         // format2 = malloc(len + 1);  // +1 space
         format2 = (char *) malloc(len);
-        memcpy(format2, format, len - 1);
-        format2[len - 1] = 0;
-        format = format2;
+        if (format2 != NULL) {
+            memcpy(format2, format, len - 1);
+            format2[len - 1] = 0;
+            format = format2;
+        }
     }
 
+    switch (logLocation) {
+    case OPENPTS_LOG_SYSLOG:
+        {
+            char buf[SYSLOG_BUF_SIZE];
+
+            /* daemon -> syslog */
+            openlog("ptsc", LOG_NDELAY|LOG_PID, LOG_LOCAL5);
+
+            /* vsyslog is not supported by some unix */
+            vsnprintf(buf, SYSLOG_BUF_SIZE, format, list);
+            if (priority >= LOG_DEBUG) priority = LOG_INFO;
+            syslog(priority, "%s", buf);
+
+            closelog();
+            break;
+        }
+    case OPENPTS_LOG_FILE:
+        {
+            if ( -1 == openLogFile() ) {
+                if ( !alreadyWarnedAboutLogFile ) {
+                    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_CANNOT_OPEN_LOGFILE,
+                        "Unable to open logfile '%s'\n"), logFileName);
+                    alreadyWarnedAboutLogFile = 1;
+                }
+                /* fall through to next case */
+            } else {
+                char logEntry[1024];
+                createLogEntry(priority, logEntry, 1024, format, list);
+                addToLog(logEntry);
+                break;
+            }
+        }
+    case OPENPTS_LOG_CONSOLE:
+        {
+            char logEntry[1024];
+            createLogEntry(priority, logEntry, 1024, format, list);
+            fprintf(stderr, "%s", logEntry);
+            break;
+        }
+    // TODO default?
+    }
+
+
+#if 0
     va_start(list, format);
 
     // if (getenv("PTSCD_DAEMON") != NULL) {
@@ -86,8 +336,28 @@ void writeLog(int priority, const char *format, ...) {
         vfprintf(stdout, format, list);
         fprintf(stdout, "\n");
     }
-
     va_end(list);
+#endif
+
+
     if (format2 != NULL) free(format2);
 }
+
+
+
+static int openLogFile(void) {
+    if (logFileFd != -1) {
+        return logFileFd;
+    }
+
+    logFileFd = open(logFileName, O_RDWR|O_CREAT|O_TRUNC, DEFAULT_LOG_FILE_PERM);
+    return logFileFd;
+}
+
+static void addToLog(char* log_entry) {
+    /* Warnings are treated as errors so need this ugly code to build */
+    ssize_t n = write(logFileFd, log_entry, strlen(log_entry));
+    (void)n;
+}
+
 

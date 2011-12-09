@@ -36,28 +36,25 @@
 #include <string.h>
 #include <netdb.h>
 #include <errno.h>
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-
 #include <sys/stat.h>
 #include <fcntl.h>
 
 #include <openpts.h>
-
-int verbose = 0; /**< DEBUG  */
+// #include <log.h>
 
 /**
  * usage
  */
 void usage(void) {
-    fprintf(stderr, "usage: uml2dot [options] UMLfile \n");
-    fprintf(stderr, "\t-o output\tset output file (default is stdout)\n");
-    fprintf(stderr, "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n");
-
-    fprintf(stderr, "\n");
+    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UML2DOT_USAGE,
+            "usage: uml2dot [options] UMLfile \n"
+            "\t-o output\tset output file (default is stdout)\n"
+            "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n"
+            "\n"));
 }
 
 /**
@@ -70,13 +67,12 @@ int main(int argc, char *argv[]) {
     char *input_filename = NULL;
     char *output_filename = NULL;
 
-    verbose = 0;
+    initCatalog();
 
     while ((c = getopt(argc, argv, "do:h")) != EOF) {
         switch (c) {
         case 'd':
-            verbose = 1;
-
+            setVerbosity(1);
             break;
         case 'o':
             output_filename = optarg;
@@ -95,7 +91,7 @@ int main(int argc, char *argv[]) {
     /* Read UML(XML) file */
 
     if (input_filename == NULL) {
-        printf("ERROR missing XMLfile\n");
+        printf(NLS(MS_OPENPTS, OPENPTS_UML2DOT_MISSING_XML_FILE, "ERROR missing XMLfile\n"));
         usage();
         return -1;
     }
@@ -105,7 +101,7 @@ int main(int argc, char *argv[]) {
     rc = readUmlModel(ctx, argv[0]);
 
     if (rc != 0) {
-        printf("ERROR\n");
+        ERROR("ERROR\n");
         goto error;
     }
 
@@ -113,7 +109,7 @@ int main(int argc, char *argv[]) {
     rc = writeDotModel(ctx, output_filename);
 
     if (rc != 0) {
-        printf("ERROR\n");
+        ERROR("ERROR\n");
         goto error;
     }
 

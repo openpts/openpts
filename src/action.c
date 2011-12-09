@@ -54,6 +54,7 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
+// #include <log.h>
 
 typedef struct {
     char *name;
@@ -84,9 +85,7 @@ typedef struct {
  */
 int resetPCR(OPENPTS_CONTEXT *ctx, char *value) {
     int rc;
-    int pcr_index = -1;
-
-    pcr_index = atoi(value);
+    int pcr_index = atoi(value);
 
     DEBUG_FSM("resetPCR(%d)\n", pcr_index);
     rc = resetTpmPcr(&ctx->tpm, pcr_index);
@@ -134,7 +133,6 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     /* value = eventdata */
     value = snmalloc((char *)event->rgbEvent, event->ulEventLength);
     if (value == NULL) {
-        ERROR("no memory\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -148,7 +146,7 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
 
     updateProperty(ctx, name, value);
 
-    free(value);
+    xfree(value);
 
     return PTS_SUCCESS;
 }
@@ -190,6 +188,17 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
     // DEBUG("event data size = %d\n", event->ulEventLength);
     // printHex("", event->rgbEvent, event->ulEventLength, "\n");
 
+    /* check EventData */
+    if (event->ulEventLength == 0) {
+        ERROR("addBIOSSpecificProperty - Bad IML, ulEventLength is 0.");
+        return PTS_FATAL;
+    }
+    if (&event->rgbEvent[0] == NULL) {
+        ERROR("addBIOSSpecificProperty - Bad IML, rgbEvent is NULL.");
+        return PTS_FATAL;
+    }
+
+
     event_id = byte2uint32(&event->rgbEvent[0]);
     event_length = byte2uint32(&event->rgbEvent[4]);
 
@@ -202,13 +211,11 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
                 int buf_len;
 
                 /* SMBIOS */
-                // bios.smbios=base64()
                 ctx->conf->smbios_length = event_length;
                 ctx->conf->smbios = &event->rgbEvent[8];
 
                 /* base64 */
                 buf = encodeBase64(
-                        //(unsigned char *)b64,
                         (unsigned char *)ctx->conf->smbios,
                         ctx->conf->smbios_length,
                         &buf_len);
@@ -223,7 +230,7 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
                     updateProperty(ctx, "bios.smbios", buf);
                 }
                 // rc = 0;
-                free(buf);
+                xfree(buf);
             }
             break;
         default:
@@ -337,18 +344,16 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
         return PTS_INTERNAL_ERROR;
     }
     updateProperty(ctx, "kernel.initrd.digest", buf);
-    free(buf);
+    xfree(buf);
 
     // updateProperty(ctx, "kernel.initrd.filename", (char*)event->rgbEvent);
     /* add \n */
-    buf = malloc(event->ulEventLength + 1);
-    if (buf == NULL) {
-        ERROR("no memory\n");
-    } else {
+    buf = xmalloc(event->ulEventLength + 1);
+    if (buf != NULL) {
         memcpy(buf, event->rgbEvent, event->ulEventLength);
         buf[event->ulEventLength] = 0;
         updateProperty(ctx, "kernel.initrd.filename", buf);
-        free(buf);
+        xfree(buf);
     }
 
     return PTS_SUCCESS;  // -1;
@@ -428,7 +433,7 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
     // DEBUG("setLinuxKernelCmdlineAssertion  event data[%d] = %s\n", event->ulEventLength, event->rgbEvent);
 
     /* free */
-    sfree(cmdline);
+    xfree(cmdline);
     return PTS_SUCCESS;
 }
 
@@ -499,38 +504,38 @@ int validateImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventW
         /* MISS */
         updateProperty(ctx, "ima.aggregate", "invalid");
 
-        if (verbose && DEBUG_FLAG) {
+        if (isDebugFlagSet(DEBUG_FLAG)) {
             int j;
             BYTE pcr[SHA1_DIGEST_SIZE];
             TODO("validateImaAggregate - "
                  "Wrong IMA aggregete - check FSM, "
                  "maybe it should use validateOldImaAggregate()\n");
-            printf("PCR   =  ");
+            OUTPUT("PCR   =  ");
             for (j = 0; j < (int) event->ulPcrValueLength; j ++) {
-                printf("%02x", event->rgbPcrValue[j]);
+                OUTPUT("%02x", event->rgbPcrValue[j]);
             }
-            printf("\n");
+            OUTPUT("\n");
 
             for (i = 0; i < 8; i++) {
-                printf("PCR[%d] = ", i);
+                OUTPUT("PCR[%d] = ", i);
                 getTpmPcrValue(&ctx->tpm, i, pcr);
                 for (j = 0; j < SHA1_DIGEST_SIZE; j ++) {
-                    printf("%02x", pcr[j]);
+                    OUTPUT("%02x", pcr[j]);
                 }
-                printf("\n");
+                OUTPUT("\n");
             }
 
-            printf("EDATA  = ");
+            OUTPUT("EDATA  = ");
             for (j = 0; j < SHA1_DIGEST_SIZE; j ++) {
-                printf("%02x", event->rgbEvent[j]);
+                OUTPUT("%02x", event->rgbEvent[j]);
             }
-            printf(" (extended value)\n");
+            OUTPUT(" (extended value)\n");
 
-            printf("AGGREG = ");
+            OUTPUT("AGGREG = ");
             for (j = 0; j < SHA1_DIGEST_SIZE; j ++) {
-                printf("%02x", digest[j]);
+                OUTPUT("%02x", digest[j]);
             }
-            printf(" (cal value)\n");
+            OUTPUT(" (cal value)\n");
         }
     }
 
@@ -683,15 +688,15 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
                 return PTS_INTERNAL_ERROR;
             }
             updateImaProperty(ctx, md->name, buf, "valid");
-            free(buf);
+            xfree(buf);
 #endif
             eventWrapper->status = OPENPTS_RESULT_VALID;
-            free(name);
+            xfree(name);
             return PTS_SUCCESS;
         } else if (rc == 1) {
             // IGNORE
             eventWrapper->status = OPENPTS_RESULT_IGNORE;  // TODO
-            free(name);
+            xfree(name);
             return PTS_SUCCESS;
         } else if (rc == 2) {
             // MISS
@@ -708,27 +713,27 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
             }
             updateImaProperty(ctx, name, buf, "unknown");  // action.c
             eventWrapper->status = OPENPTS_RESULT_UNKNOWN;
-            free(buf);
+            xfree(buf);
 
             /* add to */
             {
                 char *hex;
                 hex = getHexString(event->rgbEvent, SHA1_DIGEST_SIZE);
-                addReason(ctx, "[IMA-AIDE] missing, digest(hex) = %s, name = \"%s\"", hex, name);
-                free(hex);
+                addReason(ctx, -1, "[IMA-AIDE] missing, digest(hex) = %s, name = \"%s\"", hex, name);
+                xfree(hex);
             }
-            free(name);
+            xfree(name);
             return PTS_SUCCESS;
         } else {
             // ERROR
             ERROR("validateImaMeasurement - checkEventByAide fail, rc - %d\n", rc);
             eventWrapper->status = PTS_INTERNAL_ERROR;  // OPENPTS_RESULT_INT_ERROR;
-            free(name);
+            xfree(name);
             return PTS_INTERNAL_ERROR;  // -1;
         }
         // TODO free md
         // freeAideMetadata(md);
-        // free(name);
+        // xfree(name);
     } else if (ctx->conf->ima_validation_mode == OPENPTS_VALIDATION_MODE_IIDB) {
         ERROR("validateImaMeasurementNG w/ IIDB - NA\n");
     }
@@ -793,20 +798,18 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
     TSS_PCR_EVENT *event;
     OPENPTS_EVENT_COLLECTOR_START *start = NULL;
 
-    /* check */
-    if (ctx == NULL) {
-        ERROR("startCollector() - ctx is null\n");
-        return PTS_INTERNAL_ERROR;
-    }
+    ASSERT(NULL != ctx, "startCollector() - ctx is null\n");
 
     if (ctx->target_conf == NULL) {
         /* collector */
-        ERROR("startCollector() - target_conf is NULL, collector side - skip\n");
+        /* If this is an ERROR should we be returning SUCCESS?? */
+        ERROR("startCollector() - collector side - skip\n");
         return PTS_SUCCESS;
     }
 
     if (ctx->target_conf->uuid == NULL) {
         /* collector */
+        /* If this is an ERROR should we be returning SUCCESS?? */
         ERROR("startCollector() - uuid is NULL\n");
         return PTS_SUCCESS;
     }
@@ -892,7 +895,7 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
             goto free;
         }
         ERROR("EventData: %s\n", buf);
-        free(buf);
+        xfree(buf);
 
         memcpy(&start->pts_version, &ctx->target_conf->pts_version, 4);
         memcpy(&start->collector_uuid, ctx->target_conf->uuid->uuid, 16);
@@ -910,9 +913,9 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
             goto free;
         }
         ERROR("EventData: %s\n", buf);
-        free(buf);
+        xfree(buf);
   free:
-        free(start);
+        xfree(start);
     }
 
     return rc;  // TODO
@@ -940,7 +943,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 data = (OPENPTS_EVENT_TBOOT_SINIT_V6 *) event->rgbEvent;
                 buf = getHexString(data->sinit_hash, 20);
                 updateProperty(ctx, "intel.txt.tboot.sinit.hash.hex", buf);
-                free(buf);
+                xfree(buf);
                 // TODO add rest
             }
             break;
@@ -951,7 +954,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 data = (OPENPTS_EVENT_TBOOT_SINIT_V7 *) event->rgbEvent;
                 buf = getHexString(data->sinit_hash, 32);
                 updateProperty(ctx, "intel.txt.tboot.sinit.hash.hex", buf);
-                free(buf);
+                xfree(buf);
                 // TODO add rest
             }
             break;
@@ -962,7 +965,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 data = (OPENPTS_EVENT_TBOOT_STM_V6 *) event->rgbEvent;
                 buf = getHexString(data->bios_acm_id, 20);
                 updateProperty(ctx, "intel.txt.tboot.bios.acm.id.hex", buf);
-                free(buf);
+                xfree(buf);
                 // TODO add rest
             }
             break;
@@ -973,10 +976,10 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 data = (OPENPTS_EVENT_TBOOT_POLCTL *) event->rgbEvent;
                 buf = getHexString(data->pol_control, 4);
                 updateProperty(ctx, "intel.txt.tboot.pol.control.hex", buf);
-                free(buf);
+                xfree(buf);
                 buf = getHexString(data->pol_hash, 20);
                 updateProperty(ctx, "intel.txt.tboot.pol.hash.hex", buf);
-                free(buf);
+                xfree(buf);
                 // TODO add rest
             }
             break;
@@ -985,7 +988,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 char *buf;
                 buf = getHexString(event->rgbPcrValue, 20);
                 updateProperty(ctx, "intel.txt.tboot.mle.hash.hex", buf);
-                free(buf);
+                xfree(buf);
             }
             break;
 
@@ -1010,14 +1013,14 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                         event->ulPcrIndex);
                     value = getHexString(data->command_hash, 20);
                     updateProperty(ctx, name, value);
-                    free(value);
+                    xfree(value);
 
                     snprintf(name, sizeof(name),
                         "intel.txt.tboot.pcr.%d.module.file.hash.hex",
                         event->ulPcrIndex);
                     value = getHexString(data->file_hash, 20);
                     updateProperty(ctx, name, value);
-                    free(value);
+                    xfree(value);
 
                     snprintf(name, sizeof(name),
                         "intel.txt.tboot.pcr.%d.module.command",
@@ -1025,11 +1028,11 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                     ptr = (BYTE *)&event->rgbEvent[40];
                     size = *(UINT32*) ptr;
                     ptr += 4;
-                    value = malloc(size + 1);
+                    value = xmalloc_assert(size + 1);
                     memcpy(value, (BYTE *)ptr, size);
                     value[size] = 0;
                     updateProperty(ctx, name, value);
-                    free(value);
+                    xfree(value);
 
                     snprintf(name, sizeof(name),
                         "intel.txt.tboot.pcr.%d.module.filename",
@@ -1037,11 +1040,11 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                     ptr += size;
                     size = *(UINT32*) ptr;
                     ptr += 4;
-                    value = malloc(size + 1);
+                    value = xmalloc_assert(size + 1);
                     memcpy(value, (BYTE *)ptr, size);
                     value[size] = 0;
                     updateProperty(ctx, name, value);
-                    free(value);
+                    xfree(value);
                 }
             }
             break;
@@ -1262,15 +1265,8 @@ int doActivity(
     int i;
 
     /* check */
-    if (ctx == NULL) {
-        ERROR("doActivity - ctx is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
-    }
-
-    if (action == NULL) {
-        ERROR("doActivity - action is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
-    }
+    ASSERT(NULL != ctx, "doActivity - ctx is NULL\n");
+    ASSERT(NULL != action, "doActivity - action is NULL\n");
 
     if (eventWrapper == NULL) {
         /* NULL event, skip evaluation */
@@ -1281,7 +1277,6 @@ int doActivity(
     /* copy */
     buf = smalloc(action);
     if (buf == NULL) {
-        ERROR("doActivity - no memory\n");
         return PTS_FATAL;  // -1;
     }
 
@@ -1354,11 +1349,11 @@ int doActivity(
 
     /* error */
     ERROR("unknown action '%s'\n", action);
-    addReason(ctx, "[FSM] Unknown action='%s'", action);
+    addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_ACTION_UNKNOWN, "[FSM] Unknown action='%s'"), action);
     rc = OPENPTS_FSM_ERROR;
 
   end:
-    if (buf != NULL) free(buf);
+    if (buf != NULL) xfree(buf);
     /* check the RC */
     if (rc == OPENPTS_FSM_ERROR) {
         DEBUG("doActivity rc = %d\n", rc);

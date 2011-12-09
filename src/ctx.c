@@ -35,7 +35,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+
 #include <openssl/sha.h>
+
 #include <openpts.h>
 
 /**
@@ -46,9 +49,8 @@ OPENPTS_CONTEXT  * newPtsContext(OPENPTS_CONFIG *conf) {
 
     DEBUG_CAL("newPtsContext - start\n");
 
-    ctx = (OPENPTS_CONTEXT *) malloc(sizeof(OPENPTS_CONTEXT));
+    ctx = (OPENPTS_CONTEXT *) xmalloc(sizeof(OPENPTS_CONTEXT));
     if (ctx == NULL) {
-        ERROR("newPtsContext - no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_CONTEXT));
@@ -62,7 +64,6 @@ OPENPTS_CONTEXT  * newPtsContext(OPENPTS_CONFIG *conf) {
     /* IF-M nonce */
     ctx->nonce = newNonceContext();
     if (ctx->nonce == NULL) {
-        ERROR("newPtsContext - no memory\n");
         goto error;
     }
 
@@ -71,7 +72,7 @@ OPENPTS_CONTEXT  * newPtsContext(OPENPTS_CONFIG *conf) {
     return ctx;
 
   error:
-    free(ctx);
+    xfree(ctx);
     return NULL;
 }
 
@@ -82,6 +83,7 @@ OPENPTS_CONTEXT  * newPtsContext(OPENPTS_CONFIG *conf) {
  * TODO(munetoh) check memory leak
  */
 int freePtsContext(OPENPTS_CONTEXT *ctx) {
+    int i;
     DEBUG_CAL("freePtsContext - start\n");
 
     if (ctx == NULL) {
@@ -95,31 +97,31 @@ int freePtsContext(OPENPTS_CONTEXT *ctx) {
     /* PCRs - free, malloc at ifm.c */
     if (ctx->pcrs != NULL) {
         if (ctx->pcrs->pcr_select_byte != NULL) {
-            free(ctx->pcrs->pcr_select_byte);
+            xfree(ctx->pcrs->pcr_select_byte);
         }
-        free(ctx->pcrs);
+        xfree(ctx->pcrs);
     }
 
     /* Quote - free, malloc at ifm.c, ir.c */
     if (ctx->validation_data != NULL) {
         if (ctx->validation_data->rgbExternalData != NULL) {
-            free(ctx->validation_data->rgbExternalData);
+            xfree(ctx->validation_data->rgbExternalData);
         }
         if (ctx->validation_data->rgbData != NULL) {
-            free(ctx->validation_data->rgbData);
+            xfree(ctx->validation_data->rgbData);
         }
         if (ctx->validation_data->rgbValidationData != NULL) {
-            free(ctx->validation_data->rgbValidationData);
+            xfree(ctx->validation_data->rgbValidationData);
         }
-        free(ctx->validation_data);
+        xfree(ctx->validation_data);
     }
 
     /* UUIDs */
     if (ctx->uuid != NULL) {
-        free(ctx->uuid);
+        xfree(ctx->uuid);
     }
     if (ctx->str_uuid != NULL) {
-        free(ctx->str_uuid);
+        xfree(ctx->str_uuid);
     }
 
     /* IML - reset & free */
@@ -144,7 +146,7 @@ int freePtsContext(OPENPTS_CONTEXT *ctx) {
 
     /* IF-M - free */
     if (ctx->read_msg != NULL) {
-        free(ctx->read_msg);
+        xfree(ctx->read_msg);
     }
 
     if (ctx->nonce != NULL) {
@@ -152,11 +154,28 @@ int freePtsContext(OPENPTS_CONTEXT *ctx) {
     }
 
     if (ctx->target_conf_filename != NULL) {
-        free(ctx->target_conf_filename);
+        xfree(ctx->target_conf_filename);
+    }
+
+    for (i = 0; i < MAX_RM_NUM; i++) {
+        if (ctx->compIDs[i].SimpleName != NULL) xfree(ctx->compIDs[i].SimpleName);
+        if (ctx->compIDs[i].ModelName != NULL) xfree(ctx->compIDs[i].ModelName);
+        if (ctx->compIDs[i].ModelNumber != NULL) xfree(ctx->compIDs[i].ModelNumber);
+        if (ctx->compIDs[i].ModelSerialNumber != NULL) xfree(ctx->compIDs[i].ModelSerialNumber);
+        if (ctx->compIDs[i].ModelSystemClass != NULL) xfree(ctx->compIDs[i].ModelSystemClass);
+        if (ctx->compIDs[i].VersionMajor != NULL) xfree(ctx->compIDs[i].VersionMajor);
+        if (ctx->compIDs[i].VersionMinor != NULL) xfree(ctx->compIDs[i].VersionMinor);
+        if (ctx->compIDs[i].VersionBuild != NULL) xfree(ctx->compIDs[i].VersionBuild);
+        if (ctx->compIDs[i].VersionString != NULL) xfree(ctx->compIDs[i].VersionString);
+        if (ctx->compIDs[i].MfgDate != NULL) xfree(ctx->compIDs[i].MfgDate);
+        if (ctx->compIDs[i].PatchLevel != NULL) xfree(ctx->compIDs[i].PatchLevel);
+        if (ctx->compIDs[i].DiscretePatches != NULL) xfree(ctx->compIDs[i].DiscretePatches);
+        if (ctx->compIDs[i].VendorID_Name != NULL) xfree(ctx->compIDs[i].VendorID_Name);
+        if (ctx->compIDs[i].VendorID_Value != NULL) xfree(ctx->compIDs[i].VendorID_Value);
     }
 
     /* free */
-    free(ctx);
+    xfree(ctx);
 
     DEBUG_CAL("freePtsContext - done\n");
 
@@ -182,8 +201,8 @@ char * getAlgString(int type) {
 
 /**
  * properties
- *  platform.model.pcr.1=bios_pcr1.uml
- *  runtime.model.pcr.4=grub_pcr4.uml
+ *  rm.model.0.pcr.1=bios_pcr1.uml
+ *  rm.model.0.pcr.4=grub_pcr4.uml
  *
  * snapshots
  *   level 0 = Platform(BIOS)
@@ -205,7 +224,6 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
 
     char buf[FSM_BUF_SIZE];
     char buf2[FSM_BUF_SIZE];
-    // char *np = NULL;
     char *eqp = NULL;
     int pcr_index;
     int level;
@@ -225,12 +243,22 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
 
     /* Open prop file */
     if ((fp = fopen(filename, "r")) == NULL) {
-        ERROR("File %s open was failed\n", filename);  // TODO(munetoh)
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_CONFIG_MISSING, "Cannot open config file '%s'\n"), filename);
         return PTS_OS_ERROR;
     }
 
     /* parse */
     while (fgets(buf, FSM_BUF_SIZE, fp) != NULL) {  // read line
+        len = strlen(buf);
+
+        /* check for line length */
+        if (len == FSM_BUF_SIZE) {
+            ERROR("Line too long in %s\n", filename);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+            rc = PTS_FATAL;
+            goto error;
+        }
+
         /* ignore comment, null line */
         if (buf[0] == '#') {
             // comment
@@ -238,8 +266,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
             /* this is property line */
 
             /* remove CR */
-            len = strlen(buf);
-            if (buf[len-1] == 0x0a) buf[len-1] = 0;
+            if (buf[len-1] == '\n') buf[len-1] = '\0';
 
             model_filename = NULL;
 
@@ -248,12 +275,16 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
             if (strstr(buf, "platform.model.") != NULL) {
                 ERROR("ptsc.conf has old format <=v0.2.3 %s\n", filename);
                 ERROR("change platform.model to rm.model.0\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+                rc = PTS_FATAL;
                 goto error;
             }
 
             if (strstr(buf, "runtime.model.") != NULL) {
                 ERROR("ptsc.conf has old format <=v0.2.3 %s\n", filename);
                 ERROR("change runtime.model to rm.model.1\n");
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+                rc = PTS_FATAL;
                 goto error;
             }
 #endif
@@ -261,8 +292,6 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
             //           1111111
             // 01234567890123456
             // rm.model.0.pcr.7
-            // if ((np = strstr(buf, "rm.model.")) != NULL) {  // 11
-            // np = 0;
             if (!strncmp(buf, "rm.model.", 9)) {
                 level = (int) strtol(&buf[9], NULL, 10);
                 pcr_index = (int) strtol(&buf[15], NULL, 10);
@@ -292,7 +321,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
                 /* setup the NEW snapshots, BIOS, GRUB */
                 ss = getNewSnapshotFromTable(ctx->ss_table, pcr_index, level);
                 if (ss == NULL) {
-                    ERROR("FSM has been assigned at %d %d  %s. check the config file\n",
+                    ERROR("FSM has been assigned at lvl=%d pcr=%d  %s. check the config file\n",
                         level, pcr_index, buf);
                     rc = PTS_FATAL;
                     goto error;
@@ -305,25 +334,34 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
                 // ss->pcrIndex = pcr_index;
 
                 // 2011-02-07 SM added
-                if (ctx->pcrs != NULL) {
+                if (ctx->pcrs != NULL && OPENPTS_PCR_INDEX != pcr_index) {
                     ctx->pcrs->pcr_select[pcr_index] = 1;
                 }
 
                 DEBUG_FSM("platform(level%d) pcr[%d] [%s] ss=%p\n",
                     level,
                     pcr_index,
-                    conf->platform_model_filename[pcr_index],
+                    conf->model_filename[level][pcr_index],
                     ss);
             }
         } else {
-            /* not find = */
-            // ERROR("= not found");
-            // goto err;
+            /* accept only blank lines */
+            char *ptr;
+
+            ptr = buf;
+            while (*ptr != '\0') {
+                if (!isspace(*ptr)) {
+                    ERROR("Syntax error in %s\n", filename);
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+                    rc =  PTS_FATAL;
+                    goto error;
+                }
+                ptr++;
+            }
         }
     }
 
   error:
-    // ERROR("readFsmFromPropFile() - Error\n");
     fclose(fp);
 
     return rc;
