@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="f35e7442-26bb-11e1-97bf-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="f35e7442-26bb-11e1-97bf-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="f35e7442-26bb-11e1-97bf-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(10)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_LINUXIMA_AGGREGATE" name="EV_LINUXIMA_AGGREGATE">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_LINUXIMA_AGGREGATE_do" name="validateImaAggregate()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_LINUXIMA_FILE" name="EV_LINUXIMA_FILE">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_LINUXIMA_FILE_do" name="validateImaMeasurement()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(linuxima.pcr.10.transition,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_LINUXIMA_AGGREGATE" name="FSM_START_to_EV_LINUXIMA_AGGREGATE" source="FSM_START" target="EV_LINUXIMA_AGGREGATE">
+        <ownedRule xmi:id="FSM_START_to_EV_LINUXIMA_AGGREGATE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_LINUXIMA_AGGREGATE_spec">
+            <body>eventtype==0x0x00</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_LINUXIMA_AGGREGATE_to_EV_LINUXIMA_FILE" name="EV_LINUXIMA_AGGREGATE_to_EV_LINUXIMA_FILE" source="EV_LINUXIMA_AGGREGATE" target="EV_LINUXIMA_FILE">
+        <ownedRule xmi:id="EV_LINUXIMA_AGGREGATE_to_EV_LINUXIMA_FILE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_LINUXIMA_AGGREGATE_to_EV_LINUXIMA_FILE_spec">
+            <body>eventtype==0x0x00</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_LINUXIMA_FILE_to_EV_LINUXIMA_FILE" name="EV_LINUXIMA_FILE_to_EV_LINUXIMA_FILE" source="EV_LINUXIMA_FILE" target="EV_LINUXIMA_FILE">
+        <ownedRule xmi:id="EV_LINUXIMA_FILE_to_EV_LINUXIMA_FILE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_LINUXIMA_FILE_to_EV_LINUXIMA_FILE_spec">
+            <body>eventtype==0x0x00</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_LINUXIMA_FILE_to_FSM_VERIFIED" name="EV_LINUXIMA_FILE_to_FSM_VERIFIED" source="EV_LINUXIMA_FILE" target="FSM_VERIFIED">
+        <ownedRule xmi:id="EV_LINUXIMA_FILE_to_FSM_VERIFIED_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_LINUXIMA_FILE_to_FSM_VERIFIED_spec">
+            <body>last==true</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

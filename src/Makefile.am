@@ -40,7 +40,9 @@ endif
 
 
 sbin_PROGRAMS = ptsc
-bin_PROGRAMS = openpts uml2dot rm2dot ir2text ptsevt ptsevtd
+bin_PROGRAMS = openpts uml2dot rm2dot ir2text
+# AIX
+# ptsevt ptsevtd
 
 #
 # Common Library

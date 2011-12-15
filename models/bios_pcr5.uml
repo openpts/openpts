@@ -1,193 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="8e307714-2775-11e0-81f9-001f160c9c28">
-  <packagedElement xmi:type="uml:StateMachine" xmi:id="KjupaeY0" name="">
-    <region xmi:id="_9N3agpSvEdy22t6WWvUZtA" name="bios">
-
-      <subvertex xmi:type="uml:State" xmi:id="EV_IPL_PARTITION_DATA" name="EV_IPL_PARTITION_DATA" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_9N3ah9SvEdy22t6WWvUZtA" name="flashFSM()"/>
-      </subvertex>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="d17185e6-22b4-11e1-8893-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="d17185e6-22b4-11e1-8893-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="d17185e6-22b4-11e1-8893-001f160c9c28_region" name="firmware">
       <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
-      <subvertex xmi:type="uml:State" xmi:id="BIOS_PCR5_Verified" name="BIOS_PCR5_Verified" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_9N3ag5SvEdy22t6WWvUZtA" name="setAssertion(bios.pcr.5.integrity, valid)"/>
-      </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="PCR5_START" name="PCR5_START" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_9N3ahJSvEdy22t6WWvUZtA" name="resetPCR(5)"/>
-      </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR_5" name="EV_SEPARATOR_5" visibility="public"/>
       <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
-      <subvertex xmi:type="uml:State" xmi:id="PCR5_HOLD" name="PCR5_HOLD" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_9N3ahZSvEdy22t6WWvUZtA" name="transitFSM()"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(5)"/>
       </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_VARIABLE_BOOT" name="EV_EFI_VARIABLE_BOOT"/>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_ACTION" name="EV_EFI_ACTION"/>
-
-      <subvertex xmi:type="uml:State" xmi:id="EV_ACTION" name="EV_ACTION">
-        <doActivity xmi:type="uml:Activity" xmi:id="EV_ACTION_do" name="flashFSM()"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_IPL_PARTITION_DATA" name="EV_IPL_PARTITION_DATA"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(bios.pcr.5.integrity,valid)"/>
       </subvertex>
-
-<!-- IBM System X UEFI -->
-      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR_IBM" name="EV_SEPARATOR_IBM" visibility="public"/>
-
-
-
-      <transition xmi:id="Kk02jZs0" name="CRTM_START_trans" visibility="public" kind="local" source="Start" target="PCR5_START"/>
-
-      <transition xmi:id="IPL5_HOLD_trans_fromPD" name="IPL5_HOLD_trans_fromPD" visibility="public" kind="local" source="EV_IPL_PARTITION_DATA" target="BIOS_PCR5_Verified"/>
-
-      <transition xmi:id="EV_SEPARATOR_5_trans" name="EV_SEPARATOR_5_trans" visibility="public" kind="local" source="PCR5_START" target="EV_SEPARATOR_5" guard="_9N3aiZSvEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_9N3aiZSvEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_9N3aipSvEdy22t6WWvUZtA" name="">
-            <body>eventtype == 4</body>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_SEPARATOR" name="FSM_START_to_EV_SEPARATOR" source="FSM_START" target="EV_SEPARATOR">
+        <ownedRule xmi:id="FSM_START_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="IPL5_HOLD_trans" name="IPL5_HOLD_trans" visibility="public" kind="local" source="EV_SEPARATOR_5" target="PCR5_HOLD" guard="_9N3ajJSvEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_9N3ajJSvEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_9N3ajZSvEdy22t6WWvUZtA" name="">
-            <body>eventtype != 0x0e</body>
+      <transition xmi:id="EV_SEPARATOR_to_EV_IPL_PARTITION_DATA" name="EV_SEPARATOR_to_EV_IPL_PARTITION_DATA" source="EV_SEPARATOR" target="EV_IPL_PARTITION_DATA">
+        <ownedRule xmi:id="EV_SEPARATOR_to_EV_IPL_PARTITION_DATA_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_SEPARATOR_to_EV_IPL_PARTITION_DATA_spec">
+            <body>eventtype==0x0e</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="L1gFw2k0" visibility="public" kind="local" source="PCR5_HOLD" target="BIOS_PCR5_Verified">
-        <name xsi:nil="true"/>
-      </transition>
-      <transition xmi:id="KoByXxb0" visibility="public" kind="local" source="BIOS_PCR5_Verified" target="Final">
-        <name xsi:nil="true"/>
-      </transition>
-      <transition xmi:id="EV_IPL_PARTITION_DATA_trans" name="EV_IPL_PARTITION_DATA_trans" visibility="public" kind="local"  
-        source="EV_SEPARATOR_5" target="EV_IPL_PARTITION_DATA" guard="_9N3akZSvEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_9N3akZSvEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_9N3akpSvEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x0e</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-<!-- IBM UEFI -->
-      <transition xmi:id="START_to_IBM05" name="START_to_IBM05" visibility="public" kind="local" source="PCR5_START" target="EV_EFI_VARIABLE_BOOT" guard="START_to_IBM05_guard">
-        <ownedRule xmi:id="START_to_IBM05_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="START_to_IBM05_spec" name="">
-            <body>eventtype == 0x80000002</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition xmi:id="IBM05_loop" name="IBM05_loop" visibility="public" kind="local" source="EV_EFI_VARIABLE_BOOT" target="EV_EFI_VARIABLE_BOOT" guard="IBM05_loop_guard">
-        <ownedRule xmi:id="IBM05_loop_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="IBM05_loop_spec" name="">
-            <body>eventtype == 0x80000002</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition xmi:id="IBM05_to_IBM07" name="IBM05_to_IBM07" visibility="public" kind="local" source="EV_EFI_VARIABLE_BOOT" target="EV_EFI_ACTION" guard="IBM05_to_IBM07_guard">
-        <ownedRule xmi:id="IBM05_to_IBM07_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="IBM05_to_IBM07_spec" name="">
-            <body>eventtype == 0x80000007</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition xmi:id="IBM07_to_SEP" name="IIBM07_to_SEP" visibility="public" kind="local" source="EV_EFI_ACTION" target="EV_SEPARATOR_IBM" guard="IBM07_to_SEP_guard">
-        <ownedRule xmi:id="IBM07_to_SEP_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="IBM07_to_SEP_spec" name="">
-            <body>eventtype == 0x04</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition xmi:id="SEP_to_ACTION" name="SEP_to_ACTION" visibility="public" kind="local" source="EV_SEPARATOR_IBM" target="EV_ACTION" guard="SEP_to_ACTION_guard">
-        <ownedRule xmi:id="SEP_to_ACTION_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="SEP_to_ACTION_spec" name="">
-            <body>eventtype == 0x05</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-<!-- Lenovo UEFI -->
-      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR_LENOVO" name="EV_SEPARATOR_LENOVO" visibility="public"/>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_ACTION_LENOVO" name="EV_EFI_ACTION_LENOVO" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="EV_EFI_ACTION_doact" name="addBIOSAction()"/>
-      </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO" name="EV_EFI_VARIABLE_BOOT_LENOVO"/>
-
-<!-- Lenovo UEFI -->
-      <transition  visibility="public" kind="local"
-        source="PCR5_START"
-        target="EV_EFI_ACTION_LENOVO"
-        xmi:id="PCR5_START_to_EV_EFI_ACTION_LENOVO"
-        name="PCR5_START_to_EV_EFI_ACTION_LENOVO"
-        guard="PCR5_START_to_EV_EFI_ACTION_LENOVO_guard">
-        <ownedRule xmi:id="PCR5_START_to_EV_EFI_ACTION_LENOVO_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="PCR5_START_to_EV_EFI_ACTION_LENOVO_spec">
-            <body>eventtype == 0x80000007</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition  visibility="public" kind="local"
-        source="EV_EFI_ACTION_LENOVO"
-        target="EV_SEPARATOR_LENOVO"
-        xmi:id="EV_EFI_ACTION_LENOVO_to_EV_SEPARATOR_LENOVO"
-        name="EV_EFI_ACTION_LENOVO_to_EV_SEPARATOR_LENOVO"
-        guard="EV_EFI_ACTION_LENOVO_to_EV_SEPARATOR_LENOVO_guard">
-        <ownedRule xmi:id="EV_EFI_ACTION_LENOVO_to_EV_SEPARATOR_LENOVO_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_EFI_ACTION_LENOVO_to_EV_SEPARATOR_LENOVO_spec">
-            <body>eventtype == 0x04</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition  visibility="public" kind="local"
-        source="EV_SEPARATOR_LENOVO"
-        target="EV_EFI_VARIABLE_BOOT_LENOVO"
-        xmi:id="EV_SEPARATOR_LENOVO_to_EV_EFI_VARIABLE_BOOT_LENOVO"
-        name="EV_SEPARATOR_LENOVO_to_EV_EFI_VARIABLE_BOOT_LENOVO"
-        guard="EV_SEPARATOR_LENOVO_to_EV_EFI_VARIABLE_BOOT_LENOVO_guard">
-        <ownedRule xmi:id="EV_SEPARATOR_LENOVO_to_EV_EFI_VARIABLE_BOOT_LENOVO_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_SEPARATOR_LENOVO_to_EV_EFI_VARIABLE_BOOT_LENOVO_spec">
-            <body>eventtype == 0x80000002</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition  visibility="public" kind="local"
-        source="EV_EFI_VARIABLE_BOOT_LENOVO"
-        target="EV_EFI_VARIABLE_BOOT_LENOVO"
-        xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO_loop"
-        name="EV_EFI_VARIABLE_BOOT_LENOVO_loop"
-        guard="EV_EFI_VARIABLE_BOOT_LENOVO_loop_guard">
-        <ownedRule xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO_loop_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO_loop_spec">
-            <body>eventtype == 0x80000002</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition  visibility="public" kind="local"
-        source="EV_EFI_VARIABLE_BOOT_LENOVO"
-        target="EV_IPL_PARTITION_DATA"
-        xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO_to_EV_IPL_PARTITION_DATA"
-        name="EV_EFI_VARIABLE_BOOT_LENOVO_to_EV_IPL_PARTITION_DATA"
-        guard="EV_EFI_VARIABLE_BOOT_LENOVO_to_EV_IPL_PARTITION_DATA_guard">
-        <ownedRule xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO_to_EV_IPL_PARTITION_DATA_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_EFI_VARIABLE_BOOT_LENOVO_to_EV_IPL_PARTITION_DATA_spec">
-            <body>eventtype == 0x0e</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-
-<!-- Final -->
-      <transition xmi:id="_JgvcsNGYEd-X9Lnarjy1qg" 
-        source="EV_ACTION"
-        target="BIOS_PCR5_Verified"/>
-
+      <transition xmi:id="EV_SEPARATOR_to_FSM_VERIFIED" name="EV_SEPARATOR_to_FSM_VERIFIED" source="EV_SEPARATOR" target="FSM_VERIFIED"/>
+      <transition xmi:id="EV_IPL_PARTITION_DATA_to_FSM_VERIFIED" name="EV_IPL_PARTITION_DATA_to_FSM_VERIFIED" source="EV_IPL_PARTITION_DATA" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
     </region>
   </packagedElement>
 </uml:Model>

@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="dc969826-22b4-11e1-a9c7-001f160c9c28">
-  <packagedElement xmi:type="uml:State" xmi:id="dc969826-22b4-11e1-a9c7-001f160c9c28_pe" name="openpts_fsm_model">
-    <region xmi:id="dc969826-22b4-11e1-a9c7-001f160c9c28_region" name="firmware">
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="8ada08de-2231-11e1-9524-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="8ada08de-2231-11e1-9524-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="8ada08de-2231-11e1-9524-001f160c9c28_region" name="firmware">
       <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
       <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
       <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
         <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(7)"/>
       </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_SEPARATOR_do" name="flashFSM()"/>
+      </subvertex>
       <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
-        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(bios.pcr.7.integrity,valid)"/>
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(uefi.pcr.7.integrity,valid)"/>
       </subvertex>
       <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
       <transition xmi:id="FSM_START_to_EV_SEPARATOR" name="FSM_START_to_EV_SEPARATOR" source="FSM_START" target="EV_SEPARATOR">

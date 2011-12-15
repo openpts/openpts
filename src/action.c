@@ -265,7 +265,8 @@ int validateMBR(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
-    TODO("validateMBR - NA\n");
+    // TODO
+    DEBUG("validateMBR - NA\n");
 
     return PTS_SUCCESS;
 }
@@ -393,14 +394,23 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
     /* input check */
     if (eventWrapper == NULL) {
         ERROR("eventWrapper is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
 
     event = eventWrapper->event;
 
     if (event == NULL) {
         ERROR("event is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
+    }
+
+    if (event->rgbEvent == NULL) {
+        ERROR("event->rgbEvent is NULL, BAD IML?\n");
+        return PTS_FATAL;
+    }
+    if (event->ulEventLength == 0) {
+        ERROR("event->ulEventLength is 0, BAD IML?\n");
+        return PTS_FATAL;
     }
 
     /* copy(malloc) strings */

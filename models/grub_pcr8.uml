@@ -1,92 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="0d40e430-2776-11e0-9292-001f160c9c28">
-  <packagedElement xmi:type="uml:StateMachine" xmi:id="Kk5bppv0" name="">
-    <region xmi:id="_kARuEpUaEdy22t6WWvUZtA" name="grub">
-
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="f5924608-22b5-11e1-815d-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="f5924608-22b5-11e1-815d-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="f5924608-22b5-11e1-815d-001f160c9c28_region" name="firmware">
       <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
-
-      <subvertex xmi:type="uml:State" xmi:id="CheckBIOS" name="Grub_PCR8_START" visibility="public"/>
-
-      <subvertex xmi:type="uml:State" xmi:id="Kernel" name="Kernel" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_kARuF5UaEdy22t6WWvUZtA" name="setAssertion(linux.kernel.digest, digest)"/>
-      </subvertex>
-
-      <subvertex xmi:type="uml:State" xmi:id="Initrd" name="Initrd" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_kARuFJUaEdy22t6WWvUZtA" name="setAssertion(linux.initrd.digest, digest)"/>
-      </subvertex>
-
-      <subvertex xmi:type="uml:State" xmi:id="KkAXDkO3" name="Module" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_kARuFZUaEdy22t6WWvUZtA" name="setModuleProperty()"/>
-      </subvertex>
-
-      <subvertex xmi:type="uml:State" xmi:id="KoFPGfR0" name="VMM_NotExist" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_kARuGJUaEdy22t6WWvUZtA" name="setAssertion(vmm, notexist)"/>
-      </subvertex>
-
-      <subvertex xmi:type="uml:State" xmi:id="OsEventSeparator8" name="OsEventSeparator8" visibility="public"/>
-
-      <subvertex xmi:type="uml:State" xmi:id="FinalAction" name="FinalAction" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_kARuE5UaEdy22t6WWvUZtA" name="setAssertion(ipl.pcr8.action, eventdata)"/>
-      </subvertex>
-
-      <subvertex xmi:type="uml:State" xmi:id="KoByf0q0" name="GRUB_Verified" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_kARuFpUaEdy22t6WWvUZtA" name="setAssertion(ipl.pcr.8.integrity, valid)"/>
-      </subvertex>
-
       <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
-
-      <transition xmi:id="Initrd_trans" name="Initrd_trans" visibility="public" kind="local" source="Kernel" target="Initrd" guard="_kARuGpUaEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_kARuGpUaEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_kARuG5UaEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x1305</body>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_GRUB_KERNEL" name="EV_GRUB_KERNEL">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_GRUB_KERNEL_do" name="setAssertion(linux.kernel.digest,digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_GRUB_INITRD" name="EV_GRUB_INITRD">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_GRUB_INITRD_do" name="setAssertion(linux.initrd.digest,digest)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_GRUB_MODULE" name="EV_GRUB_MODULE">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_GRUB_MODULE_do" name="setModuleProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_GRUB_ACTION" name="EV_GRUB_ACTION">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_GRUB_ACTION_do" name="setAssertion(ipl.pcr.8.action,eventdata)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(ipl.pcr.8.integrity,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_GRUB_KERNEL" name="FSM_START_to_EV_GRUB_KERNEL" source="FSM_START" target="EV_GRUB_KERNEL">
+        <ownedRule xmi:id="FSM_START_to_EV_GRUB_KERNEL_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_GRUB_KERNEL_spec">
+            <body>eventtype==0x1205</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="KoFPNIj0" visibility="public" kind="local" source="KoFPGfR0" target="OsEventSeparator8">
-        <name xsi:nil="true"/>
-      </transition>
-      <transition xmi:id="KoByw0H0" visibility="public" kind="local" source="KoByf0q0" target="Final">
-        <name xsi:nil="true"/>
-      </transition>
-      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="FinalAction" target="KoByf0q0"/>
-      <transition xmi:id="KkAXSvA0" visibility="public" kind="local" source="KkAXDkO3" target="KoFPGfR0" guard="_kARuIJUaEdy22t6WWvUZtA">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_kARuIJUaEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_kARuIZUaEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x04</body>
+      <transition xmi:id="EV_GRUB_KERNEL_to_EV_GRUB_INITRD" name="EV_GRUB_KERNEL_to_EV_GRUB_INITRD" source="EV_GRUB_KERNEL" target="EV_GRUB_INITRD">
+        <ownedRule xmi:id="EV_GRUB_KERNEL_to_EV_GRUB_INITRD_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_KERNEL_to_EV_GRUB_INITRD_spec">
+            <body>eventtype==0x1305</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="KkAXIAp0" visibility="public" kind="local" source="Kernel" target="KkAXDkO3" guard="_kARuI5UaEdy22t6WWvUZtA">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_kARuI5UaEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_kARuJJUaEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x1405</body>
+      <transition xmi:id="EV_GRUB_INITRD_to_EV_SEPARATOR" name="EV_GRUB_INITRD_to_EV_SEPARATOR" source="EV_GRUB_INITRD" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_GRUB_INITRD_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_INITRD_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="CheckBIOS_trans" name="CheckBIOS_trans" visibility="public" kind="local" source="Start" target="CheckBIOS"/>
-      <transition xmi:id="Kernel_trans" name="Kernel_trans" visibility="public" kind="local" source="CheckBIOS" target="Kernel" guard="_kARuJ5UaEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_kARuJ5UaEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_kARuKJUaEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x1205</body>
+      <transition xmi:id="EV_GRUB_KERNEL_to_EV_GRUB_MODULE" name="EV_GRUB_KERNEL_to_EV_GRUB_MODULE" source="EV_GRUB_KERNEL" target="EV_GRUB_MODULE">
+        <ownedRule xmi:id="EV_GRUB_KERNEL_to_EV_GRUB_MODULE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_KERNEL_to_EV_GRUB_MODULE_spec">
+            <body>eventtype==0x1405</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="OsEventSeparator8_trans" name="OsEventSeparator8_trans" visibility="public" kind="local" source="Initrd" target="KoFPGfR0" guard="_kARuKpUaEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_kARuKpUaEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_kARuK5UaEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x04</body>
+      <transition xmi:id="EV_GRUB_MODULE_to_EV_SEPARATOR" name="EV_GRUB_MODULE_to_EV_SEPARATOR" source="EV_GRUB_MODULE" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_GRUB_MODULE_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_MODULE_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="FinalAction_trans" name="FinalAction_trans" visibility="public" kind="local" source="OsEventSeparator8" target="FinalAction" guard="_kARuLZUaEdy22t6WWvUZtA">
-        <ownedRule xmi:id="_kARuLZUaEdy22t6WWvUZtA" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_kARuLpUaEdy22t6WWvUZtA" name="">
-            <body>eventtype == 0x1005</body>
+      <transition xmi:id="EV_GRUB_KERNEL_to_EV_SEPARATOR" name="EV_GRUB_KERNEL_to_EV_SEPARATOR" source="EV_GRUB_KERNEL" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_GRUB_KERNEL_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_KERNEL_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
+      <transition xmi:id="EV_SEPARATOR_to_EV_GRUB_ACTION" name="EV_SEPARATOR_to_EV_GRUB_ACTION" source="EV_SEPARATOR" target="EV_GRUB_ACTION">
+        <ownedRule xmi:id="EV_SEPARATOR_to_EV_GRUB_ACTION_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_SEPARATOR_to_EV_GRUB_ACTION_spec">
+            <body>eventtype==0x1005</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_GRUB_ACTION_to_FSM_VERIFIED" name="EV_GRUB_ACTION_to_FSM_VERIFIED" source="EV_GRUB_ACTION" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
     </region>
   </packagedElement>
 </uml:Model>

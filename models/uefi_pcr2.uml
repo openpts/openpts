@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="682ed8a0-2231-11e1-8039-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="682ed8a0-2231-11e1-8039-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="682ed8a0-2231-11e1-8039-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(2)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1" name="EV_EFI_BOOT_SERVICES_DRIVER_1"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER" name="EV_EFI_RUNTIME_SERVICES_DRIVER"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2" name="EV_EFI_BOOT_SERVICES_DRIVER_2"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EVENT_TAG" name="EV_EVENT_TAG">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_EVENT_TAG_do" name="addBIOSSpecificProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_3" name="EV_EFI_BOOT_SERVICES_DRIVER_3"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(uefi.pcr.2.integrity,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_EFI_BOOT_SERVICES_DRIVER_1" name="FSM_START_to_EV_EFI_BOOT_SERVICES_DRIVER_1" source="FSM_START" target="EV_EFI_BOOT_SERVICES_DRIVER_1">
+        <ownedRule xmi:id="FSM_START_to_EV_EFI_BOOT_SERVICES_DRIVER_1_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_EFI_BOOT_SERVICES_DRIVER_1_spec">
+            <body>eventtype==0x80000004,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_BOOT_SERVICES_DRIVER_1" name="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_BOOT_SERVICES_DRIVER_1" source="EV_EFI_BOOT_SERVICES_DRIVER_1" target="EV_EFI_BOOT_SERVICES_DRIVER_1">
+        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_BOOT_SERVICES_DRIVER_1_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_BOOT_SERVICES_DRIVER_1_spec">
+            <body>eventtype==0x80000004,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_RUNTIME_SERVICES_DRIVER" name="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_RUNTIME_SERVICES_DRIVER" source="EV_EFI_BOOT_SERVICES_DRIVER_1" target="EV_EFI_RUNTIME_SERVICES_DRIVER">
+        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_RUNTIME_SERVICES_DRIVER_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EFI_RUNTIME_SERVICES_DRIVER_spec">
+            <body>eventtype==0x80000005,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_RUNTIME_SERVICES_DRIVER" name="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_RUNTIME_SERVICES_DRIVER" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_EFI_RUNTIME_SERVICES_DRIVER">
+        <ownedRule xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_RUNTIME_SERVICES_DRIVER_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_RUNTIME_SERVICES_DRIVER_spec">
+            <body>eventtype==0x80000005,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_SEPARATOR" name="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_SEPARATOR" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_BOOT_SERVICES_DRIVER_2" name="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_BOOT_SERVICES_DRIVER_2" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_EFI_BOOT_SERVICES_DRIVER_2">
+        <ownedRule xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_BOOT_SERVICES_DRIVER_2_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER_to_EV_EFI_BOOT_SERVICES_DRIVER_2_spec">
+            <body>eventtype==0x80000004,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_EFI_BOOT_SERVICES_DRIVER_2" name="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_EFI_BOOT_SERVICES_DRIVER_2" source="EV_EFI_BOOT_SERVICES_DRIVER_2" target="EV_EFI_BOOT_SERVICES_DRIVER_2">
+        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_EFI_BOOT_SERVICES_DRIVER_2_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_EFI_BOOT_SERVICES_DRIVER_2_spec">
+            <body>eventtype==0x80000004,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_SEPARATOR" name="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_SEPARATOR" source="EV_EFI_BOOT_SERVICES_DRIVER_2" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_2_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EVENT_TAG" name="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EVENT_TAG" source="EV_EFI_BOOT_SERVICES_DRIVER_1" target="EV_EVENT_TAG">
+        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EVENT_TAG_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_1_to_EV_EVENT_TAG_spec">
+            <body>eventtype==0x06,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EVENT_TAG_to_EV_EVENT_TAG" name="EV_EVENT_TAG_to_EV_EVENT_TAG" source="EV_EVENT_TAG" target="EV_EVENT_TAG">
+        <ownedRule xmi:id="EV_EVENT_TAG_to_EV_EVENT_TAG_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EVENT_TAG_to_EV_EVENT_TAG_spec">
+            <body>eventtype==0x06,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EVENT_TAG_to_EV_SEPARATOR" name="EV_EVENT_TAG_to_EV_SEPARATOR" source="EV_EVENT_TAG" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EVENT_TAG_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EVENT_TAG_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_3" name="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_3" source="EV_SEPARATOR" target="EV_EFI_BOOT_SERVICES_DRIVER_3">
+        <ownedRule xmi:id="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_3_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_3_spec">
+            <body>eventtype==0x80000004,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_3_to_FSM_VERIFIED" name="EV_EFI_BOOT_SERVICES_DRIVER_3_to_FSM_VERIFIED" source="EV_EFI_BOOT_SERVICES_DRIVER_3" target="FSM_VERIFIED"/>
+      <transition xmi:id="EV_SEPARATOR_to_FSM_VERIFIED" name="EV_SEPARATOR_to_FSM_VERIFIED" source="EV_SEPARATOR" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

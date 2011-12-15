@@ -120,19 +120,28 @@ int resetTpmPcr(OPENPTS_TPM_CONTEXT *tctx, int index);
 /* tss.c */
 int printTssKeyList(int ps_type);
 int createTssSignKey(
-    PTS_UUID *uuid, int ps_type, char *filename, int force, int srk_password_mode);
+    PTS_UUID *uuid,
+    int ps_type,
+    char *filename,
+    int auth_type,
+    int force,
+    int srk_password_mode);
 int deleteTssKey(PTS_UUID *uuid, int ps_type);
 int getTpmVersion(TSS_VERSION *version);
 int getTssPubKey(
     PTS_UUID *uuid,
-    int ps_type, int srk_password_mode, int resetdalock,
+    int ps_type,
+    int srk_password_mode,
+    int resetdalock,
     char *filename,
+    int auth_type,
     int *pubkey_length, BYTE **pubkey);
 int quoteTss(
     PTS_UUID *uuid,
     int ps_type,
     int srk_password_mode,
     char *filename,
+    int auth_type,
     BYTE *nonce,
     OPENPTS_PCRS *pcrs,
     TSS_VALIDATION *validationData);
@@ -141,6 +150,7 @@ int quote2Tss(
     int ps_type,
     int srk_password_mode,
     char *filename,
+    int auth_type,
     BYTE *nonce,
     OPENPTS_PCRS *pcrs,
     TSS_VALIDATION *validationData);

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="61bc7626-2231-11e1-b379-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="61bc7626-2231-11e1-b379-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="61bc7626-2231-11e1-b379-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(1)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_CPU_MICROCODE" name="EV_CPU_MICROCODE"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_HANDOFF_TABLE" name="EV_EFI_HANDOFF_TABLE"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EVENT_TAG" name="EV_EVENT_TAG">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_EVENT_TAG_do" name="addBIOSSpecificProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_ACTION" name="EV_ACTION">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_ACTION_do" name="addBIOSAction()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_LENOVO" name="EV_LENOVO"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_SEPARATOR_do" name="flashFSM()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(uefi.pcr.1.integrity,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_CPU_MICROCODE" name="FSM_START_to_EV_CPU_MICROCODE" source="FSM_START" target="EV_CPU_MICROCODE">
+        <ownedRule xmi:id="FSM_START_to_EV_CPU_MICROCODE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_CPU_MICROCODE_spec">
+            <body>eventtype==0x09</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_CPU_MICROCODE_to_EV_EFI_HANDOFF_TABLE" name="EV_CPU_MICROCODE_to_EV_EFI_HANDOFF_TABLE" source="EV_CPU_MICROCODE" target="EV_EFI_HANDOFF_TABLE">
+        <ownedRule xmi:id="EV_CPU_MICROCODE_to_EV_EFI_HANDOFF_TABLE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_CPU_MICROCODE_to_EV_EFI_HANDOFF_TABLE_spec">
+            <body>eventtype==0x80000009</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="FSM_START_to_EV_EFI_HANDOFF_TABLE" name="FSM_START_to_EV_EFI_HANDOFF_TABLE" source="FSM_START" target="EV_EFI_HANDOFF_TABLE">
+        <ownedRule xmi:id="FSM_START_to_EV_EFI_HANDOFF_TABLE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_EFI_HANDOFF_TABLE_spec">
+            <body>eventtype==0x80000009</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR" name="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR" source="EV_EFI_HANDOFF_TABLE" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_EVENT_TAG" name="EV_EFI_HANDOFF_TABLE_to_EV_EVENT_TAG" source="EV_EFI_HANDOFF_TABLE" target="EV_EVENT_TAG">
+        <ownedRule xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_EVENT_TAG_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_EVENT_TAG_spec">
+            <body>eventtype==0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EVENT_TAG_to_EV_ACTION" name="EV_EVENT_TAG_to_EV_ACTION" source="EV_EVENT_TAG" target="EV_ACTION">
+        <ownedRule xmi:id="EV_EVENT_TAG_to_EV_ACTION_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EVENT_TAG_to_EV_ACTION_spec">
+            <body>eventtype==0x05</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_ACTION_to_EV_LENOVO" name="EV_ACTION_to_EV_LENOVO" source="EV_ACTION" target="EV_LENOVO">
+        <ownedRule xmi:id="EV_ACTION_to_EV_LENOVO_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_ACTION_to_EV_LENOVO_spec">
+            <body>eventtype==0xFFFFFF50</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_LENOVO_to_EV_SEPARATOR" name="EV_LENOVO_to_EV_SEPARATOR" source="EV_LENOVO" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_LENOVO_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_LENOVO_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_to_FSM_VERIFIED" name="EV_SEPARATOR_to_FSM_VERIFIED" source="EV_SEPARATOR" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

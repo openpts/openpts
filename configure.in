@@ -25,6 +25,10 @@
 
 AC_INIT(openpts, 0.2.6, openpts-users@lists.sourceforge.jp)
 
+# use pkg-config
+# check /usr/lib64/pkgconfig/
+# PKG_PROG_PKG_CONFIG
+
 PTS_SPEC_MAJOR=0
 PTS_SPEC_MINOR=0
 PTS_VER_MAJOR=2

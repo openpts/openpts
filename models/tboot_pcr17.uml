@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="03f3d088-26ba-11e1-bb1e-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="03f3d088-26ba-11e1-bb1e-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="03f3d088-26ba-11e1-bb1e-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(17)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_SINIT_V6" name="EV_TBOOT_SINIT_V6">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_SINIT_V6_do" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_SINIT_V7" name="EV_TBOOT_SINIT_V7">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_SINIT_V7_do" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_STM" name="EV_TBOOT_STM">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_STM_do" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_UNKNOWN" name="EV_TBOOT_UNKNOWN">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_UNKNOWN_do" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(intel.txt.tboot.pcr17.transition,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_TBOOT_SINIT_V6" name="FSM_START_to_EV_TBOOT_SINIT_V6" source="FSM_START" target="EV_TBOOT_SINIT_V6">
+        <ownedRule xmi:id="FSM_START_to_EV_TBOOT_SINIT_V6_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_TBOOT_SINIT_V6_spec">
+            <body>eventtype==0x0x00000100</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="FSM_START_to_EV_TBOOT_SINIT_V7" name="FSM_START_to_EV_TBOOT_SINIT_V7" source="FSM_START" target="EV_TBOOT_SINIT_V7">
+        <ownedRule xmi:id="FSM_START_to_EV_TBOOT_SINIT_V7_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_TBOOT_SINIT_V7_spec">
+            <body>eventtype==0x0x00000103</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_SINIT_V6_to_EV_TBOOT_STM" name="EV_TBOOT_SINIT_V6_to_EV_TBOOT_STM" source="EV_TBOOT_SINIT_V6" target="EV_TBOOT_STM">
+        <ownedRule xmi:id="EV_TBOOT_SINIT_V6_to_EV_TBOOT_STM_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_SINIT_V6_to_EV_TBOOT_STM_spec">
+            <body>eventtype==0x0x00000101</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_SINIT_V7_to_EV_TBOOT_STM" name="EV_TBOOT_SINIT_V7_to_EV_TBOOT_STM" source="EV_TBOOT_SINIT_V7" target="EV_TBOOT_STM">
+        <ownedRule xmi:id="EV_TBOOT_SINIT_V7_to_EV_TBOOT_STM_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_SINIT_V7_to_EV_TBOOT_STM_spec">
+            <body>eventtype==0x0x00000101</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_STM_to_EV_TBOOT_UNKNOWN" name="EV_TBOOT_STM_to_EV_TBOOT_UNKNOWN" source="EV_TBOOT_STM" target="EV_TBOOT_UNKNOWN">
+        <ownedRule xmi:id="EV_TBOOT_STM_to_EV_TBOOT_UNKNOWN_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_STM_to_EV_TBOOT_UNKNOWN_spec">
+            <body>eventtype==0x0x00000102</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_UNKNOWN_to_FSM_VERIFIED" name="EV_TBOOT_UNKNOWN_to_FSM_VERIFIED" source="EV_TBOOT_UNKNOWN" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

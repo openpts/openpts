@@ -76,10 +76,9 @@ rm.basedir=/var/lib/openpts/
 rm.num=1
 
 #
-# RM[0] BIOS models
+# RM[0] Legacy BIOS OR UEFI BIOS models
 #
 #  BIOS(SRTM) uses PCR0 to PCR7
-#
 rm.model.0.pcr.0=bios_pcr0.uml
 rm.model.0.pcr.1=bios_pcr1.uml
 rm.model.0.pcr.2=bios_pcr2.uml
@@ -89,6 +88,15 @@ rm.model.0.pcr.5=bios_pcr5.uml
 rm.model.0.pcr.6=bios_pcr6.uml
 rm.model.0.pcr.7=bios_pcr7.uml
 
+#  UEFI BIOS(SRTM) uses PCR0 to PCR7
+#rm.model.0.pcr.0=uefi_pcr0.uml
+#rm.model.0.pcr.1=uefi_pcr1.uml
+#rm.model.0.pcr.2=uefi_pcr2.uml
+#rm.model.0.pcr.3=uefi_pcr3.uml
+#rm.model.0.pcr.4=uefi_pcr4.uml
+#rm.model.0.pcr.5=uefi_pcr5.uml
+#rm.model.0.pcr.6=uefi_pcr6.uml
+#rm.model.0.pcr.7=uefi_pcr7.uml
 
 #
 # RM[1] IPL models (GRUB-IMA)
@@ -96,10 +104,15 @@ rm.model.0.pcr.7=bios_pcr7.uml
 #  Used to generate Runtime Manifest and Integrity Report
 #  You have to build and install GRUB-IMA
 #
-# rm.model.1.pcr.4=grub_pcr4hdd.uml
+# HDD boot
+# rm.model.1.pcr.4=grub_pcr4.uml
 # rm.model.1.pcr.5=grub_pcr5.uml
 # rm.model.1.pcr.8=grub_pcr8.uml
-
+#
+# Livecd boot
+# rm.model.1.pcr.4=grub_livecd_pcr4.uml
+# rm.model.1.pcr.5=grub_pcr5.uml
+# rm.model.1.pcr.8=grub_pcr8.uml
 
 #
 # RM[1] OS (Linux-IMA with GRUB-IMA)
@@ -113,35 +126,21 @@ rm.model.0.pcr.7=bios_pcr7.uml
 #    RHEL6     'ima=on ima_tcb'
 #    Intel TPM 'tpm_tis.force=1 tpm_tis.interrupts=0 tpm_tis.itpm=1'
 #
-# rm.model.1.pcr.10=f12_ima_pcr10.uml
 # rm.model.1.pcr.10=rhel6_ima_pcr10.uml
 
 
 #
-# RM[1] OS (Linux-IMA without GRUB-IMA)
+# RM[1] OpenPTS Collector (ptsc)
 #
-#  /boot/grub/grub.conf (or menu.conf)
-#  Set kernel option 
-#    Fedora12  'ima_tcb=1'
-#    RHEL6     'ima=on ima_tcb'
-#    Intel TPM 'tpm_tis.force=1 tpm_tis.interrupts=0 tpm_tis.itpm=1'
-#
-# rm.model.1.pcr.10=f12_ima_pcr10wog.uml
-# rm.model.1.pcr.10=rhel6_ima_pcr10wog.uml  -- TBD
-
-
-#
-# RM[1] OpenPTS
-#
-# rm.model.1.pcr.11=openpts.uml
+# rm.model.1.pcr.11=ptsc_pcr11.uml
 
 
 #
 # RM[0] Intel TXT tboot (DRTM)
 #
-# rm.model.0.pcr.17=intel_txt_tboot_pcr17.uml
-# rm.model.0.pcr.18=intel_txt_tboot_pcr18.uml
-# rm.model.0.pcr.19=intel_txt_tboot_pcr19.uml
+# rm.model.0.pcr.17=tboot_pcr17.uml
+# rm.model.0.pcr.18=tboot_pcr18.uml
+# rm.model.0.pcr.19=tboot_pcr19.uml
 
 ################################################################################
 # Local storage
@@ -190,6 +189,22 @@ ifm.timeout=4
 ################################################################################
 # TPM IML, and TSS
 ################################################################################
+
+#
+# Attestation(sign) key
+#
+#  aik.storage.type
+#     tss    use tcsd ps_system
+#     blob   use the file (set the filename by aik.storage.filename)
+#
+#  aik.auth.type
+#     null   use the null secret
+#     common use the common secret
+#
+# Uncomment the following line for Infineon TPM(v1.2)
+# aik.storage.type=blob
+# aik.storage.filename=key.blob
+# aik.auth.type=common
 
 #
 # SRK password
@@ -266,6 +281,18 @@ iml.mode=tss
 #   IMA32    kernel 2.6.32 
 #
 #runtime.iml.type=IMA32
+
+#
+# Select Key Storage
+#
+# use the blob for Infineon TPM
+#
+#aik.storage.type=blob
+#aik.storage.filename=./key.blob
+#aik.auth.type=common
+
+
+
 
 
 # EOF

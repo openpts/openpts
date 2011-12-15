@@ -3094,7 +3094,6 @@ int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx, int *savedFd) {
  */
 int genIrFromTss(OPENPTS_CONTEXT *ctx, int *savedFd) {
     int rc;
-    UINT32 ps_type = TSS_PS_TYPE_SYSTEM;  // TODO move to context?
 
     /* get IML via securityfs */
 
@@ -3158,17 +3157,21 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx, int *savedFd) {
         if (ctx->conf->tpm_quote_type == 1) {
             rc = quoteTss(
                     ctx->conf->uuid->uuid,
-                    ps_type,
+                    ctx->conf->aik_storage_type,
                     ctx->conf->srk_password_mode,
-                    NULL, NULL,
+                    ctx->conf->aik_storage_filename,
+                    ctx->conf->aik_auth_type,
+                    NULL,
                     ctx->pcrs,
                     ctx->validation_data);  // tss.c
         } else {
             rc = quote2Tss(
                     ctx->conf->uuid->uuid,
-                    ps_type,
+                    ctx->conf->aik_storage_type,
                     ctx->conf->srk_password_mode,
-                    NULL, NULL,
+                    ctx->conf->aik_storage_filename,
+                    ctx->conf->aik_auth_type,
+                    NULL,
                     ctx->pcrs,
                     ctx->validation_data);  // tss.c
         }

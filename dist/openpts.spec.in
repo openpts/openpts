@@ -39,13 +39,13 @@ specifications set forth by the Trusted Computing Group (TCG).
 
 %build
 
-%configure --disable-static --prefix=/usr --libdir=%{_libdir} --with-tss --enable-tnc \
+# %configure --disable-static --prefix=/usr --libdir=%{_libdir} --with-tss --with-aru --enable-tnc \
+# %configure --prefix=/usr --libdir=%{_libdir} --with-tss --with-aru --enable-tnc \
+
+%configure --disable-static --prefix=/usr --libdir=%{_libdir} --with-tss --with-aru --enable-tnc \
 %if %{with_tboot}
   --with-tboot \
 %endif
-#%if %{with_libtnc}
-#  --with-libtnc
-#%endif
 
 # DISABLE -j4 to build with libopenpts.so
 #make %{?_smp_mflags}
@@ -95,7 +95,7 @@ getent group ptsc >/dev/null || groupadd -r ptsc
 %attr(755, root, root) %{_sbindir}/ptsc
 %attr(755, root, root) %{_bindir}/openpts
 %attr(755, root, root) %{_bindir}/uml2dot
-%attr(755, root, root) %{_bindir}/iml2aide
+#%attr(755, root, root) %{_bindir}/iml2aide
 %attr(755, root, root) %{_bindir}/tpm_createkey
 %attr(755, root, root) %{_bindir}/tpm_readpcr
 %attr(755, root, root) %{_bindir}/tpm_extendpcr
@@ -130,7 +130,9 @@ getent group ptsc >/dev/null || groupadd -r ptsc
 %postun -p /sbin/ldconfig
 
 %changelog
-* Fri Oct  7 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.6
+* Fri Dec 16 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.6
+- remove aide support
+- add ARU support
 * Fri Jun 24 2011 Seiji Munetoh <munetoh@users.sourceforge.jp> - 0.2.5
 - added TNC IMV/IMC, configure --enable-tnc
 - added libopenpts.so

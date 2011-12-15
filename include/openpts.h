@@ -409,6 +409,7 @@ typedef struct {
     OPENPTS_TARGET target[];
 } OPENPTS_TARGET_LIST;
 
+/* UUID status */
 #define OPENPTS_UUID_EMPTY         0
 #define OPENPTS_UUID_FILENAME_ONLY 1
 #define OPENPTS_UUID_UUID_ONLY     2
@@ -423,6 +424,7 @@ typedef struct {
     int status;
 } OPENPTS_UUID;
 
+//<<<<<<< HEAD
 /* information about the components described by the models */
 typedef struct {
     char *SimpleName;
@@ -445,6 +447,13 @@ typedef struct {
     } VendorID_type;
     char *VendorID_Value;
 } OPENPTS_COMPID;
+//=======
+/* Attestation(sign) key */
+#define OPENPTS_AIK_STORAGE_TYPE_TSS  0
+#define OPENPTS_AIK_STORAGE_TYPE_BLOB 1
+#define OPENPTS_AIK_AUTH_TYPE_NULL    0
+#define OPENPTS_AIK_AUTH_TYPE_COMMON  1
+//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
 
 /**
  * Config
@@ -460,6 +469,11 @@ typedef struct {
     TPM_VERSION tpm_version;
     TSS_VERSION tss_version;
     TSS_VERSION pts_version;
+
+    /* Attestation(sign) key */
+    int   aik_storage_type;
+    char *aik_storage_filename;
+    int   aik_auth_type;
 
     /* UUID */
     OPENPTS_UUID * uuid;         /**< Platform(collector) UUID */

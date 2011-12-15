@@ -825,26 +825,38 @@ int main(int argc, char *argv[]) {
 
 
     /* RM UUID */
-    rc = readOpenptsUuidFile(conf->rm_uuid);
-    if (rc != PTS_SUCCESS) {
-        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_RM_UUID,
-               "Failed to read the Reference Manifest UUID file '%s':\n"
-               "Please ensure on the target that:\n"
-               "  * ptsc has been initialized (ptsc -i)\n"
-               "  * you (uid==%d) are allowed to attest (i.e. a member of group '%s')"),
-               conf->rm_uuid->filename, getuid(), PTSC_GROUP_NAME);
+    if (conf->rm_uuid == NULL) {
+        ERROR("rm_uuid is missing");
+        /* Exit */
         goto free;
     } else {
-        DEBUG("conf->str_rm_uuid         : %s\n", conf->rm_uuid->str);
+        rc = readOpenptsUuidFile(conf->rm_uuid);
+        if (rc != PTS_SUCCESS) {
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_RM_UUID,
+                   "Failed to read the Reference Manifest UUID file '%s':\n"
+                   "Please ensure on the target that:\n"
+                   "  * ptsc has been initialized (ptsc -i)\n"
+                   "  * you (uid==%d) are allowed to attest (i.e. a member of group '%s')"),
+                   conf->rm_uuid->filename, getuid(), PTSC_GROUP_NAME);
+            goto free;
+        } else {
+            DEBUG("conf->str_rm_uuid         : %s\n", conf->rm_uuid->str);
+        }
     }
 
     /* NEWRM UUID */
-    rc = readOpenptsUuidFile(conf->newrm_uuid);
-    if (rc != PTS_SUCCESS) {
-        DEBUG("conf->str_newrm_uuid      : missing (file:%s)\n", conf->newrm_uuid->filename);
-        // goto free;
+    if (conf->newrm_uuid == NULL) {
+        ERROR("newrm_uuid is missing.");
+        /* Exit */
+        goto free;
     } else {
-        DEBUG("conf->str_newrm_uuid      : %s (for next boot)\n", conf->newrm_uuid->str);
+        rc = readOpenptsUuidFile(conf->newrm_uuid);
+        if (rc != PTS_SUCCESS) {
+            DEBUG("conf->str_newrm_uuid      : missing (file:%s)\n", conf->newrm_uuid->filename);
+            // goto free;
+        } else {
+            DEBUG("conf->str_newrm_uuid      : %s (for next boot)\n", conf->newrm_uuid->str);
+        }
     }
 
     /* load RSA PUB key */
@@ -859,10 +871,11 @@ int main(int argc, char *argv[]) {
         /* get PUBKEY */
         rc = getTssPubKey(
                 conf->uuid->uuid,
-                TSS_PS_TYPE_SYSTEM,
+                conf->aik_storage_type,  // TSS_PS_TYPE_SYSTEM,
                 conf->srk_password_mode,
                 conf->tpm_resetdalock,
-                NULL,
+                conf->aik_storage_filename,  // NULL,
+                conf->aik_auth_type,
                 &conf->pubkey_length,
                 &conf->pubkey);
         if (rc != TSS_SUCCESS) {

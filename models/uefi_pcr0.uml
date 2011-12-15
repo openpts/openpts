@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="beacef54-2228-11e1-91cc-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="beacef54-2228-11e1-91cc-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="beacef54-2228-11e1-91cc-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(0)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_S_CRTM_VERSION" name="EV_S_CRTM_VERSION"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_S_CRTM_CONTENTS_1" name="EV_S_CRTM_CONTENTS_1"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_POST_CODE" name="EV_POST_CODE"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB" name="EV_EFI_PLATFORM_FIRMWARE_BLOB"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_S_CRTM_CONTENTS_2" name="EV_S_CRTM_CONTENTS_2"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_HANDOFF_TABLE" name="EV_EFI_HANDOFF_TABLE"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_SEPARATOR_do" name="flashFSM()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(uefi.pcr.0.integrity,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_S_CRTM_VERSION" name="FSM_START_to_EV_S_CRTM_VERSION" source="FSM_START" target="EV_S_CRTM_VERSION">
+        <ownedRule xmi:id="FSM_START_to_EV_S_CRTM_VERSION_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_S_CRTM_VERSION_spec">
+            <body>eventtype==0x08,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_S_CRTM_VERSION_to_EV_S_CRTM_CONTENTS_1" name="EV_S_CRTM_VERSION_to_EV_S_CRTM_CONTENTS_1" source="EV_S_CRTM_VERSION" target="EV_S_CRTM_CONTENTS_1">
+        <ownedRule xmi:id="EV_S_CRTM_VERSION_to_EV_S_CRTM_CONTENTS_1_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_S_CRTM_VERSION_to_EV_S_CRTM_CONTENTS_1_spec">
+            <body>eventtype==0x07,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_S_CRTM_CONTENTS_1_to_EV_POST_CODE" name="EV_S_CRTM_CONTENTS_1_to_EV_POST_CODE" source="EV_S_CRTM_CONTENTS_1" target="EV_POST_CODE">
+        <ownedRule xmi:id="EV_S_CRTM_CONTENTS_1_to_EV_POST_CODE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_S_CRTM_CONTENTS_1_to_EV_POST_CODE_spec">
+            <body>eventtype==0x01,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_S_CRTM_VERSION_to_EV_POST_CODE" name="EV_S_CRTM_VERSION_to_EV_POST_CODE" source="EV_S_CRTM_VERSION" target="EV_POST_CODE">
+        <ownedRule xmi:id="EV_S_CRTM_VERSION_to_EV_POST_CODE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_S_CRTM_VERSION_to_EV_POST_CODE_spec">
+            <body>eventtype==0x01,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_POST_CODE_to_EV_POST_CODE" name="EV_POST_CODE_to_EV_POST_CODE" source="EV_POST_CODE" target="EV_POST_CODE">
+        <ownedRule xmi:id="EV_POST_CODE_to_EV_POST_CODE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_POST_CODE_to_EV_POST_CODE_spec">
+            <body>eventtype==0x01,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_POST_CODE_to_EV_SEPARATOR" name="EV_POST_CODE_to_EV_SEPARATOR" source="EV_POST_CODE" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_POST_CODE_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_POST_CODE_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_POST_CODE_to_EV_S_CRTM_CONTENTS_2" name="EV_POST_CODE_to_EV_S_CRTM_CONTENTS_2" source="EV_POST_CODE" target="EV_S_CRTM_CONTENTS_2">
+        <ownedRule xmi:id="EV_POST_CODE_to_EV_S_CRTM_CONTENTS_2_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_POST_CODE_to_EV_S_CRTM_CONTENTS_2_spec">
+            <body>eventtype==0x07,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_S_CRTM_CONTENTS_2_to_EV_S_CRTM_CONTENTS_2" name="EV_S_CRTM_CONTENTS_2_to_EV_S_CRTM_CONTENTS_2" source="EV_S_CRTM_CONTENTS_2" target="EV_S_CRTM_CONTENTS_2">
+        <ownedRule xmi:id="EV_S_CRTM_CONTENTS_2_to_EV_S_CRTM_CONTENTS_2_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_S_CRTM_CONTENTS_2_to_EV_S_CRTM_CONTENTS_2_spec">
+            <body>eventtype==0x07,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_S_CRTM_CONTENTS_2_to_EV_EFI_HANDOFF_TABLE" name="EV_S_CRTM_CONTENTS_2_to_EV_EFI_HANDOFF_TABLE" source="EV_S_CRTM_CONTENTS_2" target="EV_EFI_HANDOFF_TABLE">
+        <ownedRule xmi:id="EV_S_CRTM_CONTENTS_2_to_EV_EFI_HANDOFF_TABLE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_S_CRTM_CONTENTS_2_to_EV_EFI_HANDOFF_TABLE_spec">
+            <body>eventtype==0x80000009</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR" name="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR" source="EV_EFI_HANDOFF_TABLE" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_HANDOFF_TABLE_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_S_CRTM_VERSION_to_EV_EFI_PLATFORM_FIRMWARE_BLOB" name="EV_S_CRTM_VERSION_to_EV_EFI_PLATFORM_FIRMWARE_BLOB" source="EV_S_CRTM_VERSION" target="EV_EFI_PLATFORM_FIRMWARE_BLOB">
+        <ownedRule xmi:id="EV_S_CRTM_VERSION_to_EV_EFI_PLATFORM_FIRMWARE_BLOB_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_S_CRTM_VERSION_to_EV_EFI_PLATFORM_FIRMWARE_BLOB_spec">
+            <body>eventtype==0x80000008,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_EFI_PLATFORM_FIRMWARE_BLOB" name="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_EFI_PLATFORM_FIRMWARE_BLOB" source="EV_EFI_PLATFORM_FIRMWARE_BLOB" target="EV_EFI_PLATFORM_FIRMWARE_BLOB">
+        <ownedRule xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_EFI_PLATFORM_FIRMWARE_BLOB_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_EFI_PLATFORM_FIRMWARE_BLOB_spec">
+            <body>eventtype==0x80000008,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_SEPARATOR" name="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_SEPARATOR" source="EV_EFI_PLATFORM_FIRMWARE_BLOB" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EFI_PLATFORM_FIRMWARE_BLOB_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_to_FSM_VERIFIED" name="EV_SEPARATOR_to_FSM_VERIFIED" source="EV_SEPARATOR" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

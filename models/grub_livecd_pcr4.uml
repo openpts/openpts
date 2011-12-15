@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="4acdccf6-2495-11e1-8b30-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="4acdccf6-2495-11e1-8b30-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="4acdccf6-2495-11e1-8b30-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START"/>
+      <subvertex xmi:type="uml:State" xmi:id="BAD_BIOS" name="BAD_BIOS">
+        <doActivity xmi:type="uml:Activity" xmi:id="BAD_BIOS_do" name="setAssertion(ipl.pcr.4.trustedboot,invalid)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_GRUB_STAGE2_ELTORITO" name="EV_GRUB_STAGE2_ELTORITO"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_GRUB_MBR_ELTORITO" name="EV_GRUB_MBR_ELTORITO">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_GRUB_MBR_ELTORITO_do" name="validateEltoritoBootImage()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(ipl.pcr.4.integrity,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_GRUB_STAGE2_ELTORITO" name="FSM_START_to_EV_GRUB_STAGE2_ELTORITO" source="FSM_START" target="EV_GRUB_STAGE2_ELTORITO">
+        <ownedRule xmi:id="FSM_START_to_EV_GRUB_STAGE2_ELTORITO_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_GRUB_STAGE2_ELTORITO_spec">
+            <body>eventtype==0x0d,digest==base64</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="FSM_START_to_BAD_BIOS" name="FSM_START_to_BAD_BIOS" source="FSM_START" target="BAD_BIOS">
+        <ownedRule xmi:id="FSM_START_to_BAD_BIOS_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_BAD_BIOS_spec">
+            <body>eventtype==0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="BAD_BIOS_to_EV_SEPARATOR" name="BAD_BIOS_to_EV_SEPARATOR" source="BAD_BIOS" target="EV_SEPARATOR">
+        <ownedRule xmi:id="BAD_BIOS_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="BAD_BIOS_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_GRUB_STAGE2_ELTORITO_to_EV_GRUB_MBR_ELTORITO" name="EV_GRUB_STAGE2_ELTORITO_to_EV_GRUB_MBR_ELTORITO" source="EV_GRUB_STAGE2_ELTORITO" target="EV_GRUB_MBR_ELTORITO">
+        <ownedRule xmi:id="EV_GRUB_STAGE2_ELTORITO_to_EV_GRUB_MBR_ELTORITO_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_STAGE2_ELTORITO_to_EV_GRUB_MBR_ELTORITO_spec">
+            <body>eventtype==0x06</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_GRUB_MBR_ELTORITO_to_EV_SEPARATOR" name="EV_GRUB_MBR_ELTORITO_to_EV_SEPARATOR" source="EV_GRUB_MBR_ELTORITO" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_GRUB_MBR_ELTORITO_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_GRUB_MBR_ELTORITO_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_SEPARATOR_to_FSM_VERIFIED" name="EV_SEPARATOR_to_FSM_VERIFIED" source="EV_SEPARATOR" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

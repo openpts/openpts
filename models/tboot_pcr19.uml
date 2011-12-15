@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="0f912328-26ba-11e1-ab3e-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="0f912328-26ba-11e1-ab3e-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="0f912328-26ba-11e1-ab3e-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(19)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_TBOOT_MODULE" name="EV_TBOOT_MODULE">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_TBOOT_MODULE_do" name="addIntelTxtTbootProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(intel.txt.tboot.pcr19.transition,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_TBOOT_MLE_HASH" name="FSM_START_to_EV_TBOOT_MLE_HASH" source="FSM_START" target="EV_TBOOT_MLE_HASH">
+        <ownedRule xmi:id="FSM_START_to_EV_TBOOT_MLE_HASH_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_TBOOT_MLE_HASH_spec">
+            <body>eventtype==0x0x00000110</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_MLE_HASH_to_EV_TBOOT_MODULE" name="EV_TBOOT_MLE_HASH_to_EV_TBOOT_MODULE" source="EV_TBOOT_MLE_HASH" target="EV_TBOOT_MODULE">
+        <ownedRule xmi:id="EV_TBOOT_MLE_HASH_to_EV_TBOOT_MODULE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_MLE_HASH_to_EV_TBOOT_MODULE_spec">
+            <body>eventtype==0x0x00000111</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_MODULE_to_EV_TBOOT_MODULE" name="EV_TBOOT_MODULE_to_EV_TBOOT_MODULE" source="EV_TBOOT_MODULE" target="EV_TBOOT_MODULE">
+        <ownedRule xmi:id="EV_TBOOT_MODULE_to_EV_TBOOT_MODULE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_MODULE_to_EV_TBOOT_MODULE_spec">
+            <body>eventtype==0x0x00000111</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_TBOOT_MODULE_to_FSM_VERIFIED" name="EV_TBOOT_MODULE_to_FSM_VERIFIED" source="EV_TBOOT_MODULE" target="FSM_VERIFIED">
+        <ownedRule xmi:id="EV_TBOOT_MODULE_to_FSM_VERIFIED_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_TBOOT_MODULE_to_FSM_VERIFIED_spec">
+            <body>last==true</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

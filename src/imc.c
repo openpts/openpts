@@ -179,10 +179,11 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     /* get PUBKEY */
     rc = getTssPubKey(
             conf->uuid->uuid,
-            TSS_PS_TYPE_SYSTEM,
+            conf->aik_storage_type,
             conf->srk_password_mode,
             conf->tpm_resetdalock,
-            NULL,
+            conf->aik_storage_filename,
+            conf->aik_auth_type,
             &conf->pubkey_length,
             &conf->pubkey);
     if (rc != TSS_SUCCESS) {

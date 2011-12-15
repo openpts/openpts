@@ -1047,6 +1047,7 @@ void usage(void) {
         "  -V                    Verify\n"
         "  -D                    DRTM\n"
         "  -E                    Enable endian conversion (BE->LE or LE->BE)\n"
+        "  -P                    Show pcrs calculated from the IML" 
         "  -h                    Show this help message\n"
         "\n"));
 }
@@ -1076,6 +1077,7 @@ int main(int argc, char *argv[]) {
     int drtm = 0;
     BYTE *blob;
     UINT32 blobLength;
+    int pcrs = 0;
 
     initCatalog();
 
@@ -1085,7 +1087,7 @@ int main(int argc, char *argv[]) {
     memset(boot_aggregate, 0xff, 20);
 
     /* Args */
-    while ((c = getopt(argc, argv, "i:p:I:EAvVDh")) != EOF) {
+    while ((c = getopt(argc, argv, "i:p:I:EAvVDPh")) != EOF) {
         switch (c) {
         case 'i':
             filename = optarg;
@@ -1112,6 +1114,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'D':  /* drtm  */
             drtm = 1;
+            break;
+        case 'P':  /* PCRs dump */
+            pcrs = 1;
             break;
         case 'h':
             usage();
@@ -1215,7 +1220,7 @@ int main(int argc, char *argv[]) {
 
             fprintf(fp, "\n");
 
-            if (verify) {
+            if ((verify) || (pcrs)) {
                 if (PcrEvents[i].ulPcrIndex == 10) {  // IMA log
                     if (memcmp(PcrEvents[i].rgbPcrValue, zero, 20) == 0) {  // zero
                         extend(PcrEvents[i].ulPcrIndex, fox);
@@ -1285,6 +1290,18 @@ int main(int argc, char *argv[]) {
             fprintf(fp, "\t");
             for (j = 0; j < 20; j++) {
                 fprintf(fp, "%02x", boot_aggregate[j]);
+            }
+            fprintf(fp, "\n");
+        }
+    }
+    /* pcrs */
+    // PCR-00: 8F BF F3 EC EA 9C 54 C8 D1 C4 2C FE A9 3D 6B F0 1B F3 40 5B 
+    if (pcrs == 1) {
+        for (i = 0; i < 24; i++) {
+            fprintf(fp, "PCR-%02d: ", i);
+            // my calc
+            for (j = 0; j < 20; j++) {
+                fprintf(fp, "%02X ", pcr[i][j]);
             }
             fprintf(fp, "\n");
         }

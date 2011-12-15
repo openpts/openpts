@@ -1,256 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="6adad506-4571-11e0-b6bf-ab2c3b6de2e1">
-  <packagedElement xmi:type="uml:StateMachine" xmi:id="KjupaeY0" name="">
-    <region xmi:id="_KeCyohy6Ed6jytZ7WXwL3w" name="bios">
-
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="c0db8f24-22b4-11e1-a343-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="c0db8f24-22b4-11e1-a343-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="c0db8f24-22b4-11e1-a343-001f160c9c28_region" name="firmware">
       <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
-      <subvertex xmi:type="uml:State" xmi:id="PCR2_START" name="PCR2_START" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_KeEAwRy6Ed6jytZ7WXwL3w" name="resetPCR(2)"/>
-      </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_ACTION" name="EV_ACTION" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_KeEAwBy6Ed6jytZ7WXwL3w" name="addBIOSAction()"/>
-      </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EVENT_TAG" name="EV_EVENT_TAG" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_KeEAwhy6Ed6jytZ7WXwL3w" name="addBIOSSpecificProperty()"/>
-      </subvertex>
-      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR" visibility="public"/>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_RUNTIME_SERVICES_DRIVER" name="EV_EFI_RUNTIME_SERVICES_DRIVER" visibility="public"/>
-      <subvertex xmi:type="uml:State" xmi:id="EV_EFI_BOOT_SERVICES_DRIVER" name="EV_EFI_BOOT_SERVICES_DRIVER" visibility="public"/>
-      <subvertex xmi:type="uml:State" xmi:id="BIOS_PCR2_Verified" name="BIOS_PCR2_Verified" visibility="public">
-        <doActivity xmi:type="uml:Activity" xmi:id="_KeDZsBy6Ed6jytZ7WXwL3w" name="setAssertion(bios.pcr.2.integrity, valid)"/>
-      </subvertex>
       <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
-
-<!-- KVM SEBIOS -->
-      <transition xmi:id="PCR2_START_to_EV_EVENT_TAG" visibility="public" kind="local" source="PCR2_START" target="EV_EVENT_TAG" guard="PCR2_START_to_EV_EVENT_TAG_guard">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="PCR2_START_to_EV_EVENT_TAG_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="PCR2_START_to_EV_EVENT_TAG_spec" name="">
-            <body>eventtype == 0x06</body>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_START" name="FSM_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_START_do" name="resetPCR(2)"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_ACTION" name="EV_ACTION">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_ACTION_do" name="addBIOSAction()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_EVENT_TAG" name="EV_EVENT_TAG">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_EVENT_TAG_do" name="addBIOSSpecificProperty()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_SEPARATOR" name="EV_SEPARATOR"/>
+      <subvertex xmi:type="uml:State" xmi:id="FSM_VERIFIED" name="FSM_VERIFIED">
+        <doActivity xmi:type="uml:Activity" xmi:id="FSM_VERIFIED_do" name="setAssertion(bios.pcr.2.integrity,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_FSM_START" name="Start_to_FSM_START" source="Start" target="FSM_START"/>
+      <transition xmi:id="FSM_START_to_EV_SEPARATOR" name="FSM_START_to_EV_SEPARATOR" source="FSM_START" target="EV_SEPARATOR">
+        <ownedRule xmi:id="FSM_START_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
-
-<!-- IBM UEFI -->
-      <transition xmi:id="IBM05_to_SEP" visibility="public" kind="local" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_SEPARATOR" guard="IBM05_to_SEP_guard">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="IBM05_to_SEP_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="IBM05_to_SEP_spec" name="">
-            <body>eventtype == 0x04</body>
+      <transition xmi:id="FSM_START_to_EV_ACTION" name="FSM_START_to_EV_ACTION" source="FSM_START" target="EV_ACTION">
+        <ownedRule xmi:id="FSM_START_to_EV_ACTION_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="FSM_START_to_EV_ACTION_spec">
+            <body>eventtype==0x05</body>
           </specification>
         </ownedRule>
       </transition>
-<!-- IBM UEFI X3500M3 -->
-      <transition xmi:id="IBM04_to_SEP" visibility="public" kind="local" source="EV_EFI_BOOT_SERVICES_DRIVER" target="EV_SEPARATOR" guard="IBM04_to_SEP_guard">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="IBM04_to_SEP_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="IBM04_to_SEP_spec" name="">
-            <body>eventtype == 0x04</body>
+      <transition xmi:id="EV_ACTION_to_EV_EVENT_TAG" name="EV_ACTION_to_EV_EVENT_TAG" source="EV_ACTION" target="EV_EVENT_TAG">
+        <ownedRule xmi:id="EV_ACTION_to_EV_EVENT_TAG_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_ACTION_to_EV_EVENT_TAG_spec">
+            <body>eventtype==0x06</body>
           </specification>
         </ownedRule>
       </transition>
-
-      <transition xmi:id="KmlnZcz0" visibility="public" kind="local" source="PCR2_START" target="EV_SEPARATOR" guard="_KeEn0Ry6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeEn0Ry6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeEn0hy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x04</body>
+      <transition xmi:id="EV_EVENT_TAG_to_EV_SEPARATOR" name="EV_EVENT_TAG_to_EV_SEPARATOR" source="EV_EVENT_TAG" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_EVENT_TAG_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EVENT_TAG_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
-
-      <transition xmi:id="Kk02jZs0" name="CRTM_START_trans" visibility="public" kind="local" source="Start" target="PCR2_START"/>
-      <transition xmi:id="LnjVYsA0" visibility="public" kind="local" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_ACTION" guard="_KeFO4By6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeFO4By6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeFO4Ry6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x05</body>
+      <transition xmi:id="EV_ACTION_to_EV_SEPARATOR" name="EV_ACTION_to_EV_SEPARATOR" source="EV_ACTION" target="EV_SEPARATOR">
+        <ownedRule xmi:id="EV_ACTION_to_EV_SEPARATOR_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_ACTION_to_EV_SEPARATOR_spec">
+            <body>eventtype==0x04</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="L2rYmRY0" visibility="public" kind="local" source="EV_EVENT_TAG" target="EV_SEPARATOR" guard="_KeFO4xy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeFO4xy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeFO5By6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x04</body>
+      <transition xmi:id="EV_EVENT_TAG_to_EV_ACTION" name="EV_EVENT_TAG_to_EV_ACTION" source="EV_EVENT_TAG" target="EV_ACTION">
+        <ownedRule xmi:id="EV_EVENT_TAG_to_EV_ACTION_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_EVENT_TAG_to_EV_ACTION_spec">
+            <body>eventtype==0x05</body>
           </specification>
         </ownedRule>
       </transition>
-      <transition xmi:id="Lnjcpd20" visibility="public" kind="local" source="EV_EFI_BOOT_SERVICES_DRIVER" target="EV_ACTION" guard="_KeFO5hy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeFO5hy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeFO5xy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x05</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition xmi:id="LnjUfQX0" visibility="public" kind="local" source="PCR2_START" target="EV_EFI_BOOT_SERVICES_DRIVER" guard="_KeF18hy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeF18hy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeF18xy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x80000004</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition xmi:id="KmlY6Ab0" visibility="public" kind="local" source="EV_ACTION" target="EV_EVENT_TAG" guard="_KeGdARy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeGdARy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeGdAhy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x06</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="Kmmlk4X0" visibility="public" kind="local" source="EV_ACTION" target="EV_SEPARATOR" guard="_KeGdBBy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeGdBBy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeGdBRy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x04</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="LnjUmCk0" visibility="public" kind="local" source="EV_EFI_BOOT_SERVICES_DRIVER" target="EV_EFI_RUNTIME_SERVICES_DRIVER" guard="_KeGdBxy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeGdBxy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeGdCBy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x80000005</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="LnjVpu80" visibility="public" kind="local" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_EFI_RUNTIME_SERVICES_DRIVER" guard="_KeHEERy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeHEERy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeHEEhy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x80000005</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="EV_ACTION_trans" name="EV_ACTION_trans" visibility="public" kind="local" source="PCR2_START" target="EV_ACTION" guard="_KeHEFBy6Ed6jytZ7WXwL3w">
-        <ownedRule xmi:id="_KeHEFBy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeHEFRy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x05</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="LnjW4TL0" visibility="public" kind="local" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_EFI_BOOT_SERVICES_DRIVER" guard="_KeHrIRy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeHrIRy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeHrIhy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x80000004</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="KmlY0pCG" name="EV_EVENT_TAG_loop" visibility="public" kind="local" source="EV_EVENT_TAG" target="EV_EVENT_TAG" guard="_KeHrJBy6Ed6jytZ7WXwL3w">
-        <ownedRule xmi:id="_KeHrJBy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeHrJRy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x06</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="LnjVn0I0" visibility="public" kind="local" source="EV_EVENT_TAG" target="EV_EFI_BOOT_SERVICES_DRIVER" guard="_KeHrJxy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeHrJxy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeHrKBy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x80000004</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="Lnjbbcc0" visibility="public" kind="local" source="EV_EFI_RUNTIME_SERVICES_DRIVER" target="EV_EVENT_TAG" guard="_KeISMRy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeISMRy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeISMhy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x06</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="KmlYJMO0" visibility="public" kind="local" source="EV_EVENT_TAG" target="EV_ACTION" guard="_KeISNBy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeISNBy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeISNRy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x05</body>
-          </specification>
-        </ownedRule>
-      </transition>
-      <transition xmi:id="LnjUnHy0" visibility="public" kind="local" source="EV_EFI_BOOT_SERVICES_DRIVER" target="EV_EFI_BOOT_SERVICES_DRIVER" guard="_KeI5QRy6Ed6jytZ7WXwL3w">
-        <name xsi:nil="true"/>
-        <ownedRule xmi:id="_KeI5QRy6Ed6jytZ7WXwL3w" name="">
-          <specification xmi:type="uml:OpaqueExpression" xmi:id="_KeI5Qhy6Ed6jytZ7WXwL3w" name="">
-            <body>eventtype == 0x80000004</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-
-      <transition xmi:id="KoByXxb0" visibility="public" kind="local" source="BIOS_PCR2_Verified" target="Final">
-        <name xsi:nil="true"/>
-      </transition>
-
-
-
-<!-- added 3 trans for Lenovo UEFI -->
-      <transition  visibility="public" kind="local"
-        source="EV_EFI_BOOT_SERVICES_DRIVER"
-        target="EV_EVENT_TAG"
-        xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_to_EV_EVENT_TAG"
-        name="EV_EFI_BOOT_SERVICES_DRIVER_to_EV_EVENT_TAG"
-        guard="EV_EFI_BOOT_SERVICES_DRIVER_to_EV_EVENT_TAG_guard">
-        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_to_EV_EVENT_TAG_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_to_EV_EVENT_TAG_spec">
-            <body>eventtype == 0x06</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition  visibility="public" kind="local"
-        source="EV_SEPARATOR"
-        target="EV_EFI_BOOT_SERVICES_DRIVER"
-        xmi:id="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER"
-        name="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER"
-        guard="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_guard">
-        <ownedRule xmi:id="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_SEPARATOR_to_EV_EFI_BOOT_SERVICES_DRIVER_spec">
-            <body>eventtype == 0x80000004</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-      <transition  visibility="public" kind="local"
-        source="EV_EFI_BOOT_SERVICES_DRIVER"
-        target="BIOS_PCR2_Verified"
-        xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_to_BIOS_PCR2_Verified"
-        name="EV_EFI_BOOT_SERVICES_DRIVER_to_BIOS_PCR2_Verified"
-        guard="EV_EFI_BOOT_SERVICES_DRIVER_to_BIOS_PCR2_Verified_guard">
-        <ownedRule xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_to_BIOS_PCR2_Verified_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_EFI_BOOT_SERVICES_DRIVER_to_BIOS_PCR2_Verified_spec">
-            <body>else</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
-
-
-<!-- fixed 1 trans for Lenovo UEFI -->
-<!--
-      <transition xmi:id="Final_trans" name="Final_trans" visibility="public" kind="local" source="EV_SEPARATOR" target="BIOS_PCR2_Verified"/>
--->
-      <transition  visibility="public" kind="local"
-        source="EV_SEPARATOR"
-        target="BIOS_PCR2_Verified"
-        xmi:id="EV_SEPARATOR_to_BIOS_PCR2_Verified"
-        name="EV_SEPARATOR_to_BIOS_PCR2_Verified"
-        guard="EV_SEPARATOR_to_BIOS_PCR2_Verified_guard">
-        <ownedRule xmi:id="EV_SEPARATOR_to_BIOS_PCR2_Verified_guard" name="">
-          <specification xmi:type="uml:OpaqueExpression" name=""
-            xmi:id="EV_SEPARATOR_to_BIOS_PCR2_Verified_spec">
-            <body>else</body>
-          </specification>
-        </ownedRule>
-      </transition>
-
+      <transition xmi:id="EV_SEPARATOR_to_FSM_VERIFIED" name="EV_SEPARATOR_to_FSM_VERIFIED" source="EV_SEPARATOR" target="FSM_VERIFIED"/>
+      <transition xmi:id="FSM_VERIFIED_to_Final" name="FSM_VERIFIED_to_Final" source="FSM_VERIFIED" target="Final"/>
     </region>
   </packagedElement>
 </uml:Model>

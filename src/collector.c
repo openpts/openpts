@@ -168,8 +168,12 @@ int init(
     OPENPTS_PROPERTY *prop_start,
     OPENPTS_PROPERTY *prop_end) {
     int rc = PTS_SUCCESS;
-    UINT32 ps_type = TSS_PS_TYPE_SYSTEM;
+//<<<<<<< HEAD
+//    UINT32 ps_type = TSS_PS_TYPE_SYSTEM;
     OPENPTS_CONTEXT *ctx = NULL;
+//=======
+//    OPENPTS_CONTEXT *ctx;
+//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     int i;
     int keygen = 1;
     TSS_VERSION tpm_version;
@@ -399,7 +403,13 @@ int init(
     //      if verifier take the ownership of sign key, we needs the key for each verifier.
     //      auth can be transferd by IF-M (DH excnage)
     if (keygen == 1) {
-        rc = createTssSignKey(conf->uuid->uuid, ps_type, NULL, 0, conf->srk_password_mode);
+        rc = createTssSignKey(
+                conf->uuid->uuid,
+                conf->aik_storage_type,
+                conf->aik_storage_filename,
+                conf->aik_auth_type,
+                0,
+                conf->srk_password_mode);
         if (rc == 0x0001) {  // 0x0001
             addReason(ctx, -1,
                 NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SIGN_KEY_FAIL,

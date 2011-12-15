@@ -50,9 +50,9 @@
  *  6    BIOS
  *  7    BIOS
  *  8           OS
- *  9           OS(PTS)
+ *  9
  * 10           OS(IMA)
- * 11
+ * 11           OS(PTS)
  * 12
  * 13
  * 14

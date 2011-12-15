@@ -34,27 +34,27 @@ all:
 # UML to PNG
 #####################################
 
-png: bios_png grub_png ima_png openpts_png tboot_png
+png: bios_png uefi_png grub_png ima_png openpts_png tboot_png ptsc_png
 
 bios_png: \
 bios_pcr0.png bios_pcr1.png bios_pcr2.png bios_pcr3.png \
-bios_pcr4.png bios_pcr5.png bios_pcr6.png bios_pcr7.png \
-seabios_pcr0.png \
-bios_uefi_pcr0.png
+bios_pcr4.png bios_pcr5.png bios_pcr6.png bios_pcr7.png
+
+uefi_png: \
+uefi_pcr0.png uefi_pcr1.png uefi_pcr2.png uefi_pcr3.png \
+uefi_pcr4.png uefi_pcr5.png uefi_pcr6.png uefi_pcr7.png
 
 grub_png: \
-grub_pcr4.png grub_pcr5.png grub_pcr8.png \
-grub_pcr4hdd.png grub_pcr4cd.png 
+grub_pcr4.png grub_pcr5.png grub_pcr8.png grub_livecd_pcr4.png 
 
 tboot_png: \
-intel_txt_tboot_pcr17.png intel_txt_tboot_pcr18.png intel_txt_tboot_pcr19.png
+tboot_pcr17.png tboot_pcr18.png tboot_pcr19.png
 
 ima_png: \
-ima_pcr10.png f12_ima_pcr10.png ima_pcr10cd.png rhel6_ima_pcr10.png
+ima_rhel6_pcr10.png
 
-openpts_png: openpts.png
-
-
+ptsc_png: \
+ptsc_pcr11.png
 
 
 SUFFIXES = .uml .dot .dot2 .png

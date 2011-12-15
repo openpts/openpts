@@ -71,6 +71,8 @@
 
 #define TSS_PS_TYPE_BLOB   (0)   // not defined by TSS
 
+// TODO common secret
+#define TPMSIGKEY_SECRET "password"
 
 #ifdef CONFIG_NO_TSS
 /* ONLY for verifier side */
@@ -416,7 +418,14 @@ int printTssKeyList(int ps_type) {
  * 
  * TODO return PUBKEY blog
  */
-int createTssSignKey(PTS_UUID *uuid, int ps_type, char *filename, int force, int srk_password_mode) {
+int createTssSignKey(
+    PTS_UUID *uuid,
+    int ps_type,
+    char *filename,
+    int auth_type,
+    int force,
+    int srk_password_mode)
+{
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
@@ -429,9 +438,9 @@ int createTssSignKey(PTS_UUID *uuid, int ps_type, char *filename, int force, int
     TSS_HKEY hKey;
     UINT32 keyLength;
     BYTE *keyBlob;
+    TSS_HPOLICY hKeyPolicy;
     int i;
     TSS_UUID tss_uuid;
-    TSS_FLAG initFlag = TSS_KEY_SIZE_2048 | TSS_KEY_TYPE_SIGNING;
 
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
@@ -502,14 +511,66 @@ int createTssSignKey(PTS_UUID *uuid, int ps_type, char *filename, int force, int
     /* UUID */
     memcpy(&tss_uuid, uuid, sizeof(TSS_UUID));
 
-    /* Create New Key object */
-    result = Tspi_Context_CreateObject(hContext,
-                                       TSS_OBJECT_TYPE_RSAKEY,
-                                       initFlag, &hKey);
-    if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
-               result);
-        goto close;
+
+
+    if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
+        /* Create New Key object */
+        result = Tspi_Context_CreateObject(
+                    hContext,
+                    TSS_OBJECT_TYPE_RSAKEY,
+                    TSS_KEY_AUTHORIZATION | TSS_KEY_SIZE_2048 | TSS_KEY_TYPE_SIGNING,
+                    &hKey);
+        if (result != TSS_SUCCESS) {
+            ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+
+        // Noauth => uses Dummy Auth secret
+        result = Tspi_Context_CreateObject(
+                    hContext,
+                    TSS_OBJECT_TYPE_POLICY,
+                    TSS_POLICY_USAGE,
+                    &hKeyPolicy);
+        if (result != TSS_SUCCESS) {
+            printf
+            ("ERROR: Tspi_Context_CreateObject failed rc=0x%x\n",
+             result);
+            goto close;
+        }
+
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    strlen(TPMSIGKEY_SECRET),
+                    (BYTE *)TPMSIGKEY_SECRET);
+        if (result != TSS_SUCCESS) {
+            printf
+            ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+             result);
+            goto close;
+        }
+
+        result = Tspi_Policy_AssignToObject(hKeyPolicy, hKey);
+
+        if (result != TSS_SUCCESS) {
+            printf
+            ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+             result);
+            goto close;
+        }
+    } else {
+        /* Create New Key object */
+        result = Tspi_Context_CreateObject(
+                    hContext,
+                    TSS_OBJECT_TYPE_RSAKEY,
+                    TSS_KEY_SIZE_2048 | TSS_KEY_TYPE_SIGNING,
+                    &hKey);
+        if (result != TSS_SUCCESS) {
+            ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
     }
 
     /* create Key */
@@ -521,15 +582,22 @@ int createTssSignKey(PTS_UUID *uuid, int ps_type, char *filename, int force, int
     }
 
     /* RegisterKey */
-    if (ps_type == TSS_PS_TYPE_BLOB) {
+    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* save as blob */
         FILE *fp;
 
         if (filename == NULL) {
             ERROR("key blob filename is NULL\n");
+            result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
+
         fp = fopen(filename, "w");
+        if (fp==NULL) {
+            ERROR("file open fail, key blob file is %s",filename);
+            result = TSS_E_KEY_NOT_LOADED;
+            goto close;
+        }
 
         result = Tspi_GetAttribData(
                      hKey,
@@ -667,7 +735,9 @@ int getTssPubKey(
     int ps_type,
     int srk_password_mode,
     int resetdalock,
-    char *filename, int *pubkey_length, BYTE **pubkey) {
+    char *filename,
+    int auth_type,
+    int *pubkey_length, BYTE **pubkey) {
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HKEY hKey;
@@ -680,8 +750,6 @@ int getTssPubKey(
     BYTE *srk_auth;
     int srk_auth_len = 0;
     TSS_HPOLICY hKeyPolicy;
-    BYTE key_auth[1] = {0};
-
 
     if (resetdalock == 1) {
         // 2011-03-03 SM WEC TPM locks well.
@@ -766,13 +834,18 @@ int getTssPubKey(
     // TODO resetDaLock
 
     /* Load AIK or Sign key */
-    if (ps_type == 0) {
+    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* Blob file */
         FILE *fp;
         BYTE blob[KEY_BLOB_SIZE];
         int len;
 
         fp = fopen(filename, "r");
+        if (fp==NULL) {
+            ERROR("file open fail, key blob file is %s",filename);
+            result = TSS_E_KEY_NOT_LOADED;
+            goto close;
+        }
         len = fread(blob, 1, KEY_BLOB_SIZE, fp);
         fclose(fp);
 
@@ -816,17 +889,48 @@ int getTssPubKey(
         goto close;
     }
 
+//<<<<<<< HEAD
+//
+//    /* Set Policy */
+//    result = Tspi_Policy_SetSecret(
+//                hKeyPolicy,
+//                TSS_SECRET_MODE_PLAIN,
+//                0,  // ""
+//                key_auth);
+//    if (result != TSS_SUCCESS) {
+//        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+//               result);
+//        goto close;
+//=======
+    if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
+        /* Set Policy - Dummy Secret */
+        // 2011-11-26 Munetoh - This fail with Infineon TPM(v1.2)
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    strlen(TPMSIGKEY_SECRET),
+                    (BYTE *)TPMSIGKEY_SECRET);
+        if (result != TSS_SUCCESS) {
+            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+    } else {
+        /* Set Policy - Null Secret */
+        // Atmel, Winbond, STM
+        BYTE key_auth[1] = {0};
 
-    /* Set Policy */
-    result = Tspi_Policy_SetSecret(
-                hKeyPolicy,
-                TSS_SECRET_MODE_PLAIN,
-                0,  // ""
-                key_auth);
-    if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
-               result);
-        goto close;
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    0,
+                    key_auth);
+        if (result != TSS_SUCCESS) {
+            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     }
 
     /* get pubkey */
@@ -950,6 +1054,7 @@ int quoteTss(
         int ps_type,
         int srk_password_mode,
         char *filename,
+        int auth_type,
         /* Nonce */
         BYTE *nonce,
         /* PCR selection */
@@ -968,8 +1073,6 @@ int quoteTss(
 
     TSS_HKEY hKey;
     TSS_HPOLICY hKeyPolicy;
-    BYTE key_auth[1] = {0};
-
     TSS_UUID tss_uuid;
     TSS_HPCRS hPcrComposite;
     TSS_VALIDATION validation_data;  // local
@@ -1120,13 +1223,19 @@ int quoteTss(
 
 
     /* Load AIK or Sign key */
-    if (ps_type == 0) {
+    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* Blob file */
         FILE *fp;
         BYTE blob[KEY_BLOB_SIZE];
         int len;
 
         fp = fopen(filename, "r");
+        if (fp==NULL) {
+            ERROR("file open fail, key blob file is %s",filename);
+            result = TSS_E_KEY_NOT_LOADED;
+            goto close;
+        }
+
         len = fread(blob, 1, KEY_BLOB_SIZE, fp);
         fclose(fp);
 
@@ -1164,18 +1273,48 @@ int quoteTss(
         goto close;
     }
 
-    /* Set Policy */
-    result = Tspi_Policy_SetSecret(
-                hKeyPolicy,
-                TSS_SECRET_MODE_PLAIN,
-                0,  // ""
-                key_auth);
-    if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
-               result);
-        goto close;
-    }
+//<<<<<<< HEAD
+//    /* Set Policy */
+//    result = Tspi_Policy_SetSecret(
+//                hKeyPolicy,
+//                TSS_SECRET_MODE_PLAIN,
+//                0,  // ""
+//                key_auth);
+//    if (result != TSS_SUCCESS) {
+//        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+//               result);
+//        goto close;
+//=======
+    if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
+        /* Set Policy - Dummy Secret */
+        // 2011-11-26 Munetoh - This fail with Infineon TPM(v1.2)
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    strlen(TPMSIGKEY_SECRET),
+                    (BYTE *)TPMSIGKEY_SECRET);
+        if (result != TSS_SUCCESS) {
+            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+    } else {
+        /* Set Policy - Null Secret */
+        // Atmel, Winbond, STM
+        BYTE key_auth[] = "";
 
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    0,
+                    key_auth);
+        if (result != TSS_SUCCESS) {
+            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
+    }
 
     /* Setup (copy) Validation Data Structure */
     validation_data.versionInfo.bMajor = validationData->versionInfo.bMajor;
@@ -1325,6 +1464,7 @@ int quote2Tss(
         int ps_type,
         int srk_password_mode,
         char *filename,
+        int auth_type,
         /* Nonce */
         BYTE *nonce,
         /* PCR selection */
@@ -1344,8 +1484,6 @@ int quote2Tss(
 
     TSS_HKEY hKey;
     TSS_HPOLICY hKeyPolicy;
-    BYTE key_auth[] = "";
-
     TSS_UUID tss_uuid;
     TSS_HPCRS hPcrComposite;
     TSS_VALIDATION validation_data;  // local
@@ -1501,13 +1639,20 @@ int quote2Tss(
 
 
     /* Load AIK or Sign key */
-    if (ps_type == 0) {
+    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* Blob file */
         FILE *fp;
         BYTE blob[KEY_BLOB_SIZE];
         int len;
 
         fp = fopen(filename, "r");
+        if (fp==NULL) {
+            ERROR("file open fail, key blob file is %s",filename);
+            result = TSS_E_KEY_NOT_LOADED;
+            goto close;
+        }
+
+
         len = fread(blob, 1, KEY_BLOB_SIZE, fp);
         fclose(fp);
 
@@ -1545,16 +1690,47 @@ int quote2Tss(
         goto close;
     }
 
-    /* Set Policy */
-    result = Tspi_Policy_SetSecret(
-                hKeyPolicy,
-                TSS_SECRET_MODE_PLAIN,
-                0,
-                key_auth);
-    if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
-               result);
-        goto close;
+//<<<<<<< HEAD
+//    /* Set Policy */
+//    result = Tspi_Policy_SetSecret(
+//                hKeyPolicy,
+//                TSS_SECRET_MODE_PLAIN,
+//                0,
+//                key_auth);
+//    if (result != TSS_SUCCESS) {
+//        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+//               result);
+//        goto close;
+//=======
+    if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
+        /* Set Policy - Dummy Secret */
+        // 2011-11-26 Munetoh - This fail with Infineon TPM(v1.2)
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    strlen(TPMSIGKEY_SECRET),
+                    (BYTE *)TPMSIGKEY_SECRET);
+        if (result != TSS_SUCCESS) {
+            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+    } else {
+        /* Set Policy - Null Secret */
+        // Atmel, Winbond, STM
+        BYTE key_auth[] = "";
+
+        result = Tspi_Policy_SetSecret(
+                    hKeyPolicy,
+                    TSS_SECRET_MODE_PLAIN,
+                    0,
+                    key_auth);
+        if (result != TSS_SUCCESS) {
+            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                   result);
+            goto close;
+        }
+//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     }
 
     /* Nonce -> rgbExternalData */

@@ -238,12 +238,12 @@ int readOpenptsUuidFile(OPENPTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("readOpenptsUuidFile() - uuid == NULL");
+        return PTS_FATAL;
     }
     if (uuid->filename == NULL) {
         ERROR("\n");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
 
     DEBUG("readOpenptsUuidFile()      : %s\n", uuid->filename);

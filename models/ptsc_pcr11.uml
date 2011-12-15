@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uml="http://www.eclipse.org/uml2/3.0.0/UML" xmi:id="549c15e0-26bf-11e1-880f-001f160c9c28">
+  <packagedElement xmi:type="uml:State" xmi:id="549c15e0-26bf-11e1-880f-001f160c9c28_pe" name="openpts_fsm_model">
+    <region xmi:id="549c15e0-26bf-11e1-880f-001f160c9c28_region" name="firmware">
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="Start" name="Start"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="Final"/>
+      <subvertex xmi:type="uml:State" xmi:id="PTSC_PCR11_START" name="PTSC_PCR11_START"/>
+      <subvertex xmi:type="uml:State" xmi:id="EV_COLLECTOR_START" name="EV_COLLECTOR_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_COLLECTOR_START_do" name="startCollector()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_UPDATE_START" name="EV_UPDATE_START">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_UPDATE_START_do" name="startUpdate()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_NEW_EVENTS" name="EV_NEW_EVENTS">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_NEW_EVENTS_do" name="deputyEvent()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_UPDATE_END" name="EV_UPDATE_END">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_UPDATE_END_do" name="endUpdate()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="EV_COLLECTOR_UPDATE" name="EV_COLLECTOR_UPDATE">
+        <doActivity xmi:type="uml:Activity" xmi:id="EV_COLLECTOR_UPDATE_do" name="updateCollector()"/>
+      </subvertex>
+      <subvertex xmi:type="uml:State" xmi:id="PTSC_PCR11_Verified" name="PTSC_PCR11_Verified">
+        <doActivity xmi:type="uml:Activity" xmi:id="PTSC_PCR11_Verified_do" name="setAssertion(ptsc.pcr11.transition,valid)"/>
+      </subvertex>
+      <transition xmi:id="Start_to_PTSC_PCR11_START" name="Start_to_PTSC_PCR11_START" source="Start" target="PTSC_PCR11_START"/>
+      <transition xmi:id="PTSC_PCR11_START_to_EV_COLLECTOR_START" name="PTSC_PCR11_START_to_EV_COLLECTOR_START" source="PTSC_PCR11_START" target="EV_COLLECTOR_START">
+        <ownedRule xmi:id="PTSC_PCR11_START_to_EV_COLLECTOR_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="PTSC_PCR11_START_to_EV_COLLECTOR_START_spec">
+            <body>eventtype==0x80</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_COLLECTOR_START_to_EV_COLLECTOR_START" name="EV_COLLECTOR_START_to_EV_COLLECTOR_START" source="EV_COLLECTOR_START" target="EV_COLLECTOR_START">
+        <ownedRule xmi:id="EV_COLLECTOR_START_to_EV_COLLECTOR_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_COLLECTOR_START_to_EV_COLLECTOR_START_spec">
+            <body>eventtype==0x80</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_UPDATE_END_to_EV_COLLECTOR_START" name="EV_UPDATE_END_to_EV_COLLECTOR_START" source="EV_UPDATE_END" target="EV_COLLECTOR_START">
+        <ownedRule xmi:id="EV_UPDATE_END_to_EV_COLLECTOR_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_UPDATE_END_to_EV_COLLECTOR_START_spec">
+            <body>eventtype==0x80</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_COLLECTOR_UPDATE_to_EV_COLLECTOR_START" name="EV_COLLECTOR_UPDATE_to_EV_COLLECTOR_START" source="EV_COLLECTOR_UPDATE" target="EV_COLLECTOR_START">
+        <ownedRule xmi:id="EV_COLLECTOR_UPDATE_to_EV_COLLECTOR_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_COLLECTOR_UPDATE_to_EV_COLLECTOR_START_spec">
+            <body>eventtype==0x80</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_COLLECTOR_START_to_EV_UPDATE_START" name="EV_COLLECTOR_START_to_EV_UPDATE_START" source="EV_COLLECTOR_START" target="EV_UPDATE_START">
+        <ownedRule xmi:id="EV_COLLECTOR_START_to_EV_UPDATE_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_COLLECTOR_START_to_EV_UPDATE_START_spec">
+            <body>eventtype==0x81</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_UPDATE_END_to_EV_UPDATE_START" name="EV_UPDATE_END_to_EV_UPDATE_START" source="EV_UPDATE_END" target="EV_UPDATE_START">
+        <ownedRule xmi:id="EV_UPDATE_END_to_EV_UPDATE_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_UPDATE_END_to_EV_UPDATE_START_spec">
+            <body>eventtype==0x81</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_COLLECTOR_UPDATE_to_EV_UPDATE_START" name="EV_COLLECTOR_UPDATE_to_EV_UPDATE_START" source="EV_COLLECTOR_UPDATE" target="EV_UPDATE_START">
+        <ownedRule xmi:id="EV_COLLECTOR_UPDATE_to_EV_UPDATE_START_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_COLLECTOR_UPDATE_to_EV_UPDATE_START_spec">
+            <body>eventtype==0x81</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_UPDATE_START_to_EV_NEW_EVENTS" name="EV_UPDATE_START_to_EV_NEW_EVENTS" source="EV_UPDATE_START" target="EV_NEW_EVENTS">
+        <ownedRule xmi:id="EV_UPDATE_START_to_EV_NEW_EVENTS_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_UPDATE_START_to_EV_NEW_EVENTS_spec">
+            <body>eventtype!=0x83</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_NEW_EVENTS_to_EV_NEW_EVENTS" name="EV_NEW_EVENTS_to_EV_NEW_EVENTS" source="EV_NEW_EVENTS" target="EV_NEW_EVENTS">
+        <ownedRule xmi:id="EV_NEW_EVENTS_to_EV_NEW_EVENTS_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_NEW_EVENTS_to_EV_NEW_EVENTS_spec">
+            <body>eventtype!=0x83</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_NEW_EVENTS_to_EV_UPDATE_END" name="EV_NEW_EVENTS_to_EV_UPDATE_END" source="EV_NEW_EVENTS" target="EV_UPDATE_END">
+        <ownedRule xmi:id="EV_NEW_EVENTS_to_EV_UPDATE_END_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_NEW_EVENTS_to_EV_UPDATE_END_spec">
+            <body>eventtype==0x83</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_UPDATE_END_to_EV_COLLECTOR_UPDATE" name="EV_UPDATE_END_to_EV_COLLECTOR_UPDATE" source="EV_UPDATE_END" target="EV_COLLECTOR_UPDATE">
+        <ownedRule xmi:id="EV_UPDATE_END_to_EV_COLLECTOR_UPDATE_guard">
+          <specification xmi:type="uml:OpaqueExpression" xmi:id="EV_UPDATE_END_to_EV_COLLECTOR_UPDATE_spec">
+            <body>eventtype==0x85</body>
+          </specification>
+        </ownedRule>
+      </transition>
+      <transition xmi:id="EV_COLLECTOR_UPDATE_to_PTSC_PCR11_Verified" name="EV_COLLECTOR_UPDATE_to_PTSC_PCR11_Verified" source="EV_COLLECTOR_UPDATE" target="PTSC_PCR11_Verified"/>
+      <transition xmi:id="EV_UPDATE_END_to_PTSC_PCR11_Verified" name="EV_UPDATE_END_to_PTSC_PCR11_Verified" source="EV_UPDATE_END" target="PTSC_PCR11_Verified"/>
+      <transition xmi:id="EV_COLLECTOR_START_to_PTSC_PCR11_Verified" name="EV_COLLECTOR_START_to_PTSC_PCR11_Verified" source="EV_COLLECTOR_START" target="PTSC_PCR11_Verified"/>
+      <transition xmi:id="PTSC_PCR11_Verified_to_Final" name="PTSC_PCR11_Verified_to_Final" source="PTSC_PCR11_Verified" target="Final"/>
+    </region>
+  </packagedElement>
+</uml:Model>

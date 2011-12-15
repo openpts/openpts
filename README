@@ -57,6 +57,7 @@
  64-bit
  $ ./configure --with-tss --with-aru --enable-tnc --prefix=/usr --libdir=/usr/lib64
 
+
  $ make
  # make install
 
