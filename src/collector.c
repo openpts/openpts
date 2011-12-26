@@ -414,6 +414,7 @@ int init(
             rc = PTS_INTERNAL_ERROR;
             goto error;
         } else if (rc != PTS_SUCCESS) {
+            DEBUG("createTssSignKey() failed\n");
             addReason(ctx, -1,
                 "[PTSC-INIT] Could not create the Key (rc = 0x%x).", rc);
             rc = PTS_INTERNAL_ERROR;

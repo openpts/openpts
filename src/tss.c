@@ -420,7 +420,7 @@ int printTssKeyList(int ps_type) {
  */
 int createTssSignKey(
     PTS_UUID *uuid,
-    int ps_type,
+    int key_storage_type,
     char *filename,
     int auth_type,
     int force,
@@ -514,6 +514,7 @@ int createTssSignKey(
 
 
     if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
+TODO("auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON");
         /* Create New Key object */
         result = Tspi_Context_CreateObject(
                     hContext,
@@ -561,6 +562,7 @@ int createTssSignKey(
         }
     } else {
         /* Create New Key object */
+TODO("auth_type != OPENPTS_AIK_AUTH_TYPE_COMMON");
         result = Tspi_Context_CreateObject(
                     hContext,
                     TSS_OBJECT_TYPE_RSAKEY,
@@ -585,7 +587,7 @@ int createTssSignKey(
     }
 
     /* RegisterKey */
-    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+    if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* save as blob */
         FILE *fp;
 
@@ -626,7 +628,7 @@ int createTssSignKey(
   regkey:
         result = Tspi_Context_RegisterKey(hContext,
                                           hKey,
-                                          ps_type,  // TSS_PS_TYPE_SYSTEM,
+                                          TSS_PS_TYPE_SYSTEM,
                                           tss_uuid,
                                           TSS_PS_TYPE_SYSTEM,
                                           SRK_UUID);
@@ -639,7 +641,7 @@ int createTssSignKey(
                     TSS_HKEY hKey;
                     result =
                         Tspi_Context_UnregisterKey(hContext,
-                                                   ps_type,  // TSS_PS_TYPE_SYSTEM,
+                                                   TSS_PS_TYPE_SYSTEM,
                                                    tss_uuid,
                                                    &hKey);
                     if (result != TSS_SUCCESS) {
@@ -657,6 +659,7 @@ int createTssSignKey(
             } else {
                 ERROR("spi_Context_RegisterKey failed rc=0x%x\n",
                  result);
+                // 0x3003 TEE_E_BAD_PARAMETOR
             }
             goto close;
         } else {
