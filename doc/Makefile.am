@@ -106,6 +106,12 @@ SUFFIXES = .tex .dvi .png
 	fi
 
 #####################################
+# Operation flow
+#####################################
+operationflow.png: operationflow.dot
+	dot -Tpng operationflow.dot -o operationflow.png
+
+#####################################
 # Low level (API) design document 
 #####################################
 #

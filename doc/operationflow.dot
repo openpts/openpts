@@ -1,0 +1,262 @@
+/*
+digraph O {
+
+	subgraph cluster_0 {
+		style=filled;
+		color=lightgrey;
+		node [style=filled,color=white];
+		a0 -> a1 -> a2 -> a3;
+		label = "process #1";
+	}
+
+	subgraph cluster_1 {
+		node [style=filled];
+		b0 -> b1 -> b2 -> b3;
+		label = "process #2";
+		color=blue
+	}
+	//start -> a0;
+	//start -> b0;
+	a1 -> b3;
+	b2 -> a3;
+	a3 -> a0;
+	//a3 -> end;
+	//b3 -> end;
+
+	//start [shape=Mdiamond];
+	//end [shape=Msquare];
+}
+*/
+
+
+
+digraph OpenPTS {
+  subgraph cluster_0 {
+    label="Collector(Init)"
+    node [style=filled, color=gray]
+
+    // Platform states
+    platform_new [color=green]
+    platform_boot_bios [label="Enable TPM (BIOS conf)",color=green]
+    platform_running_1st [color=green]
+
+    // TPM state
+    tpm_takeownership[label="tpm_takeownership -y -z",shape=box]
+
+    tss_config [label="Config tcsd\n/etc/tcsd.conf\nservice tcsd restart",shape=note]
+    iml2text [label="iml2text\n(should dump the IML)",shape=box]
+    iml2text_error [color=orange]
+
+    // PTSC states
+    ptsc_error_config [color=orange, label="Config error\nManifest error\nTPM error"]
+
+    // PTSC actions
+    group_config  [label="groupadd ptsc\nusermod -a -G ptsc account",shape=box]
+    ptsc_config [label="Config ptsc\n/etc/ptsc.conf",shape=note]
+    ptsc_init [label="ptsc -i\n(init)", color=yellow,shape=box]
+    ptsc_selftest0 [label="ptsc -t\n(selftest)", color=yellow,shape=box]
+
+    // Transitions
+    platform_new -> platform_boot_bios [label="first boot"]
+    platform_boot_bios -> platform_running_1st [label="first boot"]
+    platform_running_1st -> tpm_takeownership [label="first boot"]
+    tpm_takeownership -> tss_config
+    tss_config -> group_config
+
+    tss_config -> iml2text
+    iml2text -> iml2text_error [label="missing IML"]
+    iml2text_error -> tss_config
+
+    {rank=same; tss_config; iml2text;}
+
+    group_config -> ptsc_config
+
+
+    ptsc_config -> ptsc_init
+    ptsc_init -> ptsc_error_config [label="fail"]
+    ptsc_error_config -> ptsc_config
+    ptsc_init -> ptsc_selftest0
+    ptsc_selftest0 -> ptsc_error_config [label="fail"]
+
+    {rank=same; ptsc_config; ptsc_init;}
+    {rank=same; ptsc_selftest0; ptsc_error_config;}
+  }
+
+
+
+  subgraph cluster_1 {
+    label="Collector(Operation)"
+    node [style=filled, color=gray]
+
+
+    subgraph cluster_4 {
+        label="Platform"
+        // Platform states
+        platform_running [label="Running\n(w/ consistent IML and RM)",color=green]
+        platform_update [label="Update/Attack\ne.g. BIOS update",color=orange]
+        platform_update_running [label="Running\n(w/ inconsistent IML and RM)",color=orange]
+        platform_update_boot [label="Boot\n(Unknown sequence)",color=orange]
+        platform_shoutdown [label="Shoutdown"]
+        platform_boot [label="Boot\n(Known sequence)",color=green]
+
+        // Transitions
+        platform_running -> platform_shoutdown
+        platform_shoutdown -> platform_boot
+        platform_boot -> platform_running [label="(w/ consistent IML)"]
+
+        platform_running -> platform_update [label="(legitimate change OR attack)"]
+        platform_update -> platform_update_boot [label="(reboot w/ new boot components)"]
+        platform_update_boot -> platform_update_running [label="(w/ inconsistent IML)"]
+        platform_update_running -> platform_shoutdown
+
+        platform_update -> ptsc_autoupdate
+
+    {rank=same; platform_boot; platform_update_boot;}
+    {rank=same; platform_running; platform_update_running;}
+
+    }
+
+    subgraph cluster_5 {
+        label="PTSC"
+        // PTSC states
+        ptsc_null
+        ptsc_valid   [label="Valid",color=green]
+        ptsc_invalid [label="Invalid",color=orange]
+        ptsc_error   [label="ERROR",color=orange]
+        ptsc_attack  [label="ATTACKED",color=red]
+        ptsc_s_update [label="Legitimate Update",color=orange]
+
+        // PTSC actions
+        ptsc_selftest [label="ptsc -t\n(selftest)", color=yellow,shape=box]
+        ptsc_startup [label="ptsc -s\n(startup)", color=yellow,shape=box]
+        ptsc_display [label="ptsc -D\n(status)",shape=box]
+        ptsc_update [label="ptsc -u\n(update)", color=yellow,shape=box]
+        ptsc_autoupdate [label="ptsc -U\n(auto update)", color=yellow,shape=box]
+        ptsc_ifm [label="SSH(ptsc -m)", color=yellow,shape=box]
+        ptsc_clear [label="ptsc -e",shape=box]
+
+
+    {rank=same; ptsc_valid; ptsc_invalid;ptsc_attack;}
+    {rank=same; ptsc_error; ptsc_s_update;}
+
+    {rank=same; ptsc_startup; ptsc_update;ptsc_display; ptsc_selftest;}
+
+    }
+
+
+
+    platform_running -> ptsc_startup
+    ptsc_startup -> ptsc_valid  [label="success"]
+
+    platform_update_running -> ptsc_startup
+    ptsc_startup -> ptsc_invalid [label="fail"]
+    // ptsc_invalid -> ptsc_update [label="update host manifest\n(legitimate change)"]
+    ptsc_update -> ptsc_valid
+
+    //ptsc_valid -> ptsc_display;
+    //ptsc_invalid -> ptsc_display;
+
+    //ptsc_valid -> ptsc_selftest 
+
+    //ptsc_valid -> ptsc_clear -> ptsc_null
+    // ptsc_invalid -> ptsc_selftest 
+    ptsc_invalid -> ptsc_s_update
+    ptsc_invalid -> ptsc_error
+
+    //ptsc_selftest -> ptsc_error
+    //ptsc_selftest -> ptsc_s_update
+    ptsc_s_update -> ptsc_update [label="update host manifest\n(legitimate change)"]
+    ptsc_invalid -> ptsc_attack
+
+    ptsc_error -> ptsc_clear [label="reset ptsc"]
+    // ptsc_invalid -> ptsc_attack
+    ptsc_clear -> ptsc_null
+
+    ptsc_valid -> ptsc_ifm 
+    ptsc_invalid -> ptsc_ifm 
+
+
+
+
+  }
+
+  subgraph cluster_2 {
+    label="Verifier(enroll)"
+    node [style=filled, color=gray]
+
+    verifier_new
+    ssh_keygen
+    ssh_copyid
+    ssh_ready
+
+    verifier_new->ssh_keygen->ssh_copyid-> ssh_ready
+
+    openpts_enroll  [label="openpts -i [-f] hostname", color=yellow,shape=box]
+    openpts_enroll_error [label="ERROR",color=orange]
+    openpts_enroll_fix  [label="FIX",color=orange]
+
+    openpts_enroll -> openpts_enroll_error [label="SSH Error, IFM error"]
+    openpts_enroll_error -> openpts_enroll_fix
+    openpts_enroll_fix -> openpts_enroll
+
+    {rank=same; openpts_enroll_error; openpts_enroll_fix;}
+  }
+
+  subgraph cluster_3 {
+    label="Verifier(operation)"
+    node [style=filled, color=gray]
+
+    openpts_verify  [label="openpts [-v] hostname\n(verify)", color=yellow,shape=box]
+    openpts_remove  [label="openpts -r hostname",shape=box]
+    openpts_display [label="openpts -D hostname",shape=box]
+    openpts_enroll_force [label="openpts -i -f hostname", color=yellow,shape=box]
+
+    openpts_valid [color=green]
+    openpts_invalid [color=orange]
+    openpts_update [color=orange]
+    openpts_error [color=orange]
+    openpts_attack [color=red]
+    openpts_null [label="Fix the problem and Enroll again"]
+
+    ssh_ready -> openpts_enroll
+    openpts_enroll -> openpts_valid
+    //openpts_enroll -> openpts_enroll_force
+    openpts_enroll_force -> openpts_valid
+
+
+    //openpts_valid -> 
+    openpts_remove -> openpts_null
+
+    //openpts_valid -> openpts_display
+    //openpts_valid -> openpts_display
+    //openpts_null  -> openpts_display [label="empty"]
+
+    openpts_verify -> openpts_valid   [label="Valid"]
+    openpts_verify -> openpts_invalid  [label="Invalid"]
+    openpts_invalid -> openpts_error  [label="ERROR"]
+    openpts_invalid -> openpts_update [label="legitimate change"]
+    openpts_update  -> openpts_enroll_force [label="update host manifest\n(legitimate change)"]
+    openpts_invalid -> openpts_attack [label="invesigate the host"]
+    openpts_error -> openpts_remove [label="delete odd host"]
+    //openpts_remove -> openpts_null
+
+    //openpts_null -> openpts_enroll
+    //openpts_null -> openpts_verify  [label="ERROR"]
+
+     {rank=same; openpts_verify; openpts_display;}
+     {rank=same; openpts_valid; openpts_invalid; openpts_attack;}
+     {rank=same; openpts_remove; openpts_enroll_force;}
+  }
+
+  // 0<->1
+  ptsc_init -> ptsc_valid
+  ptsc_null -> ptsc_init
+
+  //NG {rank=same2; platform_running_1st; platform_running;}
+
+  openpts_verify -> ptsc_ifm [label="IF-M over SSH",dir=both]
+
+}
+
+
+
