@@ -168,12 +168,7 @@ int init(
     OPENPTS_PROPERTY *prop_start,
     OPENPTS_PROPERTY *prop_end) {
     int rc = PTS_SUCCESS;
-//<<<<<<< HEAD
-//    UINT32 ps_type = TSS_PS_TYPE_SYSTEM;
     OPENPTS_CONTEXT *ctx = NULL;
-//=======
-//    OPENPTS_CONTEXT *ctx;
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     int i;
     int keygen = 1;
     TSS_VERSION tpm_version;
@@ -520,13 +515,13 @@ int init(
     }
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_SUCCESS,
-        "\nptsc has successfully initialized!\n"));
+        "\nptsc has successfully initialized!\n\n"));
     goto free;
 
  error:
     /* initialization was faild */
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_FAIL,
-        "ptsc initialization was failed\n"));
+        "ptsc initialization was failed\n\n"));
     printReason(ctx, 0);
 
  free:
@@ -1024,25 +1019,14 @@ int clear(
         return PTS_FATAL;
     }
 
-#if 0
-    // lock file exist
-    /* check */
-    rc = checkDir(conf->config_dir);
-    if (rc == PTS_INTERNAL_ERROR) {
-        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_FAIL_NODIR,
-            "%s is missing"), conf->config_dir);
-        return PTS_FATAL;
-    } else {
-TODO("HOGE DDD %s\n",conf->config_dir);
-    }
 
-TODO("HOGE %s\n",conf->config_dir);
-#endif
+    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR, "Clear PTS collector\n"));
 
+    /* clear */
     if (isatty(STDIN_FILENO) && (force == 0) ) {
         char *lineFeed;
         printf(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR,
-            "Clear the PTS collector [y/N]\n"));
+            "Clear the PTS collector [y/N]:"));
         if ( NULL != fgets(ans, 32, stdin) ) {
             // strip the ending line-feed
             if ((lineFeed = strrchr(ans, '\n')) != NULL) {
@@ -1068,7 +1052,7 @@ TODO("HOGE %s\n",conf->config_dir);
             ERROR("unlinkDir(%s) fail", conf->config_dir);
         }
         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_YES_DONE,
-            "%s has been cleared\n") , conf->config_dir);
+            "%s has been cleared\n\n") , conf->config_dir);
     } else {
         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_NO_DONE, "keep\n"));
     }

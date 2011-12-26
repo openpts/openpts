@@ -218,6 +218,8 @@ digraph OpenPTS {
     openpts_attack [color=red]
     openpts_null [label="Fix the problem and Enroll again"]
 
+    openpts_policy [label="Adjust validation policy\nHOME/.openpts/UUID/policy.conf",shape=note]
+
     ssh_ready -> openpts_enroll
     openpts_enroll -> openpts_valid
     //openpts_enroll -> openpts_enroll_force
@@ -239,6 +241,9 @@ digraph OpenPTS {
     openpts_invalid -> openpts_attack [label="invesigate the host"]
     openpts_error -> openpts_remove [label="delete odd host"]
     //openpts_remove -> openpts_null
+
+    openpts_invalid -> openpts_policy [label="bad/inadequate policy"]
+    openpts_policy -> openpts_verify
 
     //openpts_null -> openpts_enroll
     //openpts_null -> openpts_verify  [label="ERROR"]

@@ -390,8 +390,9 @@ void printRmList(OPENPTS_CONFIG *conf, char *indent) {
 }
 
 
-
-/* for verifier */
+/******************************************************************************/
+/* for verifier                                                               */
+/******************************************************************************/
 
 /**
  * list/get target list at HOME/.openpts
@@ -593,6 +594,9 @@ OPENPTS_TARGET *getTargetCollector(OPENPTS_CONFIG *conf) {
     return NULL;
 }
 
+/**
+ *  get target by UUID
+ */
 OPENPTS_TARGET *getTargetCollectorByUUID(OPENPTS_CONFIG *conf, const char *uuid) {
     int cnt;
     OPENPTS_TARGET *target;
@@ -687,6 +691,11 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
 
     num = conf->target_list->target_num;
 
+    if (num == 0) {
+        printf("There is no enrolled target platform.\n");
+        return;
+    }
+
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_TARGET_LIST_HEADER,
            "%s  ID  UUID                                 date(UTC)          port port(ssh)  (username@)hostname\n"),
            indent);
@@ -719,6 +728,7 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
                 target_conf->hostname,
                 target_conf->ssh_port ? target_conf->ssh_port : "default");
         } else {
+            DEBUG("target[%d] is NULL, SKIP\n", cnt);
             // printf("--\n");
         }
     }

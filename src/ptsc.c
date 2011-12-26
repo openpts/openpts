@@ -771,24 +771,36 @@ int main(int argc, char *argv[]) {
 
     ptsc_lock();
 
-    /* load config */
+
+
+    /* load config, /etc/ptsc.conf */
     if (config_filename == NULL) {
         // this goto stdout and bad with "-m"
         // VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE, "Config file: %s\n"), PTSC_CONFIG_FILE);
         rc = readPtsConfig(conf, PTSC_CONFIG_FILE);
         if (rc != PTS_SUCCESS) {
+            DEBUG("readPtsConfig() failed\n");
             goto free;
         }
     } else {
         // VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE, "Config file: %s\n"), config_filename);
         rc = readPtsConfig(conf, config_filename);
         if (rc != PTS_SUCCESS) {
+            DEBUG("readPtsConfig() failed\n");
             goto free;
         }
     }
 
-    /* check dir */
-    // TODO root only
+    /* Check initialization */
+    if (command != COMMAND_INIT) {
+        /* initilized? */
+        if (checkFile(conf->uuid->filename) != OPENPTS_FILE_EXISTS) {
+            // missing
+            printf("ptsc is not initialized yet.\n\n");
+            goto free;
+        }
+    }
+
 
     /* only do this when needed */
     if (command != COMMAND_STATUS) {
@@ -817,7 +829,6 @@ int main(int argc, char *argv[]) {
 
     /* Clear the PTS collector */
     if (command == COMMAND_CLEAR) {
-        VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR, "Clear PTS collector\n"));
         rc = clear(conf, force);
         /* Exit */
         goto free;
@@ -832,11 +843,12 @@ int main(int argc, char *argv[]) {
     } else {
         rc = readOpenptsUuidFile(conf->rm_uuid);
         if (rc != PTS_SUCCESS) {
+            DEBUG("readOpenptsUuidFile(%s) failed\n",conf->rm_uuid->filename);
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_RM_UUID,
                    "Failed to read the Reference Manifest UUID file '%s':\n"
                    "Please ensure on the target that:\n"
                    "  * ptsc has been initialized (ptsc -i)\n"
-                   "  * you (uid==%d) are allowed to attest (i.e. a member of group '%s')"),
+                   "  * you (uid==%d) are allowed to attest (i.e. a member of group '%s')\n\n"),
                    conf->rm_uuid->filename, getuid(), PTSC_GROUP_NAME);
             goto free;
         } else {

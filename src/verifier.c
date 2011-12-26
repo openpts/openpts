@@ -46,9 +46,142 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #include <openpts.h>
-// #include <log.h>
+
+
+/**
+ * Lock (POSIX 1003.1)
+ * type:
+ *   F_RDLCK   shared     VERIFY DISPLAY
+ *   F_WRLCK   exclusive  ENROLL REMOVE UPDATE
+ * exit 1 if locked
+ */
+void global_lock(int type) {
+    int fd;
+    struct flock fl;
+    char *home, path[PATH_MAX];
+
+
+    /* prepare the lock file before access the conf */
+    // TODO HOME/.openpts/rwlock is hardcoded here
+    home = getenv("HOME");
+    if (home == NULL) {
+        ERROR("HOME environment variable not defined\n");
+        exit(1);
+    }
+
+    snprintf(path, PATH_MAX, "%s/.openpts", home);
+    if (mkdir(path, 0700) < 0 && errno != EEXIST) {
+        ERROR("Can't create dir, %s", path);
+        exit(1);
+    }
+
+    snprintf(path, PATH_MAX, "%s/.openpts/rwlock", home);
+    fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666);
+    if (fd < 0) {
+        ERROR("Can't open lock file, %s", path);
+        exit(1);
+    }
+
+    fl.l_start = 0;
+    fl.l_len = 0;
+    fl.l_whence = SEEK_SET;
+    fl.l_type = type;
+    fl.l_pid = getpid();
+    //if (fcntl(fd, F_SETLKW, &fl) < 0) {
+    if (fcntl(fd, F_SETLK, &fl) < 0) {
+        // get PID of the process holding that lock
+        fcntl(fd, F_GETLK, &fl);
+        fprintf(stderr, "Openpts configulation is locked by other(pid=%d)\n", fl.l_pid);
+        exit(1);
+    }
+}
+
+
+/**
+ * get Default Config File
+ */
+int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
+    int rc = PTS_SUCCESS;
+    /* use system default config file */
+    int createBasicConfig = 0;
+    int configDirExists = 0;
+
+    char dirpath[PATH_MAX];
+    char conf_file[PATH_MAX];
+    char uuid_file[PATH_MAX];
+    char *homeDir = getenv("HOME");
+
+    snprintf(dirpath, PATH_MAX, "%s/.openpts", homeDir);
+    snprintf(conf_file, PATH_MAX, "%s/.openpts/openpts.conf", homeDir);
+    snprintf(uuid_file, PATH_MAX, "%s/.openpts/uuid", homeDir);
+
+    /* check dir */
+    if (checkDir(dirpath) == PTS_SUCCESS) {
+        struct stat statBuf;
+        if (-1 == stat(conf_file, &statBuf) && ENOENT == errno) {
+            ERROR("Found openpts dir '%s', but no config file - will create one.", dirpath);
+            createBasicConfig = 1;
+        }
+        configDirExists = 1;
+    } else {
+        // create and initialize the $HOME/.openpts directory
+        rc = mkdir(dirpath, S_IRUSR | S_IWUSR | S_IXUSR);
+        if (rc != 0) {
+            ERROR("mkdir on %s failed (errno=%d)", dirpath, errno);
+            rc=PTS_FATAL;
+            goto error;
+        }
+        configDirExists = 1;
+        createBasicConfig = 1;
+    }
+
+    /* make config if missing */
+    if (createBasicConfig) {
+        /* new UUID */
+        conf->uuid = newOpenptsUuid();
+        conf->uuid->filename = smalloc_assert(uuid_file);
+        conf->uuid->status = OPENPTS_UUID_FILENAME_ONLY;
+
+        genOpenptsUuid(conf->uuid);
+        rc = writeOpenptsUuidFile(conf->uuid, 1);
+        if (rc != PTS_SUCCESS) {
+            ERROR("Can't create UUID file, %s", uuid_file);
+            rc=PTS_FATAL;
+            goto error;
+        }
+
+        /* write Conf */
+        rc = writeOpenptsConf(conf, conf_file);
+        if (rc != PTS_SUCCESS) {
+            ERROR("Can't create config file, %s", conf_file);
+            rc=PTS_FATAL;
+            goto error;
+        }
+    }
+
+    /* check conf  */
+    DEBUG("read conf file          : %s\n", conf_file);
+    rc = readOpenptsConf(conf, conf_file);
+    if (rc != PTS_SUCCESS) {
+        ERROR("readOpenptsConf() failed\n");
+    }
+
+    return rc;
+
+  error:
+    if (configDirExists == 1) {
+        /* rollback delete conf dir? */
+        // TODO
+        ERROR("Can't configure the openpts(verifier). "
+              "remove the wasted dir, e.g. rm -rf %s)", dirpath);
+    }
+
+    return rc;
+}
+
 
 /**
  * verifier
@@ -138,7 +271,7 @@ int verifierHandleCapability(
         addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_COLLECTOR_HOSTNAME,
             "Collector hostname = %s"), host);
         addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_COLLECTOR_UUID,
-            "Collector UUID = %s"), target_conf->uuid->str);
+            "Collector UUID = %s"), ctx->collector_uuid->str);
         rc = PTS_NOT_INITIALIZED;
         goto close;
     }

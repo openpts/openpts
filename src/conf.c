@@ -109,7 +109,7 @@ OPENPTS_TARGET_LIST *newTargetList(int num) {
     }
     memset(list, 0, size);
 
-    list->target_num = num;
+    list->target_num = num - 1; // set actual number 
 
     return list;
 }
@@ -512,14 +512,12 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     char *path;
     char *filename2 = NULL;  // fullpath
     int buf_len;
-//<<<<<<< HEAD
     int isFileFound = 0;
     int isFileIncorrect = 0;
 
-//=======
     /* tmp path */
     char *aik_storage_filename = NULL;
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
+
 
     DEBUG("readPtsConfig()            : %s\n", filename);
 
@@ -561,7 +559,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
     /* open */
     if ((fp = fopen(filename2, "r")) == NULL) {
-        ERROR("readPtsConfig - File %s open was failed\n", filename2);
+        DEBUG("readPtsConfig - File %s open was failed\n", filename2);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }

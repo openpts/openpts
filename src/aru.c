@@ -1304,13 +1304,13 @@ int update(
             ERROR("updateSnapshots() - extendEvCollectorUpdate fail\n");
             goto free;
         }
+        printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_SUCCESS, "Successfully updated the reference manifests\n\n"));
+    } else {
+        printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_NONE, "There is no update.\n\n"));
     }
 
   free:
-
-    if ( rc == PTS_SUCCESS ) {
-        printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_SUCCESS, "Successfully updated the reference manifests\n"));
-    } else {
+    if ( rc != PTS_SUCCESS ) {
         printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_FAILED, "Failed to update the reference manifests\n"));
     }
 

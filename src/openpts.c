@@ -53,6 +53,10 @@
 
 #include <openpts.h>
 
+// verifier.c
+void global_lock(int type);
+int getDefaultConfigfile(OPENPTS_CONFIG *conf);
+
 /* Well defined return values that can be interpreted by the GUI */
 #define RETVAL_OK_TRUSTED       0
 #define RETVAL_NOTTRUSTED       1
@@ -69,34 +73,10 @@
 // TODO
 extern char *ptsc_command;
 
-
 /**
  * Usage
  */
 void usage(void) {
-#if 0
-    fprintf(stderr, "OpenPTS command\n\n");
-    fprintf(stderr, "Usage: openpts [options] {-i [-f]|[-v]|-D} <target>\n");
-    fprintf(stderr, "       openpts -D\n\n");
-    fprintf(stderr, "Commands:\n");
-    fprintf(stderr, "  -i [-f]               Initialize [forcibly] the PTS verifier with the target(collector).\n");
-    fprintf(stderr, "  [-v]                  Verify target(collector) integrity against know measure.\n");
-    fprintf(stderr, "  -D                    Display the configuration (target/ALL)\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Miscellaneous:\n");
-    fprintf(stderr, "  -h                    Show this help message\n");
-    fprintf(stderr, "  -V                    Verbose mode. Multiple -V options increase the verbosity.\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Options:\n");
-#ifdef CONFIG_AUTO_RM_UPDATE
-    fprintf(stderr, "  -u                    "
-                    "Selects 'yes' as the the default answer when an update is available [no]\n");
-#endif
-    fprintf(stderr, "  -l username           ssh username [ssh default]\n");
-    fprintf(stderr, "  -p port               ssh port number [ssh default]\n");
-    fprintf(stderr, "  -c configfile         Set configuration file [~/.openpts/openpts.conf]\n");
-    fprintf(stderr, "\n");
-#endif
     fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_USAGE, "OpenPTS command\n\n"
         "Usage: openpts [options] {-i [-f]|[-v]||-r|-D} <target>\n"
         "       openpts -D\n\n"
@@ -111,172 +91,27 @@ void usage(void) {
         "  -V                    Verbose mode. Multiple -V options increase the verbosity.\n"
         "\n"
         "Options:\n"
+#ifdef CONFIG_AUTO_RM_UPDATE
         "  -u                    Accept a measurement update during attestation, if there are any available.\n"
+#endif
         "  -l username           ssh username [ssh default]\n"
         "  -p port               ssh port number [ssh default]\n"
         "  -c configfile         Set configuration file [~/.openpts/openpts.conf]\n"
         "\n"));
+
+        // TODO -g option
 }
 
 #define INIT    0
 #define VERIFY  1
-#define UPDATE  2
+// #define UPDATE  2
 #define REMOVE  3
 #define DISPLAY 4
 #define NONE    5
 
-/**
- * get Default Config File
- */
-int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
-    int rc = -1;  // TODO
-    /* use system default config file */
-    int createBasicConfig = 0;
-    int configDirExists;
-
-    char dirbuf[BUF_SIZE];
-    char confbuf[BUF_SIZE];
-    char uuidbuf[BUF_SIZE];
-    char *homeDir = getenv("HOME");
-
-
-    snprintf(dirbuf, BUF_SIZE, "%s/.openpts", homeDir);
-    snprintf(confbuf, BUF_SIZE, "%s/.openpts/openpts.conf", homeDir);
-    snprintf(uuidbuf, BUF_SIZE, "%s/.openpts/uuid", homeDir);
-
-    /* check dir */
-    configDirExists = (checkDir(dirbuf) == PTS_SUCCESS);
-
-    if (!configDirExists) {
-        // create and initialize the $HOME/.openpts directory
-        rc = mkdir(dirbuf, S_IRUSR | S_IWUSR | S_IXUSR);
-        if (rc != 0) {
-            ERROR("mkdir on $HOME/.openpts failed (errno=%d)", errno);
-            perror(dirbuf);
-            goto error;
-        }
-        createBasicConfig = 1;
-    } else {
-        struct stat statBuf;
-        if (-1 == stat(confbuf, &statBuf) && ENOENT == errno) {
-            ERROR("Found openpts dir '%s', but no config file - will create one.", dirbuf);
-            createBasicConfig = 1;
-        }
-    }
-
-    if (createBasicConfig) {
-        /* new UUID */
-        conf->uuid = newOpenptsUuid();
-        conf->uuid->filename = smalloc_assert(uuidbuf);
-        conf->uuid->status = OPENPTS_UUID_FILENAME_ONLY;
-
-        genOpenptsUuid(conf->uuid);
-        rc = writeOpenptsUuidFile(conf->uuid, 1);
-        if (rc != 0) {
-            // rollback
-            if (configDirExists) {
-                unlink(dirbuf);  // will fail if log file exists
-            }
-            goto error;
-        }
-
-        rc = writeOpenptsConf(conf, confbuf);
-        if (rc != 0) {
-            // rollback
-            unlink(uuidbuf);
-            if (configDirExists) {
-                unlink(dirbuf);  // will fail if log file exists
-            }
-            goto error;
-        }
-    }
 
 
 
-#if 0
-    if (checkDir(dirbuf) != PTS_SUCCESS) {
-        char ans;
-        if (isatty(STDIN_FILENO)) {
-            // Console
-            char buf[256];
-            char *s;
-            printf("%s is missing. create [Y/n]:", dirbuf);
-            s = fgets(buf, sizeof(buf), stdin);
-            if (s !=NULL) {
-                ans = buf[0];
-            } else {
-                printf("bad input?");
-                goto error;
-            }
-        } else {
-            ans = 'Y';
-        }
-
-        /* new UUID */
-        conf->uuid = newOpenptsUuid();
-        conf->uuid->filename = smalloc(uuidbuf);
-        conf->uuid->status = OPENPTS_UUID_FILENAME_ONLY;
-        genOpenptsUuid(conf->uuid);
-
-        /* Y,y and just enter => create ~/.openpts */
-        if ((ans == 'Y') || (ans == 'y') || (ans == 0x0a)) {
-            rc = mkdir(dirbuf, S_IRUSR | S_IWUSR | S_IXUSR);
-            rc = writeOpenptsUuidFile(conf->uuid, 1);
-            if (rc != PTS_SUCCESS) {
-                ERROR("writeOpenptsUuidFile fail\n");
-            }
-            rc = writeOpenptsConf(conf, confbuf);
-
-        } else {
-            printf("Bad answer %c, exit\n", ans);
-            rc = -1;
-            goto error;
-        }
-    }
-#endif
-    /* check conf  */
-
-    DEBUG("read conf file          : %s\n", confbuf);
-    rc = readOpenptsConf(conf, confbuf);
-    if (rc != 0) {
-        ERROR("readOpenptsConf() failed\n");
-    }
-
-  error:
-
-    return rc;
-}
-
-void global_lock(int type) {
-    int fd;
-    struct flock fl;
-    char *home, path[PATH_MAX];
-
-    home = getenv("HOME");
-    if (home == NULL) {
-        ERROR("HOME environment variable not defined\n");
-        exit(1);
-    }
-    snprintf(path, PATH_MAX, "%s/.openpts", home);
-    if (mkdir(path, 0700) < 0 && errno != EEXIST) {
-        perror(path);
-    exit(1);
-    }
-    snprintf(path, PATH_MAX, "%s/.openpts/rwlock", home);
-    fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666);
-    if (fd < 0) {
-        perror(path);
-        exit(1);
-    }
-    fl.l_start = 0;
-    fl.l_len = 0;
-    fl.l_whence = SEEK_SET;
-    fl.l_type = type;
-    if (fcntl(fd, F_SETLKW, &fl) < 0) {
-        perror(path);
-        exit(1);
-    }
-}
 
 /**
  * main of "openpts" command 
@@ -296,7 +131,6 @@ int main(int argc, char *argv[]) {
     char * config_filename = NULL;
     char * cmdline_hostname = NULL;
     char * target_hostname = NULL;
-    int initialized = 0;  // 0 -> 1 -> 2
     char * target_conf_dir = NULL;
     char * target_conf_filename = NULL;
     int force = 0;
@@ -310,6 +144,8 @@ int main(int argc, char *argv[]) {
     OPENPTS_TARGET *target_collector = NULL;
     OPENPTS_CONFIG *target_conf = NULL;    // conf for target
     int new_target = 0;  // indicate new target
+
+    /* set custom ptsc command and conf for test */
     char *ptsc_path = NULL;
     char *ptsc_conf = NULL;
 
@@ -366,13 +202,13 @@ int main(int argc, char *argv[]) {
         case 'p':
             ssh_port = optarg;
             break;
-        case 'P':
+        case 'P':  // for test
             ptsc_path = optarg;
             break;
-        case 'C':
+        case 'C':  // for test
             ptsc_conf = optarg;
             break;
-        case 'g':
+        case 'g':  // print reason with verbose message
             print_pcr_hints = 1;
             break;
         case 'h':
@@ -407,17 +243,24 @@ int main(int argc, char *argv[]) {
     /* default command is to verify */
     if (command == NONE) command = VERIFY;
 
+
+    /* Log */
+    setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
 #ifdef OPENPTS_DEBUG
     setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
 #else
     /* set the DEBUG level, 1,2,3
        WORK NEEDED - should have a debug flag too. */
+
     if (getVerbosity() > 2) {
         setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
+        DEBUG("verbose mode            : >=3");
     } else if (getVerbosity() > 1) {
         setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG);
+        DEBUG("verbose mode            : 2");
     } else if (getVerbosity() > 0) {
         setDebugFlags(DEBUG_FLAG);
+        DEBUG("verbose mode            : 1");
     }
 #endif
 
@@ -438,20 +281,17 @@ int main(int argc, char *argv[]) {
     /* check/create config file - HOME./openpts/openpts.conf */
     if (config_filename == NULL) {
         /* use default config file, HOME./openpts/openpts.conf  */
-        DEBUG("Using system default config file\n");
+        DEBUG("Config file             : HOME./openpts/openpts.conf (system default config file)\n");
         rc = getDefaultConfigfile(conf);
     } else {
         /* use given config file */
-        DEBUG("read conf file       : %s\n", config_filename);
+        DEBUG("read conf file          : %s\n", config_filename);
         rc = readOpenptsConf(conf, config_filename);
     }
-
-    if (rc != 0) {
-        ERROR("Failed to read config file\n");
+    if (rc != PTS_SUCCESS) {
+        DEBUG("Failed to read config file, %s\n", conf->config_file);
         retVal = RETVAL_GLOBAL_ERROR;
         goto out_free;
-    } else {
-        initialized++;  // 0->1
     }
 
     DEBUG("VERBOSITY (%d), DEBUG mode (0x%x)\n", getVerbosity(), getDebugFlags());
@@ -511,7 +351,7 @@ int main(int argc, char *argv[]) {
             }
         } else {
             /* HIT exist */
-            target_conf_dir = getTargetConfDir(conf);  // HOME/.openpts/UUID
+            target_conf_dir = getTargetConfDir(conf);  // HOME/.openpts/UUID/
             target_conf_filename = smalloc_assert(target_collector->target_conf_filename);
             target_conf = (OPENPTS_CONFIG*)target_collector->target_conf;
         }
@@ -541,7 +381,7 @@ int main(int argc, char *argv[]) {
             goto out_free;  // exit
         } else {
             /* all target (simple) */
-            printTargetList(conf, "");
+            printTargetList(conf, "");  // target.c
             goto out_free;  // exit
         }
     } else if ( NULL == target_hostname ) {
@@ -550,33 +390,34 @@ int main(int argc, char *argv[]) {
         goto out_free;
     }
 
-    if (command == REMOVE) {
+    /* check the target */
+    if ((command == REMOVE) || (command == VERIFY)) {
         if (target_conf_dir == NULL) {
+            DEBUG("target_conf_dir == NULL\n");
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TARGET_NOT_INITIALIZED,
                         "The target %s is not initialized yet. Please enroll with '%s' first\n\n"),
                     target_hostname, target_hostname);
             retVal = RETVAL_NOTENROLLED;
             goto out_free;
         }
+    }
+
+    /* Remove the target */
+    if (command == REMOVE) {
+        /* delete */
         if (unlinkDir(target_conf_dir) != 0) {
+            ERROR("unlinkDir(%s) failed", target_conf_dir);
             retVal = RETVAL_TARGET_ERROR;
             goto out_free;
         }
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_TARGET_DELETED,
+                    "The target %s is deleted\n\n"),
+                    target_hostname);
         retVal = RETVAL_NOTENROLLED;
         goto out_free;
     }
 
-    /* verify -> read target conf */
-    if (command == VERIFY) {
-        /* check the target dir  */
-        if (checkDir(target_conf_dir) == PTS_SUCCESS) {
-            initialized++;  // 1->2
-        } else {
-            ERROR("target_conf_dir, %s is missing", target_conf_dir);
-            retVal = RETVAL_GLOBAL_ERROR;
-            goto out_free;
-        }
-    }
+    /* INIT VERIFY UPDATE */
 
     /* check for an overriding ssh username */
     if (ssh_username != NULL) {
@@ -628,7 +469,7 @@ int main(int argc, char *argv[]) {
         DEBUG("conf->config_dir %s\n", conf->config_dir);
         rc = enroll(ctx, target_hostname, ssh_username, ssh_port, conf->config_dir, force);  // verifier.c
         if (rc != 0) {
-            ERROR("enroll was failed, rc = %d\n", rc);
+            DEBUG("enroll was failed, rc = %d\n", rc);
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_NOTENROLLED;
             goto out_free;
@@ -673,15 +514,6 @@ int main(int argc, char *argv[]) {
     }
     case VERIFY:
     {
-        /* verify */
-        if (initialized < 2) {
-            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TARGET_NOT_INITIALIZED,
-                   "The target %s is not initialized yet. Please enroll with '%s' first\n\n"),
-                   target_hostname, target_hostname);
-            retVal = RETVAL_NOTENROLLED;
-            goto out_free;
-        }
-
         // TODO(munetoh) control by policy? or conf?
         ctx->conf->ima_validation_unknown = 1;
 
@@ -878,10 +710,6 @@ int main(int argc, char *argv[]) {
 #endif
         break;
     }
-    case UPDATE:
-        TODO("TBD\n");
-        retVal = RETVAL_GLOBAL_ERROR;
-        break;
     default:
         usage();
         retVal = RETVAL_GLOBAL_ERROR;

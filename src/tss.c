@@ -578,6 +578,9 @@ int createTssSignKey(
     if (result != TSS_SUCCESS) {
         ERROR("Tspi_Key_CreateKey failed rc=0x%04x\n",
                result);
+        if (result == 0x12) {
+            ERROR("TPM_NOSRK error, take the TPM ownership before initialize ptsc");
+        }
         goto close;
     }
 
