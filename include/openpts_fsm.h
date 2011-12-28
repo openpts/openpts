@@ -59,7 +59,9 @@
 /* Counter flag */
 #define COUNTER_FLAG_SKIP   0
 #define COUNTER_FLAG_LT     1  // <
-#define COUNTER_FLAG_GTE    2  // >=
+#define COUNTER_FLAG_LE     2  // <=
+#define COUNTER_FLAG_GT     3  // >
+#define COUNTER_FLAG_GE     4  // >=
 
 /* Last flag */
 #define LAST_FLAG_SKIP   0

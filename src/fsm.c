@@ -526,10 +526,17 @@ int getCounterFlag(char *cond, char *name, char **flag) {
     int len;
     int rc = COUNTER_FLAG_SKIP;
 
-    // DEBUG_CAL("getCounterFlag\n");
+    /* check */
+    if (cond == NULL) {
+        ERROR("Null condition found");
+        return 0;
+    }
+    if (name == NULL) {
+        ERROR("Null condition found");
+        return 0;
+    }
 
-    ASSERT(cond != NULL, "Null condition found\n");
-
+    /* parse the flag */
     len = strlen(cond);
     loc = strstr(cond, name);
 
@@ -546,30 +553,50 @@ int getCounterFlag(char *cond, char *name, char **flag) {
 
         loc = skipWhiteSpace(loc, &len);
         if (isEndOfString(loc)) {
-            return -1;
+            goto error;  //return -1;
         }
 
         /* operation, "&lt;" ">=" only */
-        if ((len >= 2) && (loc[0] == 'l') && (loc[1] == 't')) {
-            /* <, lt */
-            // DEBUG("COUNTER_FLAG_LT");
+        if ((len >= 2) && (loc[0] == 'l') && (loc[1] == 't')) {  // <, lt
             rc = COUNTER_FLAG_LT;
             loc +=2;
             len -=2;
-        } else if ((len >= 2) && (loc[0] == '>') && (loc[1] == '=')) {
-            /* >= */
-            // DEBUG("COUNTER_FLAG_GTE");
-            rc = COUNTER_FLAG_GTE;
+        } else if ((len >= 2) && (loc[0] == 'l') && (loc[1] == 'e')) {  // <=, le
+            rc = COUNTER_FLAG_LE;
+            loc +=2;
+            len -=2;
+        } else if ((len >= 2) && (loc[0] == 'g') && (loc[1] == 't')) {  // >, gt
+            rc = COUNTER_FLAG_GT;
+            loc +=2;
+            len -=2;
+        } else if ((len >= 2) && (loc[0] == 'g') && (loc[1] == 'e')) {  // >, gt
+            rc = COUNTER_FLAG_GE;
+            loc +=2;
+            len -=2;
+        } else if ((len >= 2) && (loc[0] == '<') && (loc[1] == ' ')) {  // <, lt
+            rc = COUNTER_FLAG_LT;
+            loc +=2;
+            len -=2;
+        } else if ((len >= 2) && (loc[0] == '<') && (loc[1] == '=')) {  // <=, le
+            rc = COUNTER_FLAG_LE;
+            loc +=2;
+            len -=2;
+        } else if ((len >= 2) && (loc[0] == '>') && (loc[1] == ' ')) {  // >, gt
+            rc = COUNTER_FLAG_GT;
+            loc +=2;
+            len -=2;
+        } else if ((len >= 2) && (loc[0] == '>') && (loc[1] == '=')) {  // >=
+            rc = COUNTER_FLAG_GE;
             loc +=2;
             len -=2;
         } else {
             ERROR("unknown operand [%s]", &loc[0]);
-            return -1;  // unknown operand
+            goto error;  //return -1;
         }
 
         loc = skipWhiteSpace(loc, &len);
         if (isEndOfString(loc)) {
-            return -1;
+            goto error;  //return -1;
         }
 
         // TODO check the end, this code only support if counter is the last
@@ -578,14 +605,14 @@ int getCounterFlag(char *cond, char *name, char **flag) {
         param_len = loc2 - loc;
         if (0 == param_len) {
             /* we haven't moved along the string - no valid parameter found */
-            return -1;
+            goto error;  //return -1;
         }
 
         /* DEBUG_FSM("[%d][%s][%s]\n",len, loc, loc2); */
 
         *flag = xmalloc(param_len + 1);
         if (*flag == NULL) {
-            return -1;
+            goto error;  //return -1;
         }
         memset(*flag, 0, param_len + 1);
         memcpy(*flag, loc, param_len);
@@ -594,6 +621,10 @@ int getCounterFlag(char *cond, char *name, char **flag) {
     DEBUG_FSM("getCounterFlag  %s #=> %d %s\n", cond, rc, *flag);
 
     return rc;
+
+  error:
+    ERROR("getCounterFlag(\"%s\",\"%s\") fail", cond, name);
+    return -1;
 }
 
 
@@ -738,8 +769,14 @@ int addFsmTransition(
                 ptr->digestFlag = getDigestFlag(cond, &ptr->digest, &ptr->digestSize);
                 // 0:don't care, 1:<, 2:>=
                 ptr->counter_flag = getCounterFlag(cond, "digest_count", &ptr->counter_name);
+                if (ptr->counter_flag < 0) {
+                    ERROR("getCounterFlag() fail (%s => %s [%s])", source, target, cond);
+                }
                 // 0:don't care, 1:<, 2:>=
                 ptr->fatal_counter_flag = getCounterFlag(cond, "fatal_count", &ptr->fatal_counter_name);
+                if (ptr->fatal_counter_flag < 0) {
+                    ERROR("getCounterFlag() fail (%s => %s [%s])", source, target, cond);
+                }
                 // 0:don't care 1: ==last 2: != last
                 ptr->last_flag = getLastFlag(cond);
                 memcpy(ptr->cond, cond, FSM_BUF_SIZE);
@@ -812,24 +849,42 @@ char *getEventString(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
 /**
  * get counter(int) value from property
- * if property is missing or invalid, it returns 1;
+ * property
+ *    name=num
+ *
+ * return
+ *   -1   : ERROR
+ *    1   : missing, invalid (e.g. minus)
+ *    num 
  */
 int getCountFromProperty(OPENPTS_CONTEXT *ctx, char * name) {
     int count = 0;  // TODO get from prop
     OPENPTS_PROPERTY *prop;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("ctx == NULL");
+        return -1;
+    }
+    if (name == NULL) {
+        ERROR("name == NULL");
+        return -1;
+    }
+
+    /* lookup */
     prop = getProperty(ctx, name);
     if (prop != NULL) {
         /* Hit use this properties */
         count = atoi(prop->value);
         DEBUG_FSM("getCountFromProperty - prop %s = %d\n", name, count);
         if (count < 0) {
+            DEBUG("getCountFromProperty - prop %s is %d < 0. set count to 1\n", count, name);
             count = 1;
         }
     } else {
         /* Miss -> 1 */
         // TODO
-        // DEBUG("getCountFromProperty - prop %s is missing. set count to 1\n", name);
+        DEBUG("getCountFromProperty - prop %s is missing. set count to 1\n", name);
         count = 1;  // TODO
     }
     return count;
@@ -1134,19 +1189,23 @@ int updateFsm(
                     /* count < name */
                     int fatal_count = getCountFromProperty(ctx, trans->fatal_counter_name);
 
-                    if (ctx->count < fatal_count) {
+                    if (fatal_count < 0) {
+                        ERROR("getCountFromProperty() fail");
+                    } else if (ctx->count < fatal_count) {
                         DEBUG_FSM("FATAL COUNTER %d < %d - HIT\n", ctx->count, fatal_count);
                         fatal_counter_check = 1;  // HIT
                     } else {
                         DEBUG_FSM("FATAL COUNTER %d < %d - MISS\n", ctx->count, fatal_count);
                         fatal_counter_check = -1;  // MISS
                     }
-                } else if (trans->fatal_counter_flag == COUNTER_FLAG_GTE) {
+                } else if (trans->fatal_counter_flag == COUNTER_FLAG_GE) {
                     /* count >= name */
                     int fatal_count = getCountFromProperty(ctx, trans->fatal_counter_name);
 
                     // TODO at this moment we ignore >= condition,
-                    if (ctx->count >= fatal_count) {
+                    if (fatal_count < 0) {
+                        ERROR("getCountFromProperty() fail");
+                    } else if (ctx->count >= fatal_count) {
                         DEBUG_FSM("FATAL COUNTER %d >= %d - HIT\n", ctx->count, fatal_count);
                         fatal_counter_check = 1;  // HIT
                     } else {
@@ -1160,7 +1219,9 @@ int updateFsm(
                 if (trans->counter_flag != COUNTER_FLAG_SKIP) {
                     int thisCount = 1 + trans->event_num;
                     int maxCount = getCountFromProperty(ctx, trans->counter_name);
-                    if (trans->counter_flag == COUNTER_FLAG_GTE &&
+                    if (maxCount < 0) {
+                        ERROR("getCountFromProperty() fail, trans->counter_flag=%d", trans->counter_flag);
+                    } else if (trans->counter_flag == COUNTER_FLAG_GE &&
                         thisCount >= maxCount) {
                         DEBUG_FSM("DIGEST COUNTER %d >= %d ('%s') - digest is transparent\n",
                             thisCount, maxCount, trans->counter_name);
