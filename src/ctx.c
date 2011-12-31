@@ -125,22 +125,32 @@ int freePtsContext(OPENPTS_CONTEXT *ctx) {
     }
 
     /* IML - reset & free */
-    freeSnapshotTable(ctx->ss_table);
+    if (ctx->ss_table != NULL) {
+        freeSnapshotTable(ctx->ss_table);
+    }
 
     /* Properties - free */
     freePropertyChain(ctx->prop_start);
 
     /* Policy - free */
-    freePolicyChain(ctx->policy_start);
+    if (ctx->policy_start != NULL) {
+        freePolicyChain(ctx->policy_start);
+    }
 
     /* Reason - free */
-    freeReasonChain(ctx->reason_start);
+    if (ctx->reason_start != NULL) {
+        freeReasonChain(ctx->reason_start);
+    }
 
     /* RM - free malloc at rm.c  */
-    freeRmContext(ctx->rm_ctx);
+    if (ctx->rm_ctx != NULL) {
+        freeRmContext(ctx->rm_ctx);
+    }
 
     /* IR - free, malloc at ir.c */
-    freeIrContext(ctx->ir_ctx);
+    if (ctx->ir_ctx != NULL) {
+        freeIrContext(ctx->ir_ctx);
+    }
 
     /* Runtime Validation - free */
 

@@ -83,7 +83,7 @@ extern int verbosity;
 #define incVerbosity() (verbosity++)
 #define getVerbosity() (verbosity)
 
-#define OUTPUT(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+#define OUTPUT(fmt, ...) fprintf(stdout, fmt, ##__VA_ARGS__)
 #define VERBOSE(v, fmt, ...) if (verbosity >= v) fprintf(stderr, fmt, ##__VA_ARGS__)
 
 #define ERROR(fmt, ...) writeLog(LOG_ERR,  "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
@@ -101,18 +101,11 @@ writeLog(LOG_DEBUG, "%s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #define DEBUG_TPM(fmt, ...) DEBUG_WITH_FLAG(DEBUG_TPM_FLAG, fmt, ##__VA_ARGS__)
 #define DEBUG_CAL(fmt, ...) DEBUG_WITH_FLAG(DEBUG_CAL_FLAG, fmt, ##__VA_ARGS__)
 
-#if 0
-#define ASSERT(cond, fmt, ...)\
-while (!(cond)) { \
-    fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__);\
-    exit(1);\
-}
-#else
-#define ASSERT(cond, fmt) assert(cond)
-#endif
-
 void writeLog(int priority, const char *format, ...);
 void initCatalog(void);
 void setLogLocation(int ll, char *filename);
+char *getLogLocationString();
+void determineLogLocationByEnv(void);
+void setSyslogCommandName(char *name);
 
 #endif  // INCLUDE_OPENPTS_LOG_H_

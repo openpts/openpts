@@ -58,6 +58,7 @@ OPENPTS_FSM_CONTEXT *newFsmContext() {
     /* malloc */
     ctx = (OPENPTS_FSM_CONTEXT *) xmalloc(sizeof(OPENPTS_FSM_CONTEXT));
     if (ctx == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     /* init */
@@ -75,6 +76,13 @@ OPENPTS_FSM_CONTEXT *newFsmContext() {
  * Free OPENPTS_FSM_Transition chain
  */
 void freeFsmTransitionChain(OPENPTS_FSM_Transition *fsm_trans) {
+    /* check */
+    if (fsm_trans == NULL) {
+        ERROR("null input");
+        return;
+    }
+
+    /* free */
     if (fsm_trans->next != NULL) {
         freeFsmTransitionChain(fsm_trans->next);
     }
@@ -91,10 +99,19 @@ void freeFsmTransitionChain(OPENPTS_FSM_Transition *fsm_trans) {
  * Free OPENPTS_FSM_Subvertex chain
  */
 void freeFsmSubvertexChain(OPENPTS_FSM_Subvertex *fsm_sub) {
+
+    /* check */
+    if (fsm_sub == NULL) {
+        ERROR("null input");
+        return;
+    }
+
+    /* chain */
     if (fsm_sub->next != NULL) {
         freeFsmSubvertexChain(fsm_sub->next);
     }
 
+    /* free */
     xfree(fsm_sub);
 }
 
@@ -102,14 +119,18 @@ void freeFsmSubvertexChain(OPENPTS_FSM_Subvertex *fsm_sub) {
  * free FSM context
  */
 int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
-    ASSERT(NULL != ctx, "ctx is NULL\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* Transition */
     if (ctx->fsm_trans != NULL) {
         freeFsmTransitionChain(ctx->fsm_trans);
         ctx->fsm_trans = NULL;
     }
-
 
     /* Subvertex */
     if (ctx->fsm_sub != NULL) {
@@ -134,6 +155,12 @@ int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
  * reset FSM subvertex
  */
 void resetFsmSubvertex(OPENPTS_FSM_CONTEXT *ctx) {
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     // fsm_sub=NULL;
     ctx->subvertex_num = 0;
 }
@@ -142,6 +169,12 @@ void resetFsmSubvertex(OPENPTS_FSM_CONTEXT *ctx) {
  * reset FSM transition
  */
 void resetFsmTransition(OPENPTS_FSM_CONTEXT *ctx) {
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     // fsm_trans=NULL;
     ctx->transition_num = 0;
 }
@@ -162,6 +195,29 @@ void addFsmSubvertex(
 
     DEBUG_CAL("addFsmSubvertex - %d \n", ctx->subvertex_num);
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (type == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (id == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (action == NULL) {
+        ERROR("null input");
+        return;
+    }
+
+    /* add */
     ptr = ctx->fsm_sub;
     for (i = 0; i <= ctx->subvertex_num; i++) {
         if (ptr == NULL) {
@@ -197,7 +253,7 @@ void addFsmSubvertex(
                 ptr_pre->next = ptr;  // else
                 ptr->prev = ptr_pre;
             } else {
-                ERROR("\n");
+                ERROR("BAD, free last one");
                 xfree(ptr);  // free last one
                 return;
             }
@@ -216,6 +272,17 @@ void addFsmSubvertex(
 OPENPTS_FSM_Subvertex * getSubvertex(OPENPTS_FSM_CONTEXT *ctx, char * id) {
     OPENPTS_FSM_Subvertex *ptr;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (id == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
+    /* Final? */
     if (!strcmp(id, "Final")) return NULL;  // final state
 
     ptr = ctx->fsm_sub;
@@ -224,6 +291,7 @@ OPENPTS_FSM_Subvertex * getSubvertex(OPENPTS_FSM_CONTEXT *ctx, char * id) {
         if (!strcmp(id, ptr->id)) return ptr;
         ptr = (OPENPTS_FSM_Subvertex *) ptr->next;
     }
+
     return NULL;
 }
 
@@ -234,6 +302,17 @@ char * getSubvertexName(OPENPTS_FSM_CONTEXT *ctx, char * id) {
     int i;
     OPENPTS_FSM_Subvertex *ptr;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (id == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
+    /* Final? */
     if (!strcmp(id, "Final")) return id;
 
     ptr = ctx->fsm_sub;
@@ -252,7 +331,15 @@ char * getSubvertexId(OPENPTS_FSM_CONTEXT *ctx, char * name) {
     int i;
     OPENPTS_FSM_Subvertex *ptr;
 
-    // if (!strcmp(id, "Final")) return id;
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
     ptr = ctx->fsm_sub;
     for (i = 0;i <= ctx->subvertex_num; i++) {
@@ -266,8 +353,15 @@ char * getSubvertexId(OPENPTS_FSM_CONTEXT *ctx, char * name) {
 
 /// TRANSITION ///
 
-static char *skipWhiteSpace(char *str, int *len) {
+static char *skipWhiteSpace(char *str, int *len /* out */) {
     char *cur = str, *end = str + *len;
+
+    /* check */
+    if (str == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     /* skip space */
     while (cur < end &&
            '\0' != *cur &&
@@ -279,11 +373,24 @@ static char *skipWhiteSpace(char *str, int *len) {
 }
 
 static int isEndOfString(char *str) {
+    /* check */
+    if (str == NULL) {
+        ERROR("null input");
+        return 0;  // TODO
+    }
+
     return '\0' == *str;
 }
 
-static char *skipParameter(char *str, int *len) {
+static char *skipParameter(char *str, int *len /* out */) {
     char *cur = str, *end = str + *len;
+
+    /* check */
+    if (str == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     /* skip space */
     while (cur < end &&
            '\0' != *cur &&
@@ -299,20 +406,25 @@ static char *skipParameter(char *str, int *len) {
  *   <body>eventtype == 0x01, digest == base64</body>
  * -1: error
  *  0: don't care
- *   1: ==
- *   2: !=
+ *   1: ==, eq
+ *   2: !=, ne
  *
  * Unit Test : check_fsm.c / test_getTypeFlag
  *
  */
-int getTypeFlag(char * cond, UINT32 *eventtype) {
+int getTypeFlag(char * cond, UINT32 *eventtype /* out */) {
     char * loc;
     int len;
     int rc = 0;
     long int val;  // TODO uint64_t? but build fail on i386 platform
 
-    len = strlen(cond);
+    /* check */
+    if (cond == NULL) {
+        ERROR("null input");
+        return -1;
+    }
 
+    len = strlen(cond);
     loc = strstr(cond, "eventtype");
 
     if (loc == NULL) {  // miss
@@ -335,7 +447,11 @@ int getTypeFlag(char * cond, UINT32 *eventtype) {
         }
         if ((loc[0] == '=') && (loc[1] == '=')) {  // ==
             rc = 1;
-        } else if ((loc[0] == '!') && (loc[1] == '=')) {  // ==
+        } else if ((loc[0] == 'e') && (loc[1] == 'q')) {  // ==
+            rc = 1;
+        } else if ((loc[0] == '!') && (loc[1] == '=')) {  // !=
+            rc = 2;
+        } else if ((loc[0] == 'n') && (loc[1] == 'e')) {  // !=
             rc = 2;
         } else {
             ERROR("ERROR 002 %c %c \n", loc[0], loc[1]);
@@ -388,6 +504,12 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
 
     DEBUG_CAL("getDigestFlag -");
 
+    /* check */
+    if (cond == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+
     len = strlen(cond);
 
     loc = strstr(cond, "digest");
@@ -424,31 +546,6 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
             return -1;
         }
 
-        /* digest == base64 (behavior model) */
-#if 0
-        loc2 = strstr(loc, "base64");
-        if (loc2 != NULL) {  // HIT, temp
-            /* Behavior Model */
-            return 2;
-        } else {
-            /* Binary Model */
-            /* Base64 str -> BYTE[] */
-            buf = decodeBase64(
-                (char *)loc,
-                SHA1_BASE64_DIGEST_SIZE,
-                &buf_len);
-            if (buf == NULL) {
-                ERROR("decodeBase64 fail");
-                *digest = NULL;
-                *digest_size = 0;
-                return -1;
-            }
-            *digest = buf;
-            // TODO buf_len >= SHA1_DIGEST_SIZE
-            *digest_size = SHA1_DIGEST_SIZE;
-            return 1;
-        }
-#endif
         if (NULL != strstr(loc, "base64!")) {  // HIT, temp
             /* Behavior Model */
             return DIGEST_FLAG_IGNORE;
@@ -482,28 +579,6 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
                 *digest_size = 0;
                 return -1;
             }
-#if 0
-            buf = (BYTE *) xmalloc(SHA1_DIGEST_SIZE + 1);
-            if (buf == NULL) {
-                return -1;
-            }
-
-            // TODO(munetoh) get len, "<"
-            rc = decodeBase64(buf, SHA1_DIGEST_SIZE + 1, (unsigned char *)loc, SHA1_BASE64_DIGEST_SIZE);
-            if (rc == SHA1_DIGEST_SIZE) {
-                // TODO(munetoh) digest size change by alg
-                // this code is SHA1 only
-                *digest = buf;
-                *digest_size = rc;
-                return DIGEST_FLAG_EQUAL;
-            } else {
-                ERROR("getDigestFlag() - decodeBase64() was failed \n");
-                xfree(buf);
-                *digest = NULL;
-                *digest_size = 0;
-                return -1;
-            }
-#endif
         }
     }
 }
@@ -520,7 +595,7 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
  *
  * Unit Test : check_fsm.c / test_getCounterFlag
  */
-int getCounterFlag(char *cond, char *name, char **flag) {
+int getCounterFlag(char *cond, char *name, char **flag /* out */) {
     char * loc;   // loc at value
     char * loc2;  // loc at flag
     int len;
@@ -648,6 +723,12 @@ int getLastFlag(char * cond) {
     int len;
     int rc = LAST_FLAG_SKIP;
 
+    /* check */
+    if (cond == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+
     len = strlen(cond);
     loc = strstr(cond, "last");
 
@@ -656,10 +737,8 @@ int getLastFlag(char * cond) {
         return LAST_FLAG_SKIP;
     } else {
         /* hit */
-        // DEBUG("getLastFlag() - %s\n", cond);
-
         /* skip  count */
-        loc += 5;
+        loc += 4;  // 2011-12-30 5 => 4
         len -= (loc - cond);
 
         loc = skipWhiteSpace(loc, &len);
@@ -679,21 +758,20 @@ int getLastFlag(char * cond) {
             loc +=2;
             len -=2;
         } else {
-            // ERROR("ERROR 002 [%s]  not  >= \n", &loc[0];
-            return -1;  // unknown operand
+            ERROR("Unknown operation [%s], cond=[%s], BAD Validation Model\n", &loc[0], cond);
+            return -1;
         }
 
         loc = skipWhiteSpace(loc, &len);
         if (isEndOfString(loc)) {
+            ERROR("Unknown operation [%s]\n", &loc[0]);
             return -1;
         }
 
         /* value */
-
         loc2 = loc;
         len = strlen(loc2);
 
-        // DEBUG("[%d][%s]\n",len, loc2);
         if (!strncmp(loc2, "true", 4)) {
             // DEBUG("true\n");
             /* == true */
@@ -705,7 +783,6 @@ int getLastFlag(char * cond) {
             } else {
                 rc = LAST_FLAG_EQ;
             }
-            // DEBUG("false %d\n",rc);
         } else {
             ERROR("unknown value, %s\n", loc2);
         }
@@ -737,6 +814,25 @@ int addFsmTransition(
 
     DEBUG_CAL("addFsmTransition - start\n");
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (source == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (target == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (cond == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* trans */
     ptr = ctx->fsm_trans;
     for (i = 0; i <= ctx->transition_num; i++) {
         if (ptr == NULL) {  // new
@@ -748,6 +844,7 @@ int addFsmTransition(
             ptr = (OPENPTS_FSM_Transition *)
                     xmalloc(sizeof(OPENPTS_FSM_Transition));
             if (ptr == NULL) {
+                ERROR("no memory");
                 return PTS_INTERNAL_ERROR;
             }
             /* init */
@@ -800,7 +897,7 @@ int addFsmTransition(
                 ptr->prev = ptr_pre;
                 ptr->next = NULL;  // last trans
             } else {
-                ERROR("\n");
+                ERROR("BAD, free last one");
                 xfree(ptr);  // free last one
                 return PTS_INTERNAL_ERROR;
             }
@@ -863,11 +960,11 @@ int getCountFromProperty(OPENPTS_CONTEXT *ctx, char * name) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("ctx == NULL");
+        ERROR("null input");
         return -1;
     }
     if (name == NULL) {
-        ERROR("name == NULL");
+        ERROR("null input");
         return -1;
     }
 
@@ -884,7 +981,8 @@ int getCountFromProperty(OPENPTS_CONTEXT *ctx, char * name) {
     } else {
         /* Miss -> 1 */
         // TODO
-        DEBUG("getCountFromProperty - prop %s is missing. set count to 1\n", name);
+        DEBUG("getCountFromProperty - prop %s is missing. add property with count=1\n", name);
+        addProperty(ctx, name, "1");
         count = 1;  // TODO
     }
     return count;
@@ -913,8 +1011,8 @@ int updateFsm(
         OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
     ) {
     int rc = OPENPTS_FSM_SUCCESS;
-    OPENPTS_FSM_Subvertex  *curr_state = fsm->curr_state;
-    OPENPTS_FSM_Transition *trans = fsm->fsm_trans;
+    OPENPTS_FSM_Subvertex  *curr_state;
+    OPENPTS_FSM_Transition *trans;
     TSS_PCR_EVENT *event;
     int type_check;
     int digest_check;
@@ -927,11 +1025,23 @@ int updateFsm(
 
     DEBUG_CAL("updateFsm - start\n");
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (fsm == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    curr_state = fsm->curr_state;
     if (curr_state == NULL) {
         DEBUG_FSM("[RM%02d-PCR%02d] updateFsm() - curr_state == NULL => set the FSM state to 'Start'\n",
             fsm->level, fsm->pcr_index);
         curr_state = getSubvertex(fsm, "Start");
     }
+    trans = fsm->fsm_trans;
 
     /* Null event ->  push FSM until Final state */
     // TODO(munetoh) dummy event does not need event. just add flag to the wrapper
@@ -1415,6 +1525,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
 
     DEBUG_FSM("copyFsm - start, PCR[%d]\n", src_fsm->pcrIndex);
 
+    /* check */
     if (src_fsm == NULL) {
         DEBUG("src_fsm == NULL, SKIP COPY\n");
         return NULL;
@@ -1556,6 +1667,21 @@ int changeTargetSubvertex(
     OPENPTS_FSM_Transition *fsm_trans;
     int count = 0;
 
+    /* check */
+    if (fsm_ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (old_sub == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (new_sub == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* */
     fsm_trans = fsm_ctx->fsm_trans;
 
     /* check all trans to B */
@@ -1598,6 +1724,21 @@ int changeTransTargetSubvertex(
     OPENPTS_FSM_Transition *fsm_trans;
     int count = 0;
 
+    /* check */
+    if (fsm_ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (old_sub == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (new_sub == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* */
     fsm_trans = fsm_ctx->fsm_trans;
 
     /* check all trans to B */
@@ -1682,7 +1823,23 @@ int insertFsmNew(
     DEBUG_FSM("insertFsm - start\n");
 
     /* check input */
-    ASSERT(NULL != fsm_trans, "ERROR fsm_trans == NULL\n");
+    if (fsm_ctx == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+    if (fsm_trans == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+    event = eventWrapper->event;
+    if (event == NULL) {
+        ERROR("null input");
+        return -1;
+    }
 
     if (fsm_trans->source_subvertex == NULL) {
         ERROR("ERROR fsm_trans->source_subvertex == NULL, %s -> %s\n",
@@ -1694,14 +1851,8 @@ int insertFsmNew(
         return -1;
     }
 
-    if (eventWrapper == NULL) {
-        return -1;
-    }
 
     /* start */
-
-    event = eventWrapper->event;
-
     if (fsm_trans->source_subvertex == fsm_trans->target_subvertex) {
         /* OK, this is LOOP,  */
         DEBUG_FSM("Loop (%s->%s) has %d events\n",
@@ -1843,10 +1994,12 @@ int insertFsmNew(
             DEBUG_FSM("\tUpdate Trans BIN(%s -> %s)\n",
                       fsm_trans->source, fsm_trans->target);
         } else {
-            ASSERT(0, "BAD LOOP\n");
+            ERROR("BAD LOOP");
+            return PTS_FATAL;
         }
     } else {
-        ASSERT(0, "Not a loop");
+        ERROR("Not a loop");
+        return PTS_FATAL;
     }
 
     DEBUG_FSM("insertFsm - done\n");
@@ -1864,6 +2017,17 @@ int removeFsmTrans(
     OPENPTS_FSM_Transition * trans_prev;
     OPENPTS_FSM_Transition * trans_next;
 
+    /* check */
+    if (fsm_ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (trans == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* save */
     trans_prev = trans->prev;
     trans_next = trans->next;
 
@@ -1880,8 +2044,6 @@ int removeFsmTrans(
         //
     }
 
-    // TODO(munetoh) Free
-
     return rc;
 }
 
@@ -1893,10 +2055,20 @@ int removeFsmSub(
         OPENPTS_FSM_CONTEXT *fsm_ctx,
         OPENPTS_FSM_Subvertex * sub) {
     int rc =0;
-
     OPENPTS_FSM_Subvertex * sub_prev;
     OPENPTS_FSM_Subvertex * sub_next;
 
+    /* check */
+    if (fsm_ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (sub == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* save */
     sub_prev = sub->prev;
     sub_next = sub->next;
 
@@ -1929,11 +2101,14 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     int hit;
     OPENPTS_FSM_Transition * trans;
     OPENPTS_FSM_Transition * trans_next;
-
     OPENPTS_FSM_Subvertex * sub;
     OPENPTS_FSM_Subvertex * sub_next;
 
-    ASSERT(NULL != fsm_ctx, "ERROR No FSM TRANS\n");
+    /* check */
+    if (fsm_ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     DEBUG_FSM("cleanupFsm - start, PCR[%d]\n", fsm_ctx->pcrIndex);
 
@@ -2055,16 +2230,6 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     return rc;
 }
 
-
-
-
-
-
-
-
-
-
-
 /**
  * write DOT State Diagram for Graphviz
  * dot -Tpng tests/bios_pcr0.dot -o tests/bios_pcr0.png; eog tests/bios_pcr0.png
@@ -2086,7 +2251,10 @@ int writeDotModel(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
     DEBUG("writeDotModel - start %s\n", filename);
 
     /* check */
-    ASSERT(NULL != ctx, "writeDotModel() - OPENPTS_FSM_CONTEXT is NULL\n");
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if (filename == NULL) {
         fp = stdout;
@@ -2178,6 +2346,10 @@ int writeCsvTable(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
     OPENPTS_FSM_Transition *ptr;
 
     /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return -1;
+    }
     if (filename == NULL) {
         ERROR("writeCsvTable - filename is NULL\n");
         return -1;
@@ -2236,6 +2408,12 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
     int i, j;
     OPENPTS_FSM_Transition *ptr;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_FSM_HEADER,
            "ctx->transition_num = %d\n"
            "trans\t\tcurrent state\t\t\tcondition\t\t\\ttnext state\n"
@@ -2247,7 +2425,7 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
     for (i = 0; i < ctx->transition_num; i++) {
         if (ptr == NULL) {
             ERROR("PTR is NULL at %d\n", i);
-            return -1;
+            return PTS_FATAL;
         }
         OUTPUT("%5d ", i);
         OUTPUT("%30s ", getSubvertexName(ctx, ptr->source));
@@ -2279,15 +2457,4 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
 
     return rc;
 }
-
-
-
-
-
-
-
-
-
-
-
 

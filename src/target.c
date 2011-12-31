@@ -61,6 +61,16 @@ int cmpDateTime(PTS_DateTime *time1, PTS_DateTime *time2) {
     uint64_t t1 = 0;
     uint64_t t2 = 0;
 
+    /* check */
+    if (time1 == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+    if (time2 == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+
     t1 += time1->year;
     t1 = t1 << 16;
     t1 += time1->mon;
@@ -107,6 +117,12 @@ static int selectUuidDir(const struct dirent *entry) {
 #ifndef __linux__
     struct stat buffer;
 #endif
+
+    /* check */
+    if (entry == NULL) {
+        ERROR("null input");
+        return 0;
+    }
 
     /* skip . .. dirs */
     if (0 == strcmp(".", entry->d_name)) return 0;
@@ -163,6 +179,16 @@ int getRmList(OPENPTS_CONFIG *conf, char * config_dir) {
 
     // printf("Show RMs by UUID\n");
     // printf("config dir                  : %s\n", config_dir);
+
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (config_dir == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* move to config dir */
     if ((chdir(conf->config_dir)) != 0) {
@@ -293,6 +319,13 @@ int rmRmsetDir(char * dir) {
     int rc;
     char buf[BUF_SIZE];
 
+    /* check */
+    if (dir == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+
     // DEBUG("rm -r %s\n", dir);
     snprintf(buf, BUF_SIZE, "rm -r %s\n", dir);
     rc = system(buf);
@@ -317,6 +350,16 @@ int purgeRenewedRm(OPENPTS_CONFIG *conf) {
     OPENPTS_RMSET *rmset;
     int rc;
     int rc2 = PTS_SUCCESS;
+
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (conf->rmsets == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     num = conf->rmsets->rmset_num;
 
@@ -346,14 +389,19 @@ void printRmList(OPENPTS_CONFIG *conf, char *indent) {
     int num = 0;
 
     /* check */
-    ASSERT(NULL != conf, " conf is NULL");
-    ASSERT(NULL != conf->rmsets, " conf->rmsets is NULL");
+    if (conf == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (conf->rmsets == NULL) {
+        ERROR("null input");
+        return;
+    }
 
     num = conf->rmsets->rmset_num;
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_RM_LIST_HEADER, "%s  ID  UUID  date(UTC)  status\n"), indent);
     OUTPUT("%s %s\n", indent, SEP_LINE);
-
 
     /* Print  */
     for (cnt = 0; cnt < num; cnt++) {
@@ -416,8 +464,16 @@ int getTargetList(OPENPTS_CONFIG *conf, char * config_dir) {
     DEBUG("getTargetList()            : %s\n", config_dir);
 
     /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (config_dir == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     if (conf->target_list != NULL) {
-        ERROR("conf->target_list exist\n");
+        DEBUG("conf->target_list exist\n");
     }
 
     /* move to config dir */
@@ -517,14 +573,16 @@ char *getTargetConfDir(OPENPTS_CONFIG *conf) {
     int num = 0;
 
     /* check */
-    ASSERT(NULL != conf, "getTargetConfDir() - conf is NULL\n");
-
+    if (conf == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
     if (conf->hostname == NULL) {
-        ERROR("getTargetConfDir() - conf->hostname is NULL\n");
+        ERROR("null input");
         return NULL;
     }
     if (conf->target_list == NULL) {
-        ERROR("getTargetConfDir() - conf->target_list is NULL\n");
+        ERROR("null input");
         return NULL;
     }
 
@@ -563,9 +621,15 @@ OPENPTS_TARGET *getTargetCollector(OPENPTS_CONFIG *conf) {
 
     /* check */
     if (conf == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (conf->hostname == NULL) {
+        ERROR("null hostname");
         return NULL;
     }
     if (conf->target_list == NULL) {
+        DEBUG("null target_list");
         return NULL;
     }
 
@@ -601,6 +665,20 @@ OPENPTS_TARGET *getTargetCollectorByUUID(OPENPTS_CONFIG *conf, const char *uuid)
     int cnt;
     OPENPTS_TARGET *target;
     int num = 0;
+
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (conf->target_list == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (uuid == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
     num = conf->target_list->target_num;
 
@@ -688,6 +766,16 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
     OPENPTS_CONFIG *target_conf;
     char * str_uuid = "N/A";
     int num = 0;
+
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (conf->target_list == NULL) {
+        ERROR("null input");
+        return;
+    }
 
     num = conf->target_list->target_num;
 

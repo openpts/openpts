@@ -58,7 +58,7 @@ OPENPTS_PROPERTY *start = NULL;
 OPENPTS_PROPERTY *end = NULL;
 
 /**
- * collector daemon
+ * collector
  *
  * TODO support single connection.
  * TODO for multiple conenction, multiple ctxs are required. 
@@ -120,7 +120,7 @@ int collector2(OPENPTS_CONFIG *conf) {
             break;
         }
 
-        INFO("IF-M read type = 0x%X, len %d\n",
+        DEBUG_IFM("IF-M read type = 0x%X, len %d\n",
                 read_tlv->type,
                 read_tlv->length);
 
@@ -238,7 +238,8 @@ int collector2(OPENPTS_CONFIG *conf) {
                     rc = writePtsTlv(
                             ctx, STDOUT_FILENO, NEW_RIMM_SET);
                     if (rc < 0) {
-                        ERROR("Send NEW_RIMM_SET answer failed - quit");
+                        /* this will fail if NEW RM is missing */
+                        DEBUG_IFM("Send NEW_RIMM_SET answer failed - quit");
                         terminate = 1;
                     }
                 }
@@ -259,7 +260,7 @@ int collector2(OPENPTS_CONFIG *conf) {
                 break;
             case VERIFICATION_RESULT:
                 /* no responce */
-                INFO("IF-M VERIFICATION_RESULT => terminate\n");
+                DEBUG_IFM("IF-M VERIFICATION_RESULT => terminate\n");
                 DEBUG_IFM("finish\n");
                 terminate = 1;  // TODO add TERMINATE MSG
                 break;
@@ -411,6 +412,9 @@ OPENPTS_PROPERTY *getPropertyFromArg(char *arg) {
 #endif
 #define LOCK_FILE    LOCK_DIR "ptsc.lock"
 
+/**
+ * lock ptsc
+ */
 void ptsc_lock(void) {
     int fd, oldmask, oldgrp = 0;
     struct group *grpent = NULL;
@@ -450,7 +454,7 @@ void ptsc_lock(void) {
 
     oldmask = umask(0);
     if (mkdir(LOCK_DIR, 0775) < 0 && errno != EEXIST) {
-        perror(LOCK_DIR);
+        ERROR("mkdir(%s) fail", LOCK_DIR);
         exit(1);
     }
     if (grpent) {
@@ -459,18 +463,21 @@ void ptsc_lock(void) {
     }
     fd = open(LOCK_FILE, O_RDWR | O_CREAT | O_TRUNC, 0660);
     if (fd < 0) {
-        perror(LOCK_FILE);
+        ERROR("open(%s) fail", LOCK_DIR);
         exit(1);
     }
     umask(oldmask);
     if (lockf(fd, F_LOCK, 0) < 0) {
-        perror(LOCK_FILE);
+        ERROR("lockf(%s) fail", LOCK_DIR);
         exit(1);
     }
 
     if (buf != NULL) xfree(buf);
 }
 
+/**
+ * Prepare privileges
+ */
 static int preparePriv() {
     int rc = PTS_SUCCESS;
     struct group *ptsc_grp = NULL;
@@ -504,7 +511,7 @@ static int preparePriv() {
 
     rc = getgrnam_r(PTSC_GROUP_NAME, &grp, buf, buf_len, &ptsc_grp);
     if (rc != 0) {
-        ERROR("getgrnam_r");
+        ERROR("getgrnam_r(%s) fail", PTSC_GROUP_NAME);
         rc = PTS_FATAL;
         goto free;
     }
@@ -515,11 +522,10 @@ static int preparePriv() {
     }
 
     /* set GID */
-    // rc = setgid(ptsc_grp->gr_gid);
     rc = setgid(grp.gr_gid);
     if (rc < 0) {
         // TODO do not need for IF-M access (read only)
-        ERROR("Switching group (gid=%d) fail. %s\n", grp.gr_gid, strerror(errno));
+        INFO("Switching group (gid=%d) fail. %s\n", grp.gr_gid, strerror(errno));
         // TODO 20110927 FAIL
         rc = PTS_FATAL;
         goto free;
@@ -651,6 +657,9 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+    initCatalog();
+    setSyslogCommandName("ptsc");
+
     /* command option */
     while ((c = getopt(argc, argv, "ic:uUefDtsmvP:Rzh")) != EOF) {
         switch (c) {
@@ -732,18 +741,20 @@ int main(int argc, char *argv[]) {
     argc -= optind;
     argv += optind;
 
+    /* Verbose & Logging  */
     if (command == COMMAND_IFM) {
+        /* Set IF-M log location, syslog or file(for DEBUG) */
         setLogLocation(OPENPTS_LOG_SYSLOG, NULL);
+        // setVerbosity(0);  // no console out
     } else {
-        setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
-    }
-
-    initCatalog();
-
-    // TODO chgrp
-    rc = preparePriv();
-    if (rc != PTS_SUCCESS) {
-        ERROR("preparePriv fail\n");
+        /* Set logging (location,filename)  by ENV */
+        determineLogLocationByEnv();
+        //setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
+        // TODO chgrp
+        rc = preparePriv();
+        if (rc != PTS_SUCCESS) {
+            INFO("preparePriv fail\n");
+        }
     }
 
     conf = newPtsConfig();
@@ -752,11 +763,11 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-
-    /* DEBUG level, 1,2,3 */
-#ifdef OPENPTS_DEBUG
-    setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
-#else
+//#if 0  // TODO Renew in v0.2.6
+//    /* DEBUG level, 1,2,3 */
+//#ifdef OPENPTS_DEBUG
+//    setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
+//#else
     /* set the DEBUG level, 1,2,3 */
     if (getVerbosity() > 2) {
         setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG | DEBUG_FSM_FLAG | DEBUG_CAL_FLAG );
@@ -765,13 +776,13 @@ int main(int argc, char *argv[]) {
     } else if (getVerbosity() > 0) {
         setDebugFlags(DEBUG_FLAG);
     }
-#endif
+//#endif
+//#endif
 
     DEBUG("VERBOSITY (%d), DEBUG mode (0x%x)\n", getVerbosity(), getDebugFlags());
 
+    /* lock */
     ptsc_lock();
-
-
 
     /* load config, /etc/ptsc.conf */
     if (config_filename == NULL) {
@@ -790,6 +801,9 @@ int main(int argc, char *argv[]) {
             goto free;
         }
     }
+
+    /* PTSC IF-M DEBUG MODE */
+    // TODO SET BY CONF
 
     /* Check initialization */
     if (command != COMMAND_INIT) {
@@ -921,12 +935,16 @@ int main(int argc, char *argv[]) {
             rc = selftest(conf, prop_num, start, end);
             if (rc == OPENPTS_SELFTEST_SUCCESS) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SUCCESS, "selftest - OK\n"));
+                INFO("selftest - OK\n");
             } else if (rc == OPENPTS_SELFTEST_RENEWED) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_RENEWED, "selftest - Renewed\n"));
+                INFO("selftest - Renewed\n");
             } else if (rc == OPENPTS_SELFTEST_FALLBACK) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FALLBACK, "selftest - fallback\n"));
+                INFO("selftest - fallback\n");
             } else if (rc == OPENPTS_SELFTEST_FAILED) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAIL, "selftest - fail\n"));
+                INFO("selftest - fail\n");
             } else {
                 ERROR("TBD\n");
             }
@@ -935,18 +953,22 @@ int main(int argc, char *argv[]) {
             rc = selftest(conf, prop_num, start, end);
             if (rc == OPENPTS_SELFTEST_SUCCESS) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SUCCESS, "selftest - OK\n"));
+                INFO("selftest - OK\n");
                 /* timestamp */
                 extendEvCollectorStart(conf);  // collector.c
             } else if (rc == OPENPTS_SELFTEST_RENEWED) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_RENEWED, "selftest - Renewed\n"));
+                INFO("selftest - Renewed\n");
                 /* timestamp */
                 extendEvCollectorStart(conf);
             } else if (rc == OPENPTS_SELFTEST_FALLBACK) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FALLBACK, "selftest - fallback\n"));
+                INFO("selftest - fallback\n");
                 /* timestamp */
                 extendEvCollectorStart(conf);
             } else if (rc == OPENPTS_SELFTEST_FAILED) {
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAIL, "selftest - fail\n"));
+                INFO("selftest - fail\n");
                 if (conf->autoupdate == 1) {
                     ERROR("selftest failed, trying to generate a new manifest\n");
                     /* del RM_UUID */
@@ -963,6 +985,7 @@ int main(int argc, char *argv[]) {
                     if (rc != PTS_SUCCESS) {
                         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_FAIL,
                             "Failed to generated a reference manifest\n"));
+                        INFO("Failed to generated a reference manifest\n");
                         goto free;
                     }
                     rc = selftest(conf, prop_num, start, end);
@@ -970,14 +993,18 @@ int main(int argc, char *argv[]) {
                         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SUCCESS, "selftest - OK\n"));
                         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_SUCCESS,
                             "Successfully generated the reference manifest\n"));
+                        INFO("selftest - OK\n");
+                        INFO("Successfully generated the reference manifest\n");
                     } else if (rc == OPENPTS_SELFTEST_RENEWED) {
                         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_RENEWED, "selftest - Renewed\n"));
+                        INFO("selftest - Renewed\n");
                     } else {
                         ERROR("TBD\n");
                     }
                 } else {
                     OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_UPDATE_RM_WONT,
                         "selftest failed, keeping existing manifests as requested by configuration\n"));
+                    INFO("selftest failed, keeping existing manifests as requested by configuration\n");
                 }
             } else {
                 ERROR("TBD\n");

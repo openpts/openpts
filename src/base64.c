@@ -26,7 +26,7 @@
  * \brief Base64 Encode/Decode
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-08-17 SM
+ * cleanup 2011-12-31 SM
  *
  * http://en.wikipedia.org/wiki/Base64
  *
@@ -41,7 +41,6 @@
 #include <string.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /**
  * calc base64 size
@@ -60,6 +59,12 @@ int _sizeofBase64Encode(int len) {
 int getDecodedBase64Size(unsigned char *in, int inLen) {
     int inCount;
     int outCount;
+
+    /* check */
+    if (in == NULL) {
+        ERROR("null input");
+        return 0;
+    }
 
     inCount = inLen / 4;
     if (inCount > 0) {
@@ -99,6 +104,9 @@ int _sizeofBase64Decode(int len) {
 
 /**
  * Encode BYTE[] to Base64 string
+ * Return
+ *   count
+ *   -1    ERROR
  */
 int _encodeBase64(char *out, unsigned char * in, int len) {
     int ptr1 = 0;
@@ -118,13 +126,17 @@ int _encodeBase64(char *out, unsigned char * in, int len) {
          '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
          };
 
-    if (out ==NULL) {
-        ERROR("out is NULL\n");
+    /* check */
+    if (out == NULL) {
+        ERROR("null input\n");
         return -1;
     }
-
     if (len == 0) {
         out[0] = 0;
+        return 0;
+    }
+    if (in == NULL) {
+        ERROR("null input");
         return 0;
     }
 
@@ -178,6 +190,12 @@ char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
     char *out;
     int len2;
 
+    /* check */
+    if (in == NULL) {
+        ERROR("null input\n");
+        return NULL;
+    }
+
     *outlen = _sizeofBase64Encode(inlen);
     out = (char *) xmalloc_assert(*outlen);
     if (out == NULL) {
@@ -220,14 +238,16 @@ int _strippedlength(char * in, int len) {
     int skip = 0;
     int i;
 
+    /* check */
+    if (in == NULL) {
+        ERROR("null input\n");
+        return -1;
+    }
+
     /* last char */
     i = len - 1;
 
-//<<<<<<< HEAD
-//    while (1) {
-//=======
     while(i > 0) {
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
         if (in[i] == '\n') {
             /* skip */
             skip++;
@@ -373,6 +393,12 @@ unsigned char *decodeBase64(char * in, int inlen, int *outlen) {
     unsigned char *out;
     int len1;
     int len2;
+
+    /* check */
+    if (in == NULL) {
+        ERROR("null input\n");
+        return NULL;
+    }
 
     len1 = _sizeofBase64Decode(inlen);
     out = (unsigned char *) xmalloc_assert(len1);

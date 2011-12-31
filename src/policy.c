@@ -48,10 +48,13 @@
  * Free policy chain
  */
 int freePolicyChain(OPENPTS_POLICY *pol) {
+    /* check */
     if (pol == NULL) {
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input");
+        return PTS_FATAL;
     }
 
+    /* chain */
     if (pol->next != NULL) {
         freePolicyChain(pol->next);
     }
@@ -78,10 +81,19 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
     OPENPTS_POLICY *pol;
     int line = 0;
 
-    /* open */
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
+    /* open */
     if ((fp = fopen(filename, "r")) == NULL) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_POLICY_FILE_OPEN_FAILED,
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_POLICY_FILE_OPEN_FAILED,
             "Failed to open policy file '%s'\n"), filename);
         return -1;
     }
@@ -108,7 +120,7 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
             /* new  */
             pol = xmalloc(sizeof(OPENPTS_POLICY));
             if (pol == NULL) {
-                ERROR("no mem");
+                ERROR("no memory");
                 cnt = -1;  // return -1;
                 goto error;
             }
@@ -169,10 +181,16 @@ int checkPolicy(OPENPTS_CONTEXT *ctx) {
     int unknown = 0;
     int invalid = 0;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     pol = ctx->policy_start;
 
     if (pol == NULL) {
         /* no policy to check */
+        DEBUG("There is no policy to check with. => Unknown");
         return OPENPTS_RESULT_UNKNOWN;
     }
 
@@ -208,14 +226,17 @@ int checkPolicy(OPENPTS_CONTEXT *ctx) {
 
     /* if any invalid exist */
     if (invalid > 0) {
+        DEBUG("Check policy => Invalid");
         return OPENPTS_RESULT_INVALID;
     }
 
     /* if any unknown exist */
     if (unknown > 0) {
+        DEBUG("Check policy => Unknown");
         return OPENPTS_RESULT_UNKNOWN;
     }
 
+    DEBUG("Check policy => Valid");
     return OPENPTS_RESULT_VALID;
 }
 
@@ -230,7 +251,18 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
     char *proc_value;
     char *status;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     pol = ctx->policy_start;
+    if (pol == NULL) {
+        /* no policy to print */
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_POLICY_NULL,
+            "There is no policy to print."));
+        return PTS_SUCCESS;
+    }
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_POLICY,
            "  id "
@@ -265,16 +297,10 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
         }
 
         /* print */
-#if 0
-        OUTPUT("%5d %-25s %-13s\n",
-            pol->num,
-            pol->name, pol->value);
-#else
         OUTPUT("%5d %-35s %-28s %-28s %-10s\n",
             pol->num,
             pol->name, pol->value,
             proc_value, status);
-#endif
         pol = pol->next;
     }
 

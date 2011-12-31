@@ -119,21 +119,21 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     /* check */
     if (eventWrapper == NULL) {
         // TODO  do not care for dummy EW
-        DEBUG("addBIOSAction() - eventWrapper is NULL\n");  // TODO is this OK?
+        DEBUG("null input\n");  // TODO is this OK?
         // TODO define RC <-> fsm.c >> INFO:(TODO) fsm.c:986 updateFsm() - rc = 58, call updateFsm() again
         return PTS_INTERNAL_ERROR;
     }
 
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("event is NULL\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input\n");
+        return PTS_FATAL;
     }
 
     /* value = eventdata */
     value = snmalloc((char *)event->rgbEvent, event->ulEventLength);
     if (value == NULL) {
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
 
     /* name */
@@ -144,7 +144,7 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
 
     DEBUG_FSM("[FSM] addBIOSAction() - '%s' = '%s'\n", name, value);
 
-    updateProperty(ctx, name, value);
+    setProperty(ctx, name, value);
 
     xfree(value);
 
@@ -225,9 +225,9 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
                 }
                 if (buf_len > BUF_SIZE) {
                     ERROR("SMBIOS size = %d\n", buf_len);  // Thinkpad X200 => 3324
-                    updateProperty(ctx, "bios.smbios", "too big");
+                    setProperty(ctx, "bios.smbios", "too big");
                 } else {
-                    updateProperty(ctx, "bios.smbios", buf);
+                    setProperty(ctx, "bios.smbios", buf);
                 }
                 // rc = 0;
                 xfree(buf);
@@ -254,7 +254,7 @@ int validateMBR(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     TSS_PCR_EVENT *event;
 
     if (eventWrapper == NULL) {
-        ERROR("eventWrapper is NULL\n");
+        ERROR("null input");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -300,7 +300,7 @@ int validateEltoritoBootImage(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *e
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
-    updateProperty(ctx, "ipl.eltorito.integrity", "unknown");
+    setProperty(ctx, "ipl.eltorito.integrity", "unknown");
 
     return PTS_SUCCESS;  // -1;
 }
@@ -344,16 +344,16 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
         ERROR("encodeBase64 fail");
         return PTS_INTERNAL_ERROR;
     }
-    updateProperty(ctx, "kernel.initrd.digest", buf);
+    setProperty(ctx, "kernel.initrd.digest", buf);
     xfree(buf);
 
-    // updateProperty(ctx, "kernel.initrd.filename", (char*)event->rgbEvent);
+    // setProperty(ctx, "kernel.initrd.filename", (char*)event->rgbEvent);
     /* add \n */
     buf = xmalloc(event->ulEventLength + 1);
     if (buf != NULL) {
         memcpy(buf, event->rgbEvent, event->ulEventLength);
         buf[event->ulEventLength] = 0;
-        updateProperty(ctx, "kernel.initrd.filename", buf);
+        setProperty(ctx, "kernel.initrd.filename", buf);
         xfree(buf);
     }
 
@@ -456,7 +456,7 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
  */
 int validateKernelCmdline(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     TODO("validateKernelCmdline - NA\n");
-    updateProperty(ctx, "kernel.commandline", "TBD");
+    setProperty(ctx, "kernel.commandline", "TBD");
     return PTS_SUCCESS;
 }
 
@@ -482,7 +482,7 @@ int validateImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventW
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("eventWrapper is NULL\n");
+        ERROR("null input\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -509,10 +509,10 @@ int validateImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventW
     if (memcmp(event->rgbEvent, digest, SHA1_DIGEST_SIZE) == 0) {
         /* HIT */
         // DEBUG("Good IMA aggregete\n");
-        updateProperty(ctx, "ima.aggregate", "valid");
+        setProperty(ctx, "ima.aggregate", "valid");
     } else {
         /* MISS */
-        updateProperty(ctx, "ima.aggregate", "invalid");
+        setProperty(ctx, "ima.aggregate", "invalid");
 
         if (isDebugFlagSet(DEBUG_FLAG)) {
             int j;
@@ -596,10 +596,10 @@ int validateOldImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
     /* check aggregate */
     if (memcmp(event->rgbPcrValue, digest, SHA1_DIGEST_SIZE) == 0) {
         /* HIT */
-        updateProperty(ctx, "ima.aggregate", "valid");
+        setProperty(ctx, "ima.aggregate", "valid");
     } else {
         /* MISS */
-        updateProperty(ctx, "ima.aggregate", "invalids");
+        setProperty(ctx, "ima.aggregate", "invalids");
     }
     // TODO(munetoh) also check the eventdata string?
 
@@ -616,15 +616,15 @@ int updateImaProperty(OPENPTS_CONTEXT *ctx, char* name, char* b64digest, char *i
 
     /* integrity */
     snprintf(prop_name, sizeof(prop_name), "ima.%d.integrty", ctx->ima_count);
-    updateProperty(ctx, prop_name, integrity);
+    setProperty(ctx, prop_name, integrity);
 
     /* name */
     snprintf(prop_name, sizeof(prop_name), "ima.%d.name", ctx->ima_count);
-    updateProperty(ctx, prop_name, name);
+    setProperty(ctx, prop_name, name);
 
     /* digest */
     snprintf(prop_name, sizeof(prop_name), "ima.%d.digest", ctx->ima_count);
-    updateProperty(ctx, prop_name, b64digest);
+    setProperty(ctx, prop_name, b64digest);
 
     ctx->ima_count++;
     return PTS_SUCCESS;
@@ -711,7 +711,7 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
         } else if (rc == 2) {
             // MISS
             // DEBUG("validateImaMeasurement w/ AIDE - MISS name=[%s]\n", name);
-            // updateProperty(ctx, buf, "invalid");
+            // setProperty(ctx, buf, "invalid");
             ctx->ima_unknown++;
             buf = encodeBase64(
                 (unsigned char *)event->rgbEvent,
@@ -764,7 +764,7 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
 
 int validateImaAggregateNG(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     ERROR("validateImaAggregateNG - NA\n");
-    updateProperty(ctx, "ima.aggregate", "TBD");
+    setProperty(ctx, "ima.aggregate", "TBD");
     return PTS_INTERNAL_ERROR;  // -1;
 }
 
@@ -801,50 +801,46 @@ int incrementCounter(OPENPTS_CONTEXT *ctx) {
 /**
  * Collector Start  -  Verifier 
  * 
- * TODO fill 
+ * TODO not validate yet
  */
 int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     int rc = PTS_SUCCESS;
     TSS_PCR_EVENT *event;
     OPENPTS_EVENT_COLLECTOR_START *start = NULL;
 
-    ASSERT(NULL != ctx, "startCollector() - ctx is null\n");
-
+    /* check ctx */
+    if (ctx == NULL) {
+        ERROR("startCollector() - ctx is null");
+        return PTS_FATAL;
+    }
     if (ctx->target_conf == NULL) {
         /* collector */
-        /* If this is an ERROR should we be returning SUCCESS?? */
-        ERROR("startCollector() - collector side - skip\n");
-        return PTS_SUCCESS;
+        DEBUG_IFM("startCollector() - collector side - skip\n");
+        return PTS_FATAL;
     }
-
     if (ctx->target_conf->uuid == NULL) {
         /* collector */
-        /* If this is an ERROR should we be returning SUCCESS?? */
         ERROR("startCollector() - uuid is NULL\n");
-        return PTS_SUCCESS;
+        return PTS_FATAL;
     }
 
-    /* check */
+    /* check eventWrapper */
     if (eventWrapper == NULL) {
         ERROR("startCollector() - eventWrapper is NULL\n");
-        rc = PTS_INTERNAL_ERROR;
-        goto error;
+        return PTS_FATAL;
     }
-
     event = eventWrapper->event;
     if (event == NULL) {
         ERROR("startCollector() - event is NULL\n");
-        rc = PTS_INTERNAL_ERROR;
-        goto error;
+        return PTS_FATAL;
     }
-
     if (event->ulEventLength != sizeof(OPENPTS_EVENT_COLLECTOR_START)) {
         ERROR("startCollector() - Bad eventData size %d != %d\n",
             event->ulEventLength,
             sizeof(OPENPTS_EVENT_COLLECTOR_START));
-        rc = PTS_INTERNAL_ERROR;  // TODO
-        goto error;
+        return PTS_FATAL;
     }
+
 
     /* Event Data */
     start = (OPENPTS_EVENT_COLLECTOR_START *)event->rgbEvent;
@@ -854,81 +850,24 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
 
     /* validation - TSS version */
     if (memcmp(&start->pts_version, &ctx->target_conf->pts_version, 4) != 0) {
-        DEBUG("startCollector() - Bad PTS version\n");
-        // rc = PTS_INTERNAL_ERROR;  // TODO
-        // goto error;
+        ERROR("startCollector() - Bad PTS version\n");
+        rc = PTS_INVALID_COLLECTOR;
     }
 
     /* validation - Collector UUID */
     if (memcmp(&start->collector_uuid, ctx->target_conf->uuid->uuid, 16) != 0) {
-        DEBUG("startCollector() - Bad Collector UUID (Unit Testing?)\n");
-        // TODO test will stop. must be controlable?
-        // rc = PTS_INTERNAL_ERROR;  // TODO
-        // goto error;
+        ERROR("startCollector() - Bad Collector UUID (Unit Testing?)\n");
+        rc = PTS_INVALID_COLLECTOR;
     }
 
     /* validation - Manifest UUID */
-
     if (memcmp(&start->manifest_uuid, ctx->target_conf->rm_uuid->uuid, 16) != 0) {
-        // TODO in the test ptscd generate new RM UUID
-        DEBUG("startCollector() - Bad Manifest UUID (Unit Testing?)\n");
-        // rc = PTS_INTERNAL_ERROR;  // TODO
-        // goto error;
+        // TODO in the test ptsc generate new RM UUID
+        ERROR("startCollector() - Bad Manifest UUID (Unit Testing?)\n");
+        rc = PTS_INVALID_COLLECTOR;
     }
 
-
-    return PTS_SUCCESS;
-
-  error:
-    /* Error */
-    // printout the example IR data to create the test case
-    {
-        char *buf;
-        int buf_len;
-
-        if (start == NULL) {
-            start = malloc(sizeof(OPENPTS_EVENT_COLLECTOR_START));
-            if (start == NULL) {
-                ERROR("no memory");
-                return PTS_INTERNAL_ERROR;
-            }
-        }
-        printHex("OPENPTS_EVENT_COLLECTOR_START",
-            (unsigned char*)start, sizeof(OPENPTS_EVENT_COLLECTOR_START), "\n");
-        buf = encodeBase64(
-            (unsigned char *)start,
-            sizeof(OPENPTS_EVENT_COLLECTOR_START),
-            &buf_len);
-        if (buf == NULL) {
-            ERROR("encodeBase64 fail");
-            rc = PTS_INTERNAL_ERROR;
-            goto free;
-        }
-        ERROR("EventData: %s\n", buf);
-        xfree(buf);
-
-        memcpy(&start->pts_version, &ctx->target_conf->pts_version, 4);
-        memcpy(&start->collector_uuid, ctx->target_conf->uuid->uuid, 16);
-        memcpy(&start->manifest_uuid, ctx->target_conf->rm_uuid->uuid, 16);
-
-        printHex("OPENPTS_EVENT_COLLECTOR_START",
-            (unsigned char*)start, sizeof(OPENPTS_EVENT_COLLECTOR_START), "\n");
-        buf = encodeBase64(
-            (unsigned char *)start,
-            sizeof(OPENPTS_EVENT_COLLECTOR_START),
-            &buf_len);
-        if (buf == NULL) {
-            ERROR("encodeBase64 fail");
-            rc = PTS_INTERNAL_ERROR;
-            goto free;
-        }
-        ERROR("EventData: %s\n", buf);
-        xfree(buf);
-  free:
-        xfree(start);
-    }
-
-    return rc;  // TODO
+    return rc;
 }
 
 
@@ -952,7 +891,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 char *buf;
                 data = (OPENPTS_EVENT_TBOOT_SINIT_V6 *) event->rgbEvent;
                 buf = getHexString(data->sinit_hash, 20);
-                updateProperty(ctx, "intel.txt.tboot.sinit.hash.hex", buf);
+                setProperty(ctx, "intel.txt.tboot.sinit.hash.hex", buf);
                 xfree(buf);
                 // TODO add rest
             }
@@ -963,7 +902,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 char *buf;
                 data = (OPENPTS_EVENT_TBOOT_SINIT_V7 *) event->rgbEvent;
                 buf = getHexString(data->sinit_hash, 32);
-                updateProperty(ctx, "intel.txt.tboot.sinit.hash.hex", buf);
+                setProperty(ctx, "intel.txt.tboot.sinit.hash.hex", buf);
                 xfree(buf);
                 // TODO add rest
             }
@@ -974,7 +913,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 char *buf;
                 data = (OPENPTS_EVENT_TBOOT_STM_V6 *) event->rgbEvent;
                 buf = getHexString(data->bios_acm_id, 20);
-                updateProperty(ctx, "intel.txt.tboot.bios.acm.id.hex", buf);
+                setProperty(ctx, "intel.txt.tboot.bios.acm.id.hex", buf);
                 xfree(buf);
                 // TODO add rest
             }
@@ -985,10 +924,10 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                 char *buf;
                 data = (OPENPTS_EVENT_TBOOT_POLCTL *) event->rgbEvent;
                 buf = getHexString(data->pol_control, 4);
-                updateProperty(ctx, "intel.txt.tboot.pol.control.hex", buf);
+                setProperty(ctx, "intel.txt.tboot.pol.control.hex", buf);
                 xfree(buf);
                 buf = getHexString(data->pol_hash, 20);
-                updateProperty(ctx, "intel.txt.tboot.pol.hash.hex", buf);
+                setProperty(ctx, "intel.txt.tboot.pol.hash.hex", buf);
                 xfree(buf);
                 // TODO add rest
             }
@@ -997,7 +936,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
             {
                 char *buf;
                 buf = getHexString(event->rgbPcrValue, 20);
-                updateProperty(ctx, "intel.txt.tboot.mle.hash.hex", buf);
+                setProperty(ctx, "intel.txt.tboot.mle.hash.hex", buf);
                 xfree(buf);
             }
             break;
@@ -1022,14 +961,14 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                         "intel.txt.tboot.pcr.%d.module.command.hash.hex",
                         event->ulPcrIndex);
                     value = getHexString(data->command_hash, 20);
-                    updateProperty(ctx, name, value);
+                    setProperty(ctx, name, value);
                     xfree(value);
 
                     snprintf(name, sizeof(name),
                         "intel.txt.tboot.pcr.%d.module.file.hash.hex",
                         event->ulPcrIndex);
                     value = getHexString(data->file_hash, 20);
-                    updateProperty(ctx, name, value);
+                    setProperty(ctx, name, value);
                     xfree(value);
 
                     snprintf(name, sizeof(name),
@@ -1041,7 +980,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                     value = xmalloc_assert(size + 1);
                     memcpy(value, (BYTE *)ptr, size);
                     value[size] = 0;
-                    updateProperty(ctx, name, value);
+                    setProperty(ctx, name, value);
                     xfree(value);
 
                     snprintf(name, sizeof(name),
@@ -1053,7 +992,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
                     value = xmalloc_assert(size + 1);
                     memcpy(value, (BYTE *)ptr, size);
                     value[size] = 0;
-                    updateProperty(ctx, name, value);
+                    setProperty(ctx, name, value);
                     xfree(value);
                 }
             }
@@ -1068,7 +1007,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
     // TODO
     ctx->drtm = 1;
 
-    // updateProperty(ctx, "kernel.commandline", "TBD");
+    // setProperty(ctx, "kernel.commandline", "TBD");
     return PTS_SUCCESS;
 }
 #endif
@@ -1275,19 +1214,24 @@ int doActivity(
     int i;
 
     /* check */
-    ASSERT(NULL != ctx, "doActivity - ctx is NULL\n");
-    ASSERT(NULL != action, "doActivity - action is NULL\n");
-
+    if (ctx == NULL) {
+        ERROR("doActivity - ctx is NULL");
+        return PTS_FATAL;
+    }
+    if (action == NULL) {
+        ERROR("doActivity - action is NULL");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         /* NULL event, skip evaluation */
-        // DEBUG("doActivity - eventWrapper is NULL\n");
+        DEBUG_FSM("doActivity - eventWrapper is NULL, skip evaluation\n");
         // return 1;  //OPENPTS_FSM_SUCCESS;
     }
 
     /* copy */
     buf = smalloc(action);
     if (buf == NULL) {
-        return PTS_FATAL;  // -1;
+        return PTS_FATAL;
     }
 
     /* no action */

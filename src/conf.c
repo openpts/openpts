@@ -188,7 +188,11 @@ int freePtsConfig(OPENPTS_CONFIG * conf) {
     int i;
     // DEBUG("freePtsConfig()\n");
 
-    ASSERT(NULL != conf, "conf is NULL\n");
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if (conf->config_dir != NULL) {
         xfree(conf->config_dir);
@@ -772,7 +776,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     xfree(conf->ir_dir);
                 }
                 conf->ir_dir = getFullpathName(conf->config_dir, value);
-                DEBUG("conf->ir_dir          : %s\n", conf->ir_dir);
+                DEBUG("conf->ir_dir               : %s\n", conf->ir_dir);
             } // BAD else {
             //    /* set this to some sensible default value so that ptsc.c doesn't seg fault */
             //    conf->ir_dir = smalloc("/tmp");
@@ -1121,6 +1125,31 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
             }
 
+            /* DEBUG */
+            if (!strncmp(name, "verbose", 7)) {
+                setVerbosity(atoi(value));
+                DEBUG("Verbosity               : %d (set by conf)\n", getVerbosity());
+            }
+            if (!strncmp(name, "logging.location", 16)) {
+                if (!strncmp(value, "syslog", 6)) {
+                    setLogLocation(OPENPTS_LOG_SYSLOG, NULL);
+                    DEBUG("Logging location           : syslog\n");
+                } else if (!strncmp(value, "console", 6)) {
+                    setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
+                    DEBUG("Logging location           : syslog\n");
+                } else {
+                    ERROR("unknown aik.storage.type %s\n", value);  // TODO
+                    conf->aik_storage_type = 0;
+                }
+            }
+            if (!strncmp(name, "logging.file", 12)) {
+                char *log_filename;
+                log_filename = getFullpathName(conf->config_dir, value);
+                setLogLocation(OPENPTS_LOG_FILE, log_filename);
+                DEBUG("Logging location           : file (%s)\n", log_filename);
+                xfree(log_filename);
+            }
+
             cnt++;
         } else {
             /* accept only blank lines */
@@ -1389,6 +1418,16 @@ int readOpenptsConf(OPENPTS_CONFIG *conf, char *filename) {
 
     DEBUG_CAL("readOpenptsConf %s\n", filename);
 
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     rc = readPtsConfig(conf, filename);
     if (rc < 0) {
         ERROR("readOpenptsConf - fail, rc = %d\n", rc);
@@ -1404,7 +1443,10 @@ int readOpenptsConf(OPENPTS_CONFIG *conf, char *filename) {
  */
 int setModelFile(OPENPTS_CONFIG *conf, int index, int level, char *filename) {
     /* check */
-    ASSERT(NULL != conf, "setModelFile()- conf is NULL\n");
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if (level >= MAX_RM_NUM) {
         ERROR("setModelFile()- PCR[%d] trying to affect a model file(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",

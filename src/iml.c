@@ -52,11 +52,17 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper);
 int resetSnapshot(OPENPTS_SNAPSHOT * snapshots) {
     int i, j;
     OPENPTS_SNAPSHOT *ss;
-
     TSS_PCR_EVENT *event;
     OPENPTS_PCR_EVENT_WRAPPER *eventWrapper;
     OPENPTS_PCR_EVENT_WRAPPER *eventWrapper_next;
 
+    /* check */
+    if (snapshots == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* reset PCRs */
     for (i = 0; i < MAX_PCRNUM; i++) {
         ss = &snapshots[i];
         eventWrapper = ss->start;
@@ -94,6 +100,7 @@ OPENPTS_PCR_EVENT_WRAPPER * newEventWrapper() {
 
     ew = (OPENPTS_PCR_EVENT_WRAPPER *)xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
     if (ew == NULL) {
+        ERROR("no memory");
         return NULL;
     }
 
@@ -106,7 +113,12 @@ OPENPTS_PCR_EVENT_WRAPPER * newEventWrapper() {
  *  free 
  */
 void freeEventWrapper(OPENPTS_PCR_EVENT_WRAPPER * ew) {
-    // TODO
+    /* check */
+    if (ew == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     xfree(ew);
 }
 
@@ -116,19 +128,19 @@ void freeEventWrapper(OPENPTS_PCR_EVENT_WRAPPER * ew) {
 void freeEventWrapperChain(OPENPTS_PCR_EVENT_WRAPPER * ew) {
     TSS_PCR_EVENT *event;
 
-    ASSERT(NULL != ew, "OPENPTS_PCR_EVENT_WRAPPER is NULL\n");
+    /* check */
+    if (ew == NULL) {
+        ERROR("null input");
+        return;
+    }
 
+    /* chain */
     if (ew->next_pcr != NULL) {
         freeEventWrapperChain(ew->next_pcr);
     }
 
     event = ew->event;
     if (event != NULL) {
-        // {
-            // OPENPTS_SNAPSHOT *ss = ew->snapshot;
-            // DEBUG("freeEventWrapperChain() - free event index=%3d  pcr=%2d level =%d type=0x%04x\n",
-            //    ew->index, event->ulPcrIndex, ss->level, event->eventType);
-        // }
         if (event->rgbPcrValue != NULL)
             xfree(event->rgbPcrValue);
         if (event->rgbEvent != NULL)
@@ -174,10 +186,22 @@ int addEventToSnapshotBhv(
 
     DEBUG_CAL("addEventToSnapshot - start\n");
 
-    ASSERT(NULL != eventWrapper, "addEventToSnapshotBhv - eventWrapper is NULL\n");
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (eventWrapper->event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
+    /* PCR index */
     index = eventWrapper->event->ulPcrIndex;
-
 
     DEBUG_FSM("[PCR%02d] addEventToSnapshotBhv()\n", index);
 
@@ -209,6 +233,7 @@ int addEventToSnapshotBhv(
             /* level 0 SS is null => check Level 1 SS */
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
+                ERROR("getSnapshotFromTable(%d,1) is null", index);
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING,
                     "[PCR%02d] Snapshot(FSM) is missing for PCR%d. "
                     "Please check the configuration file '%s'"),
@@ -227,6 +252,7 @@ int addEventToSnapshotBhv(
                 DEBUG_FSM("[PCR%02d] RM0 -> RM1 (RM0 is missing)\n", index);
             } else {
                 /* FSM is missing */
+                ERROR("getSnapshotFromTable(), FSM is null");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING,
                     "[RM01-PCR%02d] FSM is missing for PCR%d, Level 1. "
                     "Please check the configuration file '%s'"),
@@ -246,6 +272,7 @@ int addEventToSnapshotBhv(
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
                 /* SS is missing */
+                ERROR("getSnapshotFromTable(), ss is null");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_2,
                     "[PCR%02d] Snapshot is missing for PCR%d for Level 0 and 1. "
                     "Please check the configuration file '%s'"),
@@ -264,6 +291,7 @@ int addEventToSnapshotBhv(
                 active_level = 1;
             } else {
                 /* FSM is missing*/
+                ERROR("getSnapshotFromTable(), FSM is null");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING_2,
                     "[RM01-PCR%02d] FSM is missing for PCR%d, Level 1. Please check the configuration file '%s'"),
                     index,
@@ -277,7 +305,7 @@ int addEventToSnapshotBhv(
         ss = getSnapshotFromTable(ctx->ss_table, index, 1);
         if (ss == NULL) {
             /* SS is missing */
-            DEBUG("ss == NULL  =>  Reason\n");
+            ERROR("getSnapshotFromTable(), ss is null");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_6,
                 "[RM%02d-PCR%02d] Snapshot is missing for PCR%d, Level %d. Please check the configuration file '%s'"),
                 active_level,
@@ -291,7 +319,7 @@ int addEventToSnapshotBhv(
         /* check FSM */
         if (ss->fsm_behavior == NULL) {
             /* FSm is missing */
-            DEBUG("ss->fsm_behavior == NULL  =>  Reason\n");
+            ERROR("getSnapshotFromTable(), FSM is null");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING_3,
                 "[RM%02d-PCR%02d] FSM is missing for PCR%d, Level %d. Please check the configuration file '%s'"),
                 active_level,
@@ -334,6 +362,7 @@ int addEventToSnapshotBhv(
             ERROR("ss->fsm_behavior->uml_file == NULL");
             // TODO
         } else {
+            ERROR("IML validation by FSM has failed.");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_VALIDATION_FAILED,
                            "[RM%02d-PCR%02d] IML validation by FSM has failed. State='%s' at the FSM is '%s'"),
                 active_level,
@@ -409,16 +438,28 @@ int addEventToSnapshotBhv(
 int addEventToSnapshotBin(
         OPENPTS_CONTEXT * ctx,
         OPENPTS_PCR_EVENT_WRAPPER * eventWrapper) {
+    int rc;
     int index;
     int active_level;
     OPENPTS_SNAPSHOT *ss;
-    int rc;
 
     DEBUG_CAL("addEventToSnapshotBin - start\n");
 
     /* check */
-    ASSERT(NULL != eventWrapper, "null eventWrapper\n");
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (eventWrapper->event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
+    /* PCR index */
     index = eventWrapper->event->ulPcrIndex;
 
     /* Get active snapshot level of this PCR */
@@ -433,7 +474,7 @@ int addEventToSnapshotBin(
 
         /* check next level (1) */
         if (ss == NULL) {
-            // ERROR("addEventToSnapshotBin() - pcr=%d Level=%d snapshots is missing\n",index, active_level);
+            ERROR("addEventToSnapshotBin() - pcr=%d Level=%d snapshots is missing\n",index, active_level);
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_3, "[PCR%02d] Snapshot(FSM) is missing"),
                 index);
             ctx->ss_table->error[index] = PTS_INTERNAL_ERROR;
@@ -482,6 +523,7 @@ int addEventToSnapshotBin(
                     active_level,
                     index);
             } else {
+                DEBUG("IR validation by RM has failed");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_IR_VALIDATION_FAILED_4,
                                 "[RM%02d-PCR%02d-%s] IR validation by RM has failed"),
                     active_level,
@@ -498,7 +540,7 @@ int addEventToSnapshotBin(
             /* check the next level */
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
-                // ERROR("no BIN-FSM at level 0,  no SS at level 1\n");
+                ERROR("no BIN-FSM at level 0,  no SS at level 1\n");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_4,
                     "[PCR%02d] Snapshot(FSM) is missing"),
                     index);
@@ -521,7 +563,7 @@ int addEventToSnapshotBin(
                     rc = updateFsm(ctx, ss->fsm_binary, eventWrapper);
                     if (rc == OPENPTS_FSM_ERROR) {
                         DEBUG_FSM("No trans, return PTS_INVALID_SNAPSHOT at %s\n", ss->fsm_binary->curr_state->name);
-                        DEBUG("updateFsm fail\n");
+                        ERROR("updateFsm fail\n");
                         addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_IR_VALIDATION_FAILED_5,
                                   "[RM%02d-PCR%02d-%s] IR validation by RM has failed"),
                                   active_level + 1,
@@ -571,11 +613,18 @@ int flashSnapshot(
         OPENPTS_CONTEXT * ctx,
         int index) {
     int active_level;
+    int rc;
     OPENPTS_SNAPSHOT *ss;
     OPENPTS_SNAPSHOT *ss_lv0 = NULL;
-    int rc;
+
 
     DEBUG_CAL("flashSnapshot - start\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /*
         Active FSM(LV0)  FSM(LV1)        new level
@@ -707,23 +756,31 @@ int getIml(OPENPTS_CONTEXT * ctx, int option) {
 #else  // CONFIG_NO_TSS
 int getIml(OPENPTS_CONTEXT * ctx, int option) {
     int rc = 0;
+    int i;
+    int error = 0;
     TSS_RESULT result;
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
     TSS_PCR_EVENT *pcrEvents;
     UINT32 ulEventNumber = 0;
     OPENPTS_PCR_EVENT_WRAPPER *ew_new = NULL;
-    // OPENPTS_PCR_EVENT_WRAPPER *ew_last = NULL;
-    int i;
-    int error = 0;
 
     DEBUG_CAL("getIml - start\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* clean up TPM */
     resetTpm(&ctx->tpm, 0);  // reset TPM DRTM=off
 
     /* check SS table */
-    ASSERT(NULL != ctx->ss_table, "getIml - ctx->ss_table is NULL\n");
+    if (ctx->ss_table == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
@@ -878,6 +935,13 @@ UINT32 freadUint32(FILE * stream, int endian) {
     UINT32 in;
     UINT32 out;
 
+    /* check */
+    if (stream == NULL) {
+        ERROR("null input");
+        return 0xFFFFFFFF;
+    }
+
+    /* read */
     size = fread(&data, 1, 4, stream);
 
     if (size != 4) {
@@ -948,8 +1012,15 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
     DEBUG_CAL("getBiosImlFile - start\n");
     // DEBUG("read BIOS IML, file %s\n", filename);
 
-    ASSERT(NULL != ctx, "ERROR\n");  // TODO(munetoh)
-    ASSERT(NULL != filename, "ERROR\n");  // TODO(munetoh)
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* open file */
     if ((fp = fopen(filename, "rb")) == NULL) {
@@ -985,6 +1056,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
 
         event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (event == NULL) {
+            ERROR("no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -998,6 +1070,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
         event->ulPcrValueLength = SHA1_DIGEST_SIZE;
         event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE);  // leaked
         if (event->rgbPcrValue == NULL) {
+            ERROR("no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1021,6 +1094,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
         }
         /* malloc EventData */
         if ((event->rgbEvent = xmalloc_assert(eventLength)) == NULL) {
+            ERROR("no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1033,18 +1107,11 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
             goto close;
         }
 
-#if 0
-        // DEBUG SMBIOS
-        if (eventLength > 2000) {
-            TODO("eventLength = %d\n", eventLength);
-            printHex("", event->rgbEvent, eventLength, "\n");
-        }
-#endif
-
         /* create event wrapper */
         ew_new = (OPENPTS_PCR_EVENT_WRAPPER *)
             xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         if (ew_new == NULL) {
+            ERROR("no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1103,7 +1170,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
 
         /* TPM Extend */
         result = extendTpm(&ctx->tpm, ew_new->event);
-        if (result !=0) {
+        if (result != PTS_SUCCESS) {
             ERROR("extend TPM fail\n");
             rc = PTS_INTERNAL_ERROR;
             goto close;
@@ -1341,8 +1408,15 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
 
     DEBUG_CAL("readImaImlFile - start\n");
 
-    ASSERT(NULL != ctx, "getImaImlFile - ctx is NULL\n");  // TODO(munetoh)
-    ASSERT(NULL != filename, "getImaImlFile - no filename\n");  // TODO(munetoh)
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* open file */
     if ((fp = fopen(filename, "rb")) == NULL) {
@@ -1374,6 +1448,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
         /* alloc event structure */
         event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (event == NULL) {
+            ERROR("no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1399,6 +1474,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulPcrValueLength = SHA1_DIGEST_SIZE;
             event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE);
             if (event->rgbPcrValue == NULL) {
+                ERROR("no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
@@ -1420,6 +1496,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             }
             /* alloc eventdata */
             if ((event->rgbEvent = xmalloc(event->ulEventLength)) == NULL) {
+                ERROR("no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
@@ -1448,6 +1525,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulPcrValueLength = SHA1_DIGEST_SIZE;
             event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE);
             if (event->rgbPcrValue == NULL) {
+                ERROR("no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
@@ -1473,6 +1551,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulEventLength = 20 + 256;  // TODO(munetoh)
             event->rgbEvent = xmalloc(event->ulEventLength);
             if (event->rgbEvent == NULL) {
+                ERROR("no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
@@ -1501,6 +1580,11 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read Digest (SHA1) */
             event->ulPcrValueLength = SHA1_DIGEST_SIZE;
             event->rgbPcrValue = (BYTE *) xmalloc_assert(SHA1_DIGEST_SIZE);
+            if (event->rgbPcrValue == NULL) {
+                ERROR("no memory");
+                rc = PTS_FATAL;
+                goto close;
+            }
 
             size = fread(event->rgbPcrValue, 1, SHA1_DIGEST_SIZE, fp);
             if (size != SHA1_DIGEST_SIZE) {
@@ -1545,6 +1629,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
                 event->ulEventLength = 20 + 256;  // TODO(munetoh)
                 event->rgbEvent = xmalloc(event->ulEventLength);
                 if (event->rgbEvent == NULL) {
+                    ERROR("no memory");
                     rc = PTS_FATAL;
                     goto close;
                 }
@@ -1594,6 +1679,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
         ew = (OPENPTS_PCR_EVENT_WRAPPER *)
             xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         if (ew == NULL) {
+            ERROR("no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1686,6 +1772,16 @@ int setPcrsToSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_PCRS *pcrs) {
 
     DEBUG_CAL("setPcrsToSnapshot\n");
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (pcrs == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     /* snapshots */
     for (i = 0; i < pcrs->pcr_num; i++) {
         int j;
@@ -1747,6 +1843,12 @@ int getPcr(OPENPTS_CONTEXT * ctx) {
 
     int i;
     int pcrNum = 0;
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
@@ -1853,6 +1955,12 @@ BYTE hex2byte(char *buf, int offset) {
     UINT32 tmp;
     char *e;
 
+    /* check */
+    if (buf == NULL) {
+        ERROR("null input");
+        return 0;
+    }
+
     tmp = strtol(&buf[offset], &e, 16);
 
     return (BYTE) (0xFF & tmp);
@@ -1877,6 +1985,14 @@ int getPcrBySysfsFile(OPENPTS_CONTEXT * ctx, const char *filename) {
     OPENPTS_SNAPSHOT *ss1;
 
     /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* open */
     if ((fp = fopen(filename, "r")) == NULL) {
@@ -1935,6 +2051,12 @@ int validatePcr(OPENPTS_CONTEXT * ctx) {
     OPENPTS_TPM_CONTEXT *tpm;
     OPENPTS_SNAPSHOT *ss;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     tpm = &ctx->tpm;
 
     DEBUG("validatePcr - start, Iml->PCR vs TPM\n");
@@ -1981,8 +2103,13 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     int j;
     TSS_PCR_EVENT *event;
 
-    event = eventWrapper->event;
+    /* check */
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return;
+    }
 
+    event = eventWrapper->event;
     if (event != NULL) {
         OUTPUT("%4d ", (int)event->ulPcrIndex);
         OUTPUT("%8x ", event->eventType);
@@ -1995,379 +2122,6 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     }
 }
 
-#if 0
-// obsolete functions
-/**
- * \brief print event of selected PCR index
- * \return num of event
- */
-int printImlByPcr(
-        OPENPTS_CONTEXT * ctx,
-        UINT32 index,
-        UINT32 offset) {
-    int i, j;
-    OPENPTS_SNAPSHOT *ss;
-    OPENPTS_PCR_EVENT_WRAPPER *eventWrapper;
-    char buf[SHA1_BASE64_DIGEST_SIZE + 1];
-    // int len;
-
-    /* snapshot */
-    ss = getSnapshotFromTable(ctx->ss_table, index, 0);
-    if (ss == NULL) {
-        ERROR("printImlByPcr() - no ss at pcr=%d, level=0\n", index);
-        return -1;
-    }
-
-    eventWrapper = ss->start;
-
-    OUTPUT("PCR[%d]\n", index);
-
-    for (i = 0; i < ctx->ss_table->event_num; i++) {
-        OUTPUT(" %3d %3d %08x ",
-            offset + i,
-            eventWrapper->event->ulPcrIndex,
-            eventWrapper->event->eventType);
-        /* hex */
-        for (j = 0; j < 20; j++) {
-            OUTPUT("%02x", eventWrapper->event->rgbPcrValue[j]);
-        }
-
-        /* base64 */
-        // len = encodeBase64(
-        //     (unsigned char *)buf,
-        //     (unsigned char *)eventWrapper->event->rgbPcrValue,
-         //   20);
-
-        OUTPUT(" (%s) \n", buf);
-        eventWrapper = eventWrapper->next_pcr;
-        if (eventWrapper == NULL) break;
-    }
-
-
-    return i;
-}
-
-/**
- * \brief print all events
- */
-int printIml(OPENPTS_CONTEXT * ctx) {
-    int i;
-    int rc = 0;
-
-    for (i = 0; i < MAX_PCRNUM; i++) {
-        rc += printImlByPcr(ctx, i, rc);
-    }
-
-    return rc;
-}
-#endif
-
-#if 0
-// TODO REMOVE
-/**
- * print TSS_PCR_EVENT
- *
- * TODO(munetoh) use fprintEventData in iml2text.c
- */
-void printEvent(TSS_PCR_EVENT *event) {
-    int i;
-
-    if (event != NULL) {
-        int index = (int) event->ulPcrIndex;
-        int type  = event->eventType;
-        int len = event->ulEventLength;
-        int pcr4_grub = 0;
-        int pcr5_grub = 0;
-        char buf[256];
-
-        OUTPUT("%4d ", index);
-        OUTPUT("%8x ", type);
-        for (i = 0; i < (int)event->ulPcrValueLength; i++) {
-            OUTPUT("%02x", event->rgbPcrValue[i]);
-        }
-        OUTPUT(" eventdata[%4d] ", event->ulEventLength);
-
-        if (len < 256) {
-            memcpy(buf, event->rgbEvent, event->ulEventLength);
-            buf[event->ulEventLength] = 0;
-        } else {
-            memcpy(buf, event->rgbEvent, 255);
-            buf[255] = 0;
-        }
-
-        if (index == 10) {  // Linux-IMA
-            if (type == 2) {
-                OUTPUT("[IMA-LKM:%s] ", buf);
-            } else if (type == 1) {
-                OUTPUT("[IMA-EXE:%s] ", buf);
-            } else if (type == 0) {
-                // OUTPUT("[IMA:%s] ", buf);
-                OUTPUT("[IMA] ");
-            } else if ((type & 0xFFFF) == 4) {
-                OUTPUT("[IMA-USR,0x%04x:%s] ", (type >> 16), buf);
-            } else {
-                OUTPUT("[???:%s] ", buf);
-            }
-        } else if (index <= 8) {  // BIOS + Grub
-            switch (type) {
-                case 0:
-                    OUTPUT("[BIOS:EV_PREBOOT_CERT(EV_CODE_CERT)]");
-                    break;
-                case 1:
-                    OUTPUT("[BIOS:EV_POST_CODE(EV_CODE_NOCERT)]");
-                    break;
-                case 2:
-                    OUTPUT("[BIOS:EV_UNUSED(EV_XML_CONFIG)]");
-                    break;
-                case 3:
-                    OUTPUT("[BIOS:EV_NO_ACTION]");
-                    break;
-                case 4:
-                    if ((pcr4_grub > 1) && (index == 4)) {
-                        OUTPUT("[GRUB:EV_SEPARATOR, %s]", buf);
-                    } else if ((pcr5_grub > 0) && (index == 5)) {
-                        OUTPUT("[GRUB:EV_SEPARATOR, %s]", buf);
-                    } else if (index == 8) {
-                        OUTPUT("[GRUB:EV_SEPARATOR, %s]", buf);
-                    } else if (len == 4) {  // V1.2
-                        OUTPUT("[BIOS:EV_SEPARATOR, %02x%02x%02x%02x]",
-                                (unsigned char) buf[0],
-                                (unsigned char) buf[1],
-                                (unsigned char) buf[2],
-                                (unsigned char) buf[3]);
-                    } else {
-                            OUTPUT("[BIOS:EV_SEPARATOR, %s]", buf);
-                    }
-                    break;
-                case 5:
-                    if ((pcr5_grub > 0) && (index == 5)) {
-                            OUTPUT("[GRUB:EV_ACTION, %s]", buf);
-                    } else {
-                            OUTPUT("[BIOS:EV_ACTION, %s]", buf);
-                    }
-                    break;
-                case 6:
-                    if ((pcr4_grub > 1) && (index == 4)) {
-                            OUTPUT("[GRUB: measure MBR again]");
-                    } else {
-                            OUTPUT("[BIOS:EV_EVENT_TAG(EV_PLATFORM_SPECIFIC)]");
-                    }
-                    break;
-                case 7:
-                    OUTPUT("[BIOS:EV_S_CRTM_CONTENTS]");
-                    break;
-                case 8:
-                    OUTPUT("[BIOS:EV_S_CRTM_VERSION]");
-                    break;
-                case 9:
-                    OUTPUT("[BIOS:EV_CPU_MICROCODE]");
-                    break;
-                case 0x0a:
-                    OUTPUT("[BIOS:EV_PLATFORM_CONFIG_FLAG)]");
-                    break;
-                case 0x0b:
-                    OUTPUT("[BIOS:EV_TABLE_OF_CONTENTS)]");
-                    break;
-                case 0x0c:
-                    OUTPUT("[BIOS:EV_COMPACT_HASH]");
-                    break;
-                case 0x0d:
-                    if (pcr4_grub == 0) {
-                        // BIOS
-                        OUTPUT("[BIOS:EV_IPL]");
-                        pcr4_grub = 1;
-                    } else if (pcr4_grub == 1) {
-                        // GRUB
-                        OUTPUT("[GRUB:EV_IPL, Stage1(MBR)]");
-                        pcr4_grub = 2;
-                    } else if (pcr4_grub == 2) {
-                        // GRUB
-                        OUTPUT("[GRUB:EV_IPL, Stage1.5]");
-                        pcr4_grub = 3;
-                    } else if (pcr4_grub == 3) {
-                        // GRUB
-                        OUTPUT("[GRUB:EV_IPL, Stage1.5(filesystem)]");
-                        pcr4_grub = 4;
-                    } else {
-                        // GRUB
-                        OUTPUT("[GRUB:EV_IPL]");
-                    }
-                    break;
-                case 0x0e:
-                    if (pcr5_grub == 0) {
-                        OUTPUT("[BIOS:EV_IPL_PARTITION_DATA]");
-                        pcr5_grub = 1;
-                    } else {
-                        OUTPUT("[GRUB:grub.conf]");
-                    }
-                    break;
-                case 0x0f:
-                    OUTPUT("[BIOS:EV_NOHOST_CODE)]");
-                    break;
-                case 0x10:
-                    OUTPUT("[BIOS:EV_NOHOST_CONFIG]");
-                    break;
-                case 0x11:
-                    OUTPUT("[BIOS:EV_NOHOST_INFO]");
-                    break;
-                case 0x12:
-                    OUTPUT("[BIOS:EV_SPECIFICATION_IDENTIFIER 0x");
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000001:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_VARIABLE_DRIVER_CONFIG len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000002:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_VARIABLE_BOOT len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000003:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_BOOT_SERVICES_APPLICATION len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000004:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_BOOT_SERVICES_DRIVER len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000005:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_RUNTIME_SERVICES_DRIVER len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000006:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_GPT_EVENT len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000007:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_ACTION len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                case 0x80000009:  // EFI
-                    OUTPUT("[BIOS:EV_EFI_HANDOFF_TABLES len=%d,", len);
-                    for (i = 0; i < len; i++) {
-                        OUTPUT("%02x", (unsigned char)buf[i]);
-                    }
-                    OUTPUT("]");
-                    break;
-                // GRUB-IMA
-                case 0x1005:
-                    OUTPUT("[GRUB:ACTION, %s]", buf);
-                    break;
-                case 0x1105:
-                    OUTPUT("[GRUB:KERNEL_OPT %s]", buf);
-                    break;
-                case 0x1205:
-                    OUTPUT("[GRUB:KERNEL %s]", buf);
-                    break;
-                case 0x1305:
-                    OUTPUT("[GRUB:INITRD %s]", buf);
-                    break;
-                case 0x1405:
-                    OUTPUT("[GRUB:MODULE %s]", buf);
-                    break;
-                default:
-                    OUTPUT("[Unknown BIOS Event:size=%d]", len);
-                    break;
-            }
-        }
-
-        encodeBase64((unsigned char *)buf, (unsigned char *)event->rgbPcrValue, event->ulPcrValueLength);
-        OUTPUT(" b64(%s)\n", buf);
-
-    } else {
-        ERROR("NULL event\n");  // TODO(munetoh)
-    }
-}
-#endif
-
-#if 0
-/**
- * print OPENPTS_SNAPSHOT
- */
-void printSnapshot(OPENPTS_SNAPSHOT * ss) {
-    int i;
-    TSS_PCR_EVENT *event;
-    OPENPTS_PCR_EVENT_WRAPPER *eventWrapper;
-
-    eventWrapper = ss->start;
-    // OR while()
-    for (i = 0; i < ss->event_num; i++) {
-        event = eventWrapper->event;
-        printEvent(event);
-        eventWrapper = eventWrapper->next_pcr;
-    }
-}
-#endif
-
-#if 0
-// TODO REMOVE
-/**
- * print events in each snapshot 
- */ 
-void printSnapshots(OPENPTS_CONTEXT * ctx) {
-    int i;
-    OPENPTS_SNAPSHOT *ss;
-    int level0_num = 0;
-    int level1_num = 0;
-
-    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML_EVENTS, "events\n"));
-    OUTPUT(" \n");
-    for (i = 0; i < MAX_PCRNUM; i++) {
-        ss = getSnapshotFromTable(ctx->ss_table, i, 0);
-        if (ss != NULL) {
-            if (ss->event_num > 0) {
-                OUTPUT("PCR[%2d] - ", i);
-                OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML_EVENTS_AT_LEVEL0, "%d events at level 0\n"), ss->event_num);
-            }
-            level0_num += ss->event_num;
-            printSnapshot(ss);
-        }
-
-        // if (ss->next != NULL) {
-        //     ss = ss->next;
-        /* level 1 */
-        ss = getSnapshotFromTable(ctx->ss_table, i, 1);
-        if (ss != NULL) {
-            if (ss->event_num > 0) {
-                OUTPUT("PCR[%2d] - ", i);
-                OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML_EVENTS_AT_LEVEL1, "%d events at level 1\n"), ss->event_num);
-            }
-            level1_num += ss->event_num;
-            if (ss->level != 1) ERROR("bad level %d\n", ss->level);
-            printSnapshot(ss);
-        }
-    }
-    OUTPUT("---------------------------\n");
-    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML_LEVEL_TOTALS,
-           "level 0 total = %d\n"
-           "level 1 total = %d\n"), level0_num, level1_num);
-    OUTPUT("---------------------------\n");
-}
-#endif
 
 /**
  *  print event number of each snapshot
@@ -2375,9 +2129,14 @@ void printSnapshots(OPENPTS_CONTEXT * ctx) {
 void printSnapshotsInfo(OPENPTS_CONTEXT * ctx) {
     int i;
     OPENPTS_SNAPSHOT *ss;
-    // TODO support valiable levels
     int level0_num = 0;
     int level1_num = 0;
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_HEADER,
            "Number of event\n"

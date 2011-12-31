@@ -245,7 +245,7 @@ void    uml2sax_startElement(void* fctx, const xmlChar* name,
 /**
  * endElement of SAX parser
  */
-void    uml2sax_endElement(void * fctx, const xmlChar * name) {
+void uml2sax_endElement(void * fctx, const xmlChar * name) {
     OPENPTS_FSM_CONTEXT *ctx;
 
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
@@ -265,13 +265,19 @@ void    uml2sax_endElement(void * fctx, const xmlChar * name) {
  * 20100928 
  *  Eclipse MDT  ">" =>  &lt;, but  stoped at &lt;   
  *  LinbML &amp;lt;
+ * 20111228
+ *  <body>eventtype==0x0d,digest==base64!,digest_count&gt;=iml.ipl.count</body>
+ *  [44] eventtype==0x0d,digest==base64!,digest_count
+ *  Libxml stop at "&gt;" :-(
+ *    libxml2-2.7.6-1.el6.x86_64
+ *  Use text notation (gt/ge/lt/le) instead of <,>
  */
-void    uml2sax_characters(void* fctx, const xmlChar * ch, int len) {
+void  uml2sax_characters(void* fctx, const xmlChar * ch, int len) {
     OPENPTS_FSM_CONTEXT *ctx;
+    char buf[FSM_BUF_SIZE];
 
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
 
-    char buf[FSM_BUF_SIZE];
     if (len < FSM_BUF_SIZE) {
         memcpy(buf, ch, len);
         buf[len]= 0;

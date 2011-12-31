@@ -82,6 +82,7 @@ OPENPTS_UUID *newOpenptsUuid() {
 
     uuid = xmalloc(sizeof(OPENPTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(uuid, 0, sizeof(OPENPTS_UUID));
@@ -97,8 +98,15 @@ OPENPTS_UUID *newOpenptsUuid() {
 OPENPTS_UUID *newOpenptsUuid2(PTS_UUID *pts_uuid) {
     OPENPTS_UUID *uuid;
 
+    /* check */
+    if (pts_uuid == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     uuid = xmalloc(sizeof(OPENPTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(uuid, 0, sizeof(OPENPTS_UUID));
@@ -122,8 +130,15 @@ OPENPTS_UUID *newOpenptsUuidFromFile(char * filename) {
     OPENPTS_UUID *uuid;
     int rc;
 
+    /* check */
+    if (filename == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     uuid = newOpenptsUuid();
     if (uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
 
@@ -175,7 +190,10 @@ void freeOpenptsUuid(OPENPTS_UUID *uuid) {
  */
 int genOpenptsUuid(OPENPTS_UUID *uuid) {
     /* check */
-    ASSERT(NULL != uuid, "uuid is NULL\n");
+    if (uuid == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* check the status */
     if (uuid->status == OPENPTS_UUID_EMPTY) {
@@ -238,11 +256,11 @@ int readOpenptsUuidFile(OPENPTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("readOpenptsUuidFile() - uuid == NULL");
+        ERROR("null input");
         return PTS_FATAL;
     }
     if (uuid->filename == NULL) {
-        ERROR("\n");
+        ERROR("null input");
         return PTS_FATAL;
     }
 
@@ -334,12 +352,12 @@ int writeOpenptsUuidFile(OPENPTS_UUID *uuid, int overwrite) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("writeOpenptsUuidFile() - uuid == NULL\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input");
+        return PTS_FATAL;
     }
     if (uuid->filename == NULL) {
-        ERROR("writeOpenptsUuidFile() - uuid->filename == NULL\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input\n");
+        return PTS_FATAL;
     }
     if ((uuid->status != OPENPTS_UUID_FILLED) && (uuid->status != OPENPTS_UUID_CHANGED)) {
         ERROR("writeOpenptsUuidFile() - uuid->status = %d (!= FILLED or CHANGED)\n", uuid->status);

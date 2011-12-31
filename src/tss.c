@@ -27,7 +27,7 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-18
  * refactoring 2011-02-15 SM
- * cleanup 2011-10-07 SM
+ * cleanup 2011-12-31 SM
  *
  * Create Sign Key
  * Create AIK
@@ -353,12 +353,13 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
 
 /**
  * List Keys
+ *
+ * TODO Somehow TSS display SRK only  TSS_PS_TYPE_SYSTEM
  */
 int printTssKeyList(int ps_type) {
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     UINT32 ulKeyHierarchySize;
-    // BYTE *buf;
     TSS_UUID SRK_UUID = TSS_UUID_SRK;
     int i;
     TSS_KM_KEYINFO *info = NULL;
@@ -388,7 +389,11 @@ int printTssKeyList(int ps_type) {
                 &SRK_UUID,
                 &ulKeyHierarchySize,
                 &info);
-    if (result != TSS_SUCCESS) {
+    if (result == 0x3020) {  // TSS_E_PS_KEY_NOTFOUND
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY_NOTFOUND,
+            "The key cannot be found in the persistent storage database.\n"));
+        goto close;
+    } else if (result != TSS_SUCCESS) {
         ERROR("Tspi_Context_GetRegisteredKeysByUUID failed rc=0x%x\n",
             result);
         goto close;
@@ -396,7 +401,25 @@ int printTssKeyList(int ps_type) {
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY_NUM, "Key number: %d\n"), ulKeyHierarchySize);
     for (i = 0; i < (int)ulKeyHierarchySize; i++) {
-        OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY, "Key %d\n"), i);
+        //OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY, "Key %d\n"), i);
+        OUTPUT("id      : %d\n", i);
+        OUTPUT("version : %d %d %d %d\n",
+            info->versionInfo.bMajor,
+            info->versionInfo.bMinor,
+            info->versionInfo.bRevMajor,
+            info->versionInfo.bRevMinor);  // TSS_VERSION
+        OUTPUT("UUID    : %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
+            info->keyUUID.ulTimeLow,
+            info->keyUUID.usTimeMid,
+            info->keyUUID.usTimeHigh,
+            info->keyUUID.bClockSeqHigh,
+            info->keyUUID.bClockSeqLow,
+            info->keyUUID.rgbNode[0],
+            info->keyUUID.rgbNode[1],
+            info->keyUUID.rgbNode[2],
+            info->keyUUID.rgbNode[3],
+            info->keyUUID.rgbNode[4],
+            info->keyUUID.rgbNode[5]);  // TSS_UUID
         info = info + 1;
     }
 
@@ -441,6 +464,16 @@ int createTssSignKey(
     TSS_HPOLICY hKeyPolicy;
     int i;
     TSS_UUID tss_uuid;
+
+    /* check */
+    if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
+        ERROR("null input");
+        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    }
+    if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) && (filename == NULL)) {
+        ERROR("null input");
+        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    }
 
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
@@ -511,10 +544,8 @@ int createTssSignKey(
     /* UUID */
     memcpy(&tss_uuid, uuid, sizeof(TSS_UUID));
 
-
-
     if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
-TODO("auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON");
+        DEBUG("auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON");
         /* Create New Key object */
         result = Tspi_Context_CreateObject(
                     hContext,
@@ -562,7 +593,7 @@ TODO("auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON");
         }
     } else {
         /* Create New Key object */
-TODO("auth_type != OPENPTS_AIK_AUTH_TYPE_COMMON");
+        DEBUG("auth_type != OPENPTS_AIK_AUTH_TYPE_COMMON");
         result = Tspi_Context_CreateObject(
                     hContext,
                     TSS_OBJECT_TYPE_RSAKEY,
@@ -674,22 +705,31 @@ TODO("auth_type != OPENPTS_AIK_AUTH_TYPE_COMMON");
     return result;
 }
 
+
+
 /**
  * Create AIK
  */
 int createAIK() {
     TODO("createAIK - TBD\n");
-    return -1;
+    return TSS_E_FAIL;
 }
 
 /**
- * delete TSS key
+ * delete TSS key (UUID)
+ * BLOB => just delete the file
  */
 int deleteTssKey(PTS_UUID *uuid, int ps_type) {
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HKEY hKey;
     TSS_UUID tss_uuid;
+
+    /* check */
+    if (uuid == NULL) {
+        ERROR("null input");
+        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    }
 
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
@@ -738,12 +778,13 @@ int deleteTssKey(PTS_UUID *uuid, int ps_type) {
  */
 int getTssPubKey(
     PTS_UUID *uuid,
-    int ps_type,
+    int key_storage_type,  // int ps_type,
     int srk_password_mode,
     int resetdalock,
     char *filename,
     int auth_type,
-    int *pubkey_length, BYTE **pubkey) {
+    int *pubkey_length, BYTE **pubkey)
+{
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HKEY hKey;
@@ -756,6 +797,16 @@ int getTssPubKey(
     BYTE *srk_auth;
     int srk_auth_len = 0;
     TSS_HPOLICY hKeyPolicy;
+
+    /* check */
+    if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
+        ERROR("null input");
+        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    }
+    if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) && (filename == NULL)) {
+        ERROR("null input");
+        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    }
 
     if (resetdalock == 1) {
         // 2011-03-03 SM WEC TPM locks well.
@@ -840,7 +891,7 @@ int getTssPubKey(
     // TODO resetDaLock
 
     /* Load AIK or Sign key */
-    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+    if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* Blob file */
         FILE *fp;
         BYTE blob[KEY_BLOB_SIZE];
@@ -871,7 +922,7 @@ int getTssPubKey(
         /* TSS PS*/
         result = Tspi_Context_LoadKeyByUUID(
                     hContext,
-                    (UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
+                    TSS_PS_TYPE_SYSTEM,  //(UINT32) ps_type,  // ,
                     tss_uuid,
                     &hKey);
         if (result == 0x803) {
@@ -895,19 +946,6 @@ int getTssPubKey(
         goto close;
     }
 
-//<<<<<<< HEAD
-//
-//    /* Set Policy */
-//    result = Tspi_Policy_SetSecret(
-//                hKeyPolicy,
-//                TSS_SECRET_MODE_PLAIN,
-//                0,  // ""
-//                key_auth);
-//    if (result != TSS_SUCCESS) {
-//        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
-//               result);
-//        goto close;
-//=======
     if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
         /* Set Policy - Dummy Secret */
         // 2011-11-26 Munetoh - This fail with Infineon TPM(v1.2)
@@ -936,7 +974,6 @@ int getTssPubKey(
                    result);
             goto close;
         }
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     }
 
     /* get pubkey */
@@ -984,6 +1021,12 @@ int getTpmVersion(TSS_VERSION *version) {
     TSS_HTPM hTPM;
     UINT32 data_len;
     BYTE *data;
+
+    /* check */
+    if (version == NULL) {
+        ERROR("null input");
+        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
@@ -1057,7 +1100,7 @@ int getTpmVersion(TSS_VERSION *version) {
 int quoteTss(
         /* Key */
         PTS_UUID *uuid,
-        int ps_type,
+        int key_storage_type,
         int srk_password_mode,
         char *filename,
         int auth_type,
@@ -1229,7 +1272,7 @@ int quoteTss(
 
 
     /* Load AIK or Sign key */
-    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+    if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* Blob file */
         FILE *fp;
         BYTE blob[KEY_BLOB_SIZE];
@@ -1259,10 +1302,11 @@ int quoteTss(
         }
     } else {
         /* load from TSS's PS */
-        result = Tspi_Context_LoadKeyByUUID(hContext,
-                                            (UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
-                                            tss_uuid,
-                                            &hKey);
+        result = Tspi_Context_LoadKeyByUUID(
+                    hContext,
+                    TSS_PS_TYPE_SYSTEM, //(UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
+                    tss_uuid,
+                    &hKey);
         if (result != TSS_SUCCESS) {
             ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
             debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
@@ -1279,18 +1323,6 @@ int quoteTss(
         goto close;
     }
 
-//<<<<<<< HEAD
-//    /* Set Policy */
-//    result = Tspi_Policy_SetSecret(
-//                hKeyPolicy,
-//                TSS_SECRET_MODE_PLAIN,
-//                0,  // ""
-//                key_auth);
-//    if (result != TSS_SUCCESS) {
-//        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
-//               result);
-//        goto close;
-//=======
     if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
         /* Set Policy - Dummy Secret */
         // 2011-11-26 Munetoh - This fail with Infineon TPM(v1.2)
@@ -1319,7 +1351,6 @@ int quoteTss(
                    result);
             goto close;
         }
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     }
 
     /* Setup (copy) Validation Data Structure */
@@ -1467,7 +1498,7 @@ int quoteTss(
 int quote2Tss(
         /* Key */
         PTS_UUID *uuid,
-        int ps_type,
+        int key_storage_type,
         int srk_password_mode,
         char *filename,
         int auth_type,
@@ -1476,7 +1507,8 @@ int quote2Tss(
         /* PCR selection */
         OPENPTS_PCRS *pcrs,
         /* Output */
-        TSS_VALIDATION *validationData) {
+        TSS_VALIDATION *validationData)
+{
     TSS_RESULT result;
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
@@ -1645,7 +1677,7 @@ int quote2Tss(
 
 
     /* Load AIK or Sign key */
-    if (ps_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+    if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         /* Blob file */
         FILE *fp;
         BYTE blob[KEY_BLOB_SIZE];
@@ -1676,10 +1708,11 @@ int quote2Tss(
         }
     } else {
         /* load from TSS's PS */
-        result = Tspi_Context_LoadKeyByUUID(hContext,
-                                            (UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
-                                            tss_uuid,
-                                            &hKey);
+        result = Tspi_Context_LoadKeyByUUID(
+                    hContext,
+                    TSS_PS_TYPE_SYSTEM,  //(UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
+                    tss_uuid,
+                    &hKey);
         if (result != TSS_SUCCESS) {
             ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
             debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
@@ -1696,18 +1729,6 @@ int quote2Tss(
         goto close;
     }
 
-//<<<<<<< HEAD
-//    /* Set Policy */
-//    result = Tspi_Policy_SetSecret(
-//                hKeyPolicy,
-//                TSS_SECRET_MODE_PLAIN,
-//                0,
-//                key_auth);
-//    if (result != TSS_SUCCESS) {
-//        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
-//               result);
-//        goto close;
-//=======
     if (auth_type == OPENPTS_AIK_AUTH_TYPE_COMMON) {
         /* Set Policy - Dummy Secret */
         // 2011-11-26 Munetoh - This fail with Infineon TPM(v1.2)
@@ -1736,7 +1757,6 @@ int quote2Tss(
                    result);
             goto close;
         }
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
     }
 
     /* Nonce -> rgbExternalData */
@@ -1905,6 +1925,16 @@ int getRandom(BYTE *out, int size) {
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
     BYTE *buf;
+
+    /* check */
+    if (size <= 0) {
+        ERROR("bad size. %d", size);
+        return TSS_E_FAIL;
+    }
+    if (out == NULL) {
+        ERROR("null input");
+        return TSS_E_FAIL;
+    }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
@@ -2094,7 +2124,10 @@ int readPcr(int pcr_index, BYTE *pcr) {
  *
  *  OLD return 1: OK
  */
-int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
+int validateQuoteData(
+    OPENPTS_PCRS *pcrs,
+    TSS_VALIDATION *validationData)
+{
     int rc = PTS_VERIFY_FAILED;
     int message_length;
     BYTE *message;
@@ -2259,7 +2292,10 @@ int validateQuoteData(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
  *    PTS_VERIFY_FAILED
  *    PTS_INTERNAL_ERROR
  */
-int validatePcrCompositeV11(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
+int validatePcrCompositeV11(
+    OPENPTS_PCRS *pcrs,
+    TSS_VALIDATION *validationData)
+{
     int rc = PTS_VERIFY_FAILED;
     int i;
     int buf_len;
@@ -2388,7 +2424,10 @@ int validatePcrCompositeV11(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) 
  *    PTS_VERIFY_FAILED
  *    PTS_INTERNAL_ERROR
  */
-int validatePcrCompositeV12(OPENPTS_PCRS *pcrs, TSS_VALIDATION *validationData) {
+int validatePcrCompositeV12(
+    OPENPTS_PCRS *pcrs,
+    TSS_VALIDATION *validationData)
+{
     int rc = PTS_VERIFY_FAILED;
     int i;
     int buf_len;

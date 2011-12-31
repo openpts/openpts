@@ -56,6 +56,7 @@
 // verifier.c
 void global_lock(int type);
 int getDefaultConfigfile(OPENPTS_CONFIG *conf);
+// log.c
 
 /* Well defined return values that can be interpreted by the GUI */
 #define RETVAL_OK_TRUSTED       0
@@ -150,8 +151,10 @@ int main(int argc, char *argv[]) {
     char *ptsc_conf = NULL;
 
     initCatalog();
+    setSyslogCommandName("openpts");
 
     /* args */
+    /* verbose level */
     while ((opt = getopt(argc, argv, "givruDVc:dfuyl:p:P:C:h")) != -1) {
         switch (opt) {
         case 'i':
@@ -226,6 +229,7 @@ int main(int argc, char *argv[]) {
 
     cmdline_hostname = argv[0];
 
+
     /* check */
     if ((ptsc_path != NULL) && (ptsc_conf != NULL)) {
         int len;
@@ -243,7 +247,7 @@ int main(int argc, char *argv[]) {
     /* default command is to verify */
     if (command == NONE) command = VERIFY;
 
-
+#if 0  // 2011-12-28 controlled by conf
     /* Log */
     setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
 #ifdef OPENPTS_DEBUG
@@ -263,7 +267,12 @@ int main(int argc, char *argv[]) {
         DEBUG("verbose mode            : 1");
     }
 #endif
+#endif // 0
 
+    /* Set logging (location,filename)  by ENV */
+    determineLogLocationByEnv();
+
+    // TODO lock and config management should be integrated
     /* global locks solve concurrency issues */
     if (command == VERIFY || command == DISPLAY) {
         global_lock(F_RDLCK);
@@ -279,13 +288,12 @@ int main(int argc, char *argv[]) {
     }
 
     /* check/create config file - HOME./openpts/openpts.conf */
+    /* Also load logging setting */
     if (config_filename == NULL) {
         /* use default config file, HOME./openpts/openpts.conf  */
-        DEBUG("Config file             : HOME./openpts/openpts.conf (system default config file)\n");
         rc = getDefaultConfigfile(conf);
     } else {
         /* use given config file */
-        DEBUG("read conf file          : %s\n", config_filename);
         rc = readOpenptsConf(conf, config_filename);
     }
     if (rc != PTS_SUCCESS) {
@@ -294,7 +302,16 @@ int main(int argc, char *argv[]) {
         goto out_free;
     }
 
-    DEBUG("VERBOSITY (%d), DEBUG mode (0x%x)\n", getVerbosity(), getDebugFlags());
+    // setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
+
+    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONFIG_FILE,
+        "Config file         : %s\n"), conf->config_file);
+    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_VERBOSITY,
+        "Verbosity           : %d\n"), getVerbosity());
+    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_DEBUG_OUT,
+        "Logging location    : %s\n"), getLogLocationString());
+    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_DEBUG_MODE,
+        "Logging(debig) mode : 0x%x\n"), getDebugFlags());
 
     /* we always need the target list */
     rc = getTargetList(conf, conf->config_dir);

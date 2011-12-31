@@ -57,14 +57,33 @@
 OPENPTS_PROPERTY * newProperty(char *name, char *value) {
     OPENPTS_PROPERTY *prop;
 
+    /* check */
+    if (name == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (value == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     prop = (OPENPTS_PROPERTY *) xmalloc(sizeof(OPENPTS_PROPERTY));
     if (prop == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(prop, 0, sizeof(OPENPTS_PROPERTY));
 
     prop->name = smalloc_assert(name);
+    if (prop->name == NULL) {
+        ERROR("no memory");
+        return NULL;
+    }
     prop->value = smalloc_assert(value);
+    if (prop->value == NULL) {
+        ERROR("no memory");
+        return NULL;
+    }
 
     return prop;
 }
@@ -75,10 +94,9 @@ OPENPTS_PROPERTY * newProperty(char *name, char *value) {
 void freeProperty(OPENPTS_PROPERTY *prop) {
     /* check */
     if (prop == NULL) {
+        ERROR("null input");
         return;
     }
-
-    // DEBUG("freeProperty() - free - name=%s, value=%s\n",prop->name, prop->value);
 
     xfree(prop->name);
     xfree(prop->value);
@@ -89,22 +107,17 @@ void freeProperty(OPENPTS_PROPERTY *prop) {
  * Free Property Chain
  */
 int freePropertyChain(OPENPTS_PROPERTY *prop) {
-    // int rc;
-
-    // DEBUG("freePropertyChain() - \n");
 
     if (prop == NULL) {
         /* end of chain */
-        // DEBUG("freePropertyChain() - end \n");
-        return PTS_INTERNAL_ERROR;  // TODO
+        return PTS_SUCCESS;
     }
 
     if (prop->next != NULL) {
-        // DEBUG("freePropertyChain() - goto next \n");
         freePropertyChain(prop->next);
     }
 
-    // DEBUG("freePropertyChain() - free \n");
+    /* free one */
     freeProperty(prop);
 
     return PTS_SUCCESS;
@@ -119,14 +132,13 @@ OPENPTS_PROPERTY* getProperty(OPENPTS_CONTEXT *ctx, char *name) {
 
     /* check */
     if (name == NULL) {
-        ERROR("getProperty(NULL), bad call");
+        ERROR("null input");
         return NULL;
     }
 
     /* look for the prop with name */
     prop = ctx->prop_start;
     while (prop != NULL) {
-        // ERROR("getProperty - [%s] 1\n", prop->name);
         if (prop->name == NULL) {
             ERROR("getProperty(%s) fail, bad property entry exist", name);
             return NULL;
@@ -140,6 +152,7 @@ OPENPTS_PROPERTY* getProperty(OPENPTS_CONTEXT *ctx, char *name) {
         prop = (OPENPTS_PROPERTY *) prop->next;
     }
 
+    // MISS
     return NULL;
 }
 
@@ -151,15 +164,14 @@ int addProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
     OPENPTS_PROPERTY *end;
     OPENPTS_PROPERTY *prop;
 
-    // DEBUG("addProperty - [%s] [%s]\n", name, value);
-
     start = ctx->prop_start;
     end   = ctx->prop_end;
 
     /* malloc new prop */
     prop = newProperty(name, value);
     if (prop == NULL) {
-        return PTS_INTERNAL_ERROR;
+        ERROR("newProperty() fail");
+        return PTS_FATAL;
     }
 
     /* update the chain */
@@ -167,54 +179,55 @@ int addProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
         /* 1st prop */
         /* update the link */
         ctx->prop_start = prop;
-        ctx->prop_end = prop;
-        prop->next = NULL;
+        ctx->prop_end   = prop;
+        prop->next      = NULL;
         ctx->prop_count = 0;
     } else {
         /* update the link */
         end->next     = prop;
         ctx->prop_end = prop;
-        prop->next = NULL;
+        prop->next    = NULL;
     }
 
+    /* inc count  */
     ctx->prop_count++;
-
-    // DEBUG("addProperty - done %d [%s] [%s]\n", ctx->prop_count, prop->name, prop->value);
 
     return PTS_SUCCESS;
 }
 
 /**
- * set property
+ * set/update property
  */
 int setProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
     OPENPTS_PROPERTY *hit;
 
-    // DEBUG("updateProperty - [%s] [%s]\n", name, value);
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* check existing prop */
     hit = getProperty(ctx, name);
 
     if (hit == NULL) {
-        /* name miss? create new prop */
-        // DEBUG("updateProperty() - miss name=%s, value=%s\n", name, value);
+        /* missing name, create new prop */
         addProperty(ctx, name, value);
     } else {
-        /* name hit? update the value */
-        // DEBUG("updateProperty() - TBD\n");
+        /* hit, update the value */
         xfree(hit->value);
         hit->value = smalloc_assert(value);
-        // memcpy(hit->value, value, strlen(value) + 1); // TODO size
     }
 
-    return 0;
-}
-
-/**
- * TODO depricated - remove 
- */
-int updateProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
-    return setProperty(ctx, name, value);
+    return PTS_SUCCESS;
 }
 
 /**
@@ -224,31 +237,43 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
     int rc = PTS_SUCCESS;
 
     /* check */
-    ASSERT(NULL != ctx, "setEventProperty - ctx is NULL\n");
-    ASSERT(NULL != name, "setEventProperty - name is NULL\n");
-    ASSERT(NULL != value, "setEventProperty - value is NULL\n");
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
-
-    // DEBUG("setEventProperty - [%s] [%s]\n", name, value);
-
-#if 1
+    /* X = valid */
     if (!strcmp(value, "valid")) {
         setProperty(ctx, name, value);
         return rc;
     }
 
-
-
-
+    /* X = digest = base64(digest) */
     if (!strcmp(value, "digest")) {
         /* if value = digest, base64 -> set digest as value */
         char *buf;
         int buf_len;
 
-        /* check */
+        /* check, missing event */
         if (eventWrapper == NULL) {
-            DEBUG("setEventProperty() - eventWrapper is NULL\n");
-            return 0;  // PTS_INTERNAL_ERROR;
+            ERROR("setEventProperty() - eventWrapper is NULL\n");
+            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+        }
+        if (eventWrapper->event == NULL) {
+            ERROR("setEventProperty() - event is NULL\n");
+            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+        }
+        if (eventWrapper->event->rgbPcrValue == NULL) {
+            ERROR("setEventProperty() - rgbPcrValue is NULL\n");
+            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
         }
 
         buf = encodeBase64(
@@ -259,37 +284,73 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
             ERROR("encodeBase64 fail");
             return PTS_FATAL;
         }
-        setProperty(ctx, name, buf);  // TODO
+        rc = setProperty(ctx, name, buf);
         free(buf);
-    } else if (!strcmp(value, "eventdata")) {
-        TSS_PCR_EVENT *event;
-        char * str;
 
-        /* check */
-        if (eventWrapper == NULL) {
-            TODO("setEventProperty() - eventWrapper is NULL\n");
-            return 0;  // PTS_INTERNAL_ERROR;
+        if (rc != PTS_SUCCESS) {
+            ERROR("setProperty() fail");
+            return PTS_FATAL;
         }
+        return rc;
+    }
 
-        /* get String */
+    /* X = eventdata = base64(eventdata) */
+    if (!strcmp(value, "eventdata")) {
+        /* */
+        TSS_PCR_EVENT *event;
+
+
+        /* check, missing event */
+        if (eventWrapper == NULL) {
+            ERROR("setEventProperty() - eventWrapper is NULL\n");
+            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+        }
         event = eventWrapper->event;
-        str = snmalloc((char*)event->rgbEvent, event->ulEventLength);
-        if (str == NULL) {
+        if (event == NULL) {
+            ERROR("setEventProperty() - event is NULL\n");
+            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+        }
+        if (event->ulEventLength > 0) {
+            char * str;
+            if (event->rgbEvent == NULL) {
+                ERROR("setEventProperty() - rgbEvent is NULL\n");
+                return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+            }
+            /* get String */
+
+            str = snmalloc((char*)event->rgbEvent, event->ulEventLength);
+            if (str == NULL) {
+                ERROR("no memory");
+                return PTS_INTERNAL_ERROR;
+            }
+            xfree(str);
+            rc = setProperty(ctx, name, str);  // TODO 2011-02-03 SM implement
+            if (rc != PTS_SUCCESS) {
+                ERROR("setProperty() fail");
+                return PTS_FATAL;
+            }
+            return rc;
+        } else {
+            ERROR("missing rgbEvent");
             return PTS_INTERNAL_ERROR;
         }
-        setProperty(ctx, name, str);  // TODO 2011-02-03 SM implement
-        xfree(str);
         // NULL
-    } else if (!strcmp(value, "notexist")) {
-        setProperty(ctx, name, value);  // TODO
-        // NULL
-    } else {
-        setProperty(ctx, name, value);
-        // ERROR("unknown value [%s] [%s]\n",name, value);
-        // return -1;
     }
-#endif
+    if (!strcmp(value, "notexist")) {
+        rc = setProperty(ctx, name, value);  // TODO
+        if (rc != PTS_SUCCESS) {
+            ERROR("setProperty() fail");
+            return PTS_FATAL;
+        }
+        return rc;
+    }
 
+    /* others */
+    rc =  setProperty(ctx, name, value);
+    if (rc != PTS_SUCCESS) {
+        ERROR("setProperty() fail");
+        return PTS_FATAL;
+    }
     return rc;
 }
 
@@ -309,9 +370,19 @@ int validateProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, char *action
     int rc = OPENPTS_FSM_ERROR;
     OPENPTS_PROPERTY* prop;
 
-    ASSERT(NULL != ctx, "validateProperty - ctx is NULL\n");
-    ASSERT(NULL != name, "validateProperty - name is NULL\n");
-    ASSERT(NULL != value, "validateProperty - value is NULL\n");
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* trim */
     // trim(value);
@@ -330,7 +401,6 @@ int validateProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, char *action
             rc = OPENPTS_FSM_SUCCESS;
         } else {
             /* Miss */
-
             /* if value = base64 -> BHV model =>  value -> BIN model */
             if (!strcmp(value, "base64")) {
                 // DEBUG("Update BIN-FSM %s=%s\n", name, prop->value);
@@ -363,6 +433,13 @@ void printProperties(OPENPTS_CONTEXT *ctx) {
     int i = 0;
     prop = ctx->prop_start;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+
+    /* print out */
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_PROPS, "Properties name-value\n"));
     while (prop != NULL) {
         OUTPUT("%5d %s=%s\n", i, prop->name, prop->value);
@@ -379,6 +456,17 @@ int saveProperties(OPENPTS_CONTEXT *ctx, char * filename) {
     OPENPTS_PROPERTY *prop;
     int i = 0;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* open */
     if ((fp = fopen(filename, "w")) == NULL) {
         ERROR("File %s open was failed\n", filename);
         return PTS_INTERNAL_ERROR;
@@ -405,6 +493,17 @@ int saveProperties(OPENPTS_CONTEXT *ctx, char * filename) {
 }
 
 int addPropertiesFromConfig(OPENPTS_CONFIG *conf, OPENPTS_CONTEXT *ctx) {
+
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     /* additional properties from the pts config file */
     if (conf->iml_maxcount > 0) {
         char buf[32];

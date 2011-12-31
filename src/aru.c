@@ -75,6 +75,7 @@ OPENPTS_UPDATE_CONTEXT *newUpdateCtx() {
 
     ctx = xmalloc(sizeof(OPENPTS_UPDATE_CONTEXT));
     if (ctx == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_UPDATE_CONTEXT));
@@ -96,6 +97,7 @@ OPENPTS_UPDATE_SNAPSHOT *newUpdateSnapshot() {
 
     uss = xmalloc(sizeof(OPENPTS_UPDATE_SNAPSHOT));
     if (uss == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(uss, 0, sizeof(OPENPTS_UPDATE_SNAPSHOT));
@@ -127,7 +129,11 @@ void freeUpdateCtx(OPENPTS_UPDATE_CONTEXT* ctx) {
  *  BIN -> Free
  */
 int resetFsm(OPENPTS_SNAPSHOT *ss) {
-    ASSERT(NULL != ss, "resetFsm() - ss is NULL\n");
+    /* check */
+    if (ss == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* free event wrapper chain */
     if (ss->start != NULL) {
@@ -186,36 +192,49 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     DEBUG("startUpdate() - start\n");
 
+    /* check input */
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
-    conf->target_newrm_exist = 0;
-
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    /* check conf */
     if (conf->enable_aru == 0) {
-        /* SKIP */
+        /* disabled */
         return PTS_SUCCESS;
     }
+    /* clear flag */
+    conf->target_newrm_exist = 0;
 
     /* check */
-    ASSERT(NULL != eventWrapper, "startUpdate() - eventWrapper is NULL\n");
-
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     event = eventWrapper->event;
-    ASSERT(NULL != event, "startUpdate() - event is NULL\n");
+    if (event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if (event->ulEventLength <= 20) {  // TODO sizeof
         ERROR("startUpdate() - bad eventdata\n");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
     if (event->rgbEvent == NULL) {
-        ERROR("startUpdate() - bad eventdata\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input");
+        return PTS_FATAL;
     }
     if (conf->update == NULL) {
-        ERROR("startUpdate() -- missing update ctx\n");
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input");
+        return PTS_FATAL;
     }
+
     update = (OPENPTS_UPDATE_CONTEXT *) conf->update;
-
-
-    /* OPENPTS_EVENT_UPDATE_START */
     start = (OPENPTS_EVENT_UPDATE_START *) event->rgbEvent;
 
     // DEBUG("StartUpdate\n");
@@ -293,58 +312,6 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     conf->update_exist = 1;
     DEBUG("startUpdate() - update exit\n");
 
-    /* new/replace the UUID */
-    // 2011-02-18 SM not now, later
-    // if (update->uuid != NULL) {
-    //     freeUuid(update->uuid);
-    //     xfree(update->str_uuid);
-    // }
-    // update->uuid = newUuid();
-    // update->str_uuid = getStringOfUuid(update->uuid);
-
-
-#if 0
-    // TODO this pcr_index must be bigger then target pcr_index, since this evaluation must be the last.
-    // TODO We need some config/controll that force the PCR for Update is ealuated at the last
-
-    /* reset target snaposhot */
-    ss =  getSnapshotFromTable(
-            ctx->ss_table,
-            start->target_pcr_index,
-            start->target_snapshot_level);
-
-    ss->update_num++;
-    ctx->ss_table->update_num[ss->level]++;
-    ctx-> update_num++;
-
-    // DEBUG("Update by FSM %s\n", ss->fsm_behavior->uml_file);
-    // verbose |= DEBUG_FSM_FLAG;
-
-    // Step 1. getIml() - IML --> BHV-FSM --> SS->eventWrapper chain
-    // Step 2. writeAllCoreValue() in rm.c -  SS->eventWrapper chain -> BIN-FSM is generated
-    resetFsm(ss);  // fsm.c
-
-    /* update type */
-    if (start->update_type == 0) {
-        UINT32 *pnum;
-        UINT32 num;
-        char buf[BUF_SIZE];
-
-        pnum = (UINT32 *)start->data;
-        num = *pnum;
-        if (ctx->conf->iml_endian != 0) {
-            num = b2l(num);
-        }
-        // DEBUG("UPDATE_IPL_IMAGE  iml.ipl.maxcount=%d 0x%x\n",num, num);
-        snprintf(buf, BUF_SIZE, "%d", num);
-        setProperty(ctx, "iml.ipl.maxcount", buf);
-    }
-
-    /* Modify BIN-BHV, on the fly? */
-    /* Copy BIN-BHV to BIN-BHV-NEXT ? */
-    /* Then BIN-BHV-NEXT => new RM */
-#endif
-
     return PTS_SUCCESS;
 }
 
@@ -360,28 +327,37 @@ int deputyEvent(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     DEBUG_CAL("deputyEvent() - start\n");
 
+    /* check input */
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
+    /* check conf */
     if (ctx->conf->enable_aru == 0) {
         /* SKIP */
         return PTS_SUCCESS;
     }
 
     /* check */
-    ASSERT(NULL != eventWrapper, "deputyEvent() - eventWrapper is NULL\n");
-
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     event = eventWrapper->event;
-    ASSERT(NULL != event, "deputyEvent() - event is NULL\n");
-
-    if (conf->update == NULL) {
-        /*  */
-        ERROR("deputyEvent() - startUpdate is missing, BAD eventlog\n");
-        return PTS_INTERNAL_ERROR;  // TODO
+    if (event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
     }
     update = conf->update;
     if (update == NULL) {
-        rc = PTS_INTERNAL_ERROR;
-        goto end;
+        ERROR("null input");
+        return PTS_FATAL;
     }
 
     /* OPENPTS_UPDATE_SNAPSHOT */
@@ -389,122 +365,21 @@ int deputyEvent(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
             [update->target_pcr_index]
             [update->target_snapshot_level];
     if (uss == NULL) {
-        rc = PTS_INTERNAL_ERROR;
-        goto end;
+        ERROR("null input");
+        return PTS_FATAL;
     }
 
-#if 1
     /* copy to update[] */
-
-    /* Snapshot */
-    // ss =  getSnapshotFromTable(
-    //        ctx->ss_table,
-    //        update->target_pcr_index,
-    //        update->target_snapshot_level);
-    //
-    // ew = newEventWrapper();
-    // ew->event = eventWrapper->event;
-    // ew->snapshot = ss;
-    // ew->index = ss->event_num;  // TODO
-
     if (uss->event_count == 0) {
         /* link to 1st event */
-        // ew->next_all = NULL;
-        // ew->next_pcr = NULL;
         uss->ew_deputy_first = eventWrapper;
         uss->ew_deputy_last = eventWrapper;
-        // uss->ew_end = ew;
     } else {
         /* other events */
-        // uss->ew_end->next_all = ew;
-        // uss->ew_end->next_pcr = ew;
-        // uss->ew_end = ew;
         uss->ew_deputy_last = eventWrapper;
     }
     uss->event_count++;
 
-#else
-    // Update now
-    // DEBUG("deputyEvent() cnt = 0x%x\n", update->event_count);
-
-    /* update target snaposhot */
-    ss =  getSnapshotFromTable(
-            ctx->ss_table,
-            update->target_pcr_index,
-            update->target_snapshot_level);
-
-    // TODO copy from iml.c addEventToSnapshotBhv(), add new func for this part
-
-    /* duplidate the eventwrapper (and event too) */
-    // OR
-    /* remove ss link to update PCR */
-    // return OPENPTS_FSM_MIGRATE_EVENT and original updateFsm does not create the chain for this?
-
-    /* set sw->ss link */
-    eventWrapper->snapshot = ss;
-    eventWrapper->index = ss->event_num;
-
-    rc = updateFsm(ctx, ss->fsm_behavior, eventWrapper);  // TODO ignore the pcr_index
-    if (rc == OPENPTS_FSM_ERROR) {
-        /* FSM detect invalid IML, or bad FSM for this IML */
-        DEBUG("[RM%02d-PCR%02d] updateFsm() => OPENPTS_FSM_ERROR   ===>  rc=PTS_INVALID_SNAPSHOT, added Reason\n",
-            update->start->target_snapshot_level, update->start->target_pcr_index);
-        addReason(ctx, update->start->target_pcr_index, NLS(MS_OPENPTS, OPENPTS_ARU_IML_VALIDATION_FAILED,
-                       "[RM%02d-PCR%02d] IML validation by FSM has failed. State='%s' at the FSM is '%s'"),
-            update->start->target_snapshot_level,
-            update->start->target_pcr_index,
-            ss->fsm_behavior->curr_state->name,
-            ss->fsm_behavior->uml_file);
-        ctx->ss_table->error[update->start->target_pcr_index] = PTS_INVALID_SNAPSHOT;
-        rc = PTS_INVALID_SNAPSHOT;
-    } else if (rc == OPENPTS_FSM_FINISH) {
-        /* OK, FSM finish successfly */
-        ss->fsm_behavior->status = OPENPTS_FSM_FINISH;
-        rc = PTS_SUCCESS;
-
-        /* Move to next level (0->1) */
-        incActiveSnapshotLevel(ctx->ss_table, update->start->target_pcr_index);
-    } else if (rc == OPENPTS_FSM_SUCCESS) {
-        /* OK */
-        rc = PTS_SUCCESS;
-    } else if (rc == OPENPTS_FSM_TRANSIT) {
-        // TRANSIT, Skip update SS chain
-        // TODO set by updateFsm
-        ss->fsm_behavior->status = OPENPTS_FSM_FINISH;
-
-        /* Move to next level (0->1) */
-        incActiveSnapshotLevel(ctx->ss_table, update->start->target_pcr_index);
-        goto end;
-    } else if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
-        // TRANSIT, Skip update SS chain
-        // TODO set by updateFsm
-        ss->fsm_behavior->status = OPENPTS_FSM_FINISH;
-
-        /* Move to next level (0->1) */
-        incActiveSnapshotLevel(ctx->ss_table, update->start->target_pcr_index);
-        goto end;
-    } else {
-        ERROR("deputyEvent() - updateFsm rc=%d\n", rc);
-    }
-
-    /* update SS chain */
-    if (ss->event_num == 0) {
-        /* First event */
-        ss->start = eventWrapper;
-        ss->end = eventWrapper;
-    } else {
-        /* else - last */
-        ss->end->next_pcr = eventWrapper;
-        ss->end = eventWrapper;
-    }
-
-    ss->event_num++;
-    update->event_count++;
-    rc = OPENPTS_FSM_MIGRATE_EVENT;
-#endif  // 1/0
-
-
-  end:
     return rc;
 }
 
@@ -521,8 +396,18 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     DEBUG("endUpdate() - start\n");
 
+    /* check input */
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
+    /* check conf */
     if (conf->enable_aru == 0) {
         /* SKIP */
         DEBUG("endUpdate() - done(skip), conf->enable_aru == 0\n");
@@ -535,26 +420,36 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     DEBUG("endUpdate() - update exist\n");
 
     /* check */
-    ASSERT(NULL != eventWrapper, "eventWrapper is NULL\n");
-
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     event = eventWrapper->event;
-    ASSERT(NULL != event, "event is NULL\n");
-
-    if (conf->update == NULL) {
-        /*  */
-        ERROR("startUpdate is missing, BAD eventlog\n");
-        return PTS_INTERNAL_ERROR;  // TODO bad IML
+    if (event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
     }
     update = conf->update;
-    // TODO CK
+    if (update == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     uss = update->snapshot
             [update->target_pcr_index]
             [update->target_snapshot_level];
-    // TODO CK
-
+    if (uss == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* start structure */
     start = uss->start;
+    if (start == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     // Convert the Endian
     if (ctx->conf->iml_endian != 0) {
         event_num = b2l(start->event_num);
@@ -562,41 +457,15 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         event_num = start->event_num;
     }
 
-
-
     uss->ew_end_update = eventWrapper;
-
-
 
     /* check the event num */
     if (uss->event_count != event_num) {
         /* actual event number is different with the number in start event */
         ERROR("number of events (%08x) are not same with definition at start (%08x), BAD eventlog?\n",
             uss->event_count, event_num);
-
-        // BAD TEST data?
-#if 0
-        if (DEBUG_IR) {
-            /* Fix IR test data */
-            unsigned char b64[128];
-
-            if (ctx->conf->iml_endian != 0) {
-                start->event_num = b2l(uss->event_count);
-            } else {
-                start->event_num = uss->event_count;
-            }
-            printHex("UpdateEvent ", (BYTE*) start, sizeof(OPENPTS_EVENT_UPDATE_START), "\n");
-            // 00000004 00000001 00000017 00000000 04000000 00000016
-            encodeBase64(b64, (unsigned char *)start, sizeof(OPENPTS_EVENT_UPDATE_START));
-            TODO("base64 %s\n", b64);
-        }
-#endif
-        // return PTS_INTERNAL_ERROR;  // TODO bad IML
+        return PTS_INVALID_SNAPSHOT;
     }
-
-    // TODO set end flag to last EW?
-
-    // DEBUG("endUpdate() \n");
 
     return PTS_SUCCESS;
 }
@@ -605,46 +474,40 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
  * doAction - updateCollector
  */
 int updateCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
-    int rc = PTS_SUCCESS;
+    // int rc = PTS_SUCCESS;
     TSS_PCR_EVENT *event;
     OPENPTS_EVENT_COLLECTOR_UPDATE *update = NULL;
     OPENPTS_CONFIG *conf;
 
     DEBUG("updateCollector() - start\n");
 
+    /* check input */
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
-
-
-
-    /* check ARU is on/off */
-    // if (conf->enable_aru == 0) {
-    //     /* SKIP */
-    //     DEBUG("updateCollector() - skip\n");
-    //     return PTS_SUCCESS;
-    // }
-
-    // TODO delete?
-    // if (ctx->target_conf != NULL) {
-    //    // TODO ok?
-    //    /* verifier - SKIP*/
-    //    DEBUG("updateCollector() - verifier side - skip, clear update_exist\n");
-    //    conf->update_exist = 0;
-    //    return PTS_SUCCESS;
-    // }
-
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
     /* check */
-    ASSERT(NULL != eventWrapper, "updateCollector() - eventWrapper is NULL\n");
-
+    if (eventWrapper == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     event = eventWrapper->event;
-    ASSERT(NULL != event, "updateCollector() - event is NULL\n");
+    if (event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if (event->ulEventLength != sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE)) {
         ERROR("updateCollector() - Bad eventData size %d != %d\n",
             event->ulEventLength,
             sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE));
-        rc = PTS_INTERNAL_ERROR;  // TODO
-        goto error;
+        return PTS_INVALID_SNAPSHOT;
     }
 
     /* Event Data */
@@ -654,8 +517,8 @@ int updateCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrappe
     if (conf->target_newrm_uuid == NULL) {
         conf->target_newrm_uuid = xmalloc(sizeof(PTS_UUID));
         if (NULL == conf->target_newrm_uuid) {
-            rc = PTS_INTERNAL_ERROR;
-            goto error;
+            ERROR("no memory");
+            return PTS_FATAL;
         }
     }
     memcpy(conf->target_newrm_uuid, &update->new_manifest_uuid, sizeof(PTS_UUID));
@@ -666,83 +529,12 @@ int updateCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrappe
     /* Notification for Verifier side */
     conf->target_newrm_exist = 1;
 
-
     /* re-set PCR */
     // TODO if TCDS was restart, the eventlog used by PTSCD was gone.
-
-    // TODO
-#if 0
-    /* validation - TSS version */
-    if (memcmp(&update->pts_version, &ctx->target_conf->pts_version, 4) != 0) {
-        ERROR("updateCollector() - Bad PTS version\n");
-        rc = PTS_INTERNAL_ERROR;  // TODO
-        goto error;
-    }
-
-    /* validation - Collector UUID */
-    if (memcmp(&update->collector_uuid, ctx->target_conf->uuid->uuid, 16) != 0) {
-        ERROR("updateCollector() - Bad Collector UUID\n");
-        rc = PTS_INTERNAL_ERROR;  // TODO
-        goto error;
-    }
-#endif
-
-    /* validation - New Manifest UUID */
-#if 0
-    // TODO 2011-02-18 Process terminating with default action of signal 11 (SIGSEGV)
-    if (ctx->target_conf->newrm_uuid != NULL) {
-        if (memcmp(&update->new_manifest_uuid, ctx->target_conf->newrm_uuid->uuid, 16) != 0) {
-            // TODO in the test ptscd generate new RM UUID
-            // TODO update exist => get new Manifest
-            // TODO multiple manifest => we have to check last-one only
-            // RODO and we can not know the last or not at here
-            TODO("updateCollector() - Bad New Manifest UUID\n");
-            // rc = PTS_INTERNAL_ERROR;  // TODO
-            // goto error;
-        }
-    }
-#endif
-
-
 
     DEBUG("updateCollector() - done, clear update_exist flag\n");
 
     return PTS_SUCCESS;
-
-  error:
-    /* Error */
-
-#if 0
-    // gen IR data to create the test
-    if (DEBUG_IR) {
-        unsigned char b64[256];
-
-        ERROR("Error create base64 eventdata\n");
-
-        if (update == NULL) {
-            update = xmalloc(sizeof(OPENPTS_EVENT_COLLECTOR_START));
-        }
-
-        printHex("OPENPTS_EVENT_COLLECTOR_UPDATE", (unsigned char*)update,
-            sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE), "\n");
-        encodeBase64(b64, (unsigned char *)update,
-            sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE));
-        ERROR("EventData: %s\n", b64);
-
-        memcpy(&update->pts_version, &ctx->target_conf->pts_version, 4);
-        memcpy(&update->collector_uuid, ctx->target_conf->uuid->uuid, 16);
-        memcpy(&update->new_manifest_uuid, ctx->target_conf->rm_uuid->uuid, 16);
-
-        printHex("OPENPTS_EVENT_COLLECTOR_START", (unsigned char*)update,
-            sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE), "\n");
-        encodeBase64(b64, (unsigned char *)update,
-            sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE));
-        ERROR("EventData: %s\n", b64);
-    }
-#endif
-
-    DEBUG_CAL("updateCollector() - done, error, rc=%d\n", rc);
-    return rc;  // TODO
 }
 
 
@@ -795,8 +587,18 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
     int update_type;
     int data_length;
 
-
     DEBUG_CAL("updateSnapshot() - start, pcr=%d level=%d  %d events exist!!!\n", i, j, uss->event_count);
+
+    /* check input */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (uss == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
 
     /* start structure */
     start = uss->start;
@@ -818,8 +620,8 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
     /* update target snaposhot */
     ss =  getSnapshotFromTable(ctx->ss_table, i, j);
     if (NULL == ss) {
-        ERROR("Got a NULL snapshot\n");
-        return PTS_INVALID_SNAPSHOT;
+        ERROR("null snapshot\n");
+        return PTS_FATAL;
     }
 
     // TODO remove fillowing counters
@@ -864,8 +666,6 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
         /*Change PCR index */
         eventWrapper->event->ulPcrIndex = i;
         /* set sw->ss link */
-        // eventWrapper->snapshot = ss;
-        // eventWrapper->index = ss->event_num;
         rc = updateFsm(ctx, ss->fsm_behavior, eventWrapper);  // TODO ignore the pcr_index
         if (rc == OPENPTS_FSM_ERROR) {
             /* FSM detect invalid IML, or bad FSM for this IML */
@@ -950,7 +750,7 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
 }
 
 /**
- * Ectend Collector Update Event
+ * Extend Collector Update Event
  * type 0x85 (133)
  */
 int extendEvCollectorUpdate(OPENPTS_CONFIG *conf) {
@@ -960,9 +760,18 @@ int extendEvCollectorUpdate(OPENPTS_CONFIG *conf) {
     SHA_CTX sha_ctx;
 
     /*check */
-    ASSERT(NULL != conf->newrm_uuid, "conf->newrm_uuid == NULL\n");
-    ASSERT(NULL != conf->newrm_uuid->uuid, "conf->newrm_uuid->uuid == NULL\n");
-
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (conf->newrm_uuid == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (conf->newrm_uuid->uuid == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
     /* malloc eventlog */
     collector_update = xmalloc_assert(sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE));
@@ -972,6 +781,7 @@ int extendEvCollectorUpdate(OPENPTS_CONFIG *conf) {
     memcpy(&collector_update->pts_version, &conf->pts_version, 4);
     memcpy(&collector_update->collector_uuid, conf->uuid->uuid, 16);
     memcpy(&collector_update->new_manifest_uuid, conf->newrm_uuid->uuid, 16);
+
     /* get PCR value*/
     // memcpy(&collector_start->pcr_value;
     // readPcr(conf->openpts_pcr_index, pcr);
@@ -986,12 +796,12 @@ int extendEvCollectorUpdate(OPENPTS_CONFIG *conf) {
 
     /* fill eventlog */
     // event->versionInfo  // set by TSP?
-    event->ulPcrIndex = conf->openpts_pcr_index;  // set by TSP?
-    event->eventType = EV_COLLECTOR_UPDATE;  // openpts_tpm.h
+    event->ulPcrIndex       = conf->openpts_pcr_index;  // set by TSP?
+    event->eventType        = EV_COLLECTOR_UPDATE;  // openpts_tpm.h
     event->ulPcrValueLength = SHA1_DIGEST_SIZE;
-    event->rgbPcrValue = pcr;
-    event->ulEventLength = sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE);
-    event->rgbEvent = (BYTE *) collector_update;
+    event->rgbPcrValue      = pcr;
+    event->ulEventLength    = sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE);
+    event->rgbEvent         = (BYTE *) collector_update;
 
     /* extend */
     extendEvent(event);
@@ -1015,19 +825,32 @@ int updateSnapshots(OPENPTS_CONTEXT *ctx) {
     OPENPTS_CONFIG *conf;
     OPENPTS_UPDATE_CONTEXT *update;
     OPENPTS_UPDATE_SNAPSHOT *uss;
-    // OPENPTS_EVENT_UPDATE_START *start;
     int i, j;
 
     DEBUG_CAL("updateSnapshots() - start\n");
 
+    /* check input */
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+
+
     if (conf->update_exist == 0) {
         TODO("updateSnapshots() - done, no update\n");
         return PTS_SUCCESS;
     }
 
     update = (OPENPTS_UPDATE_CONTEXT *)conf->update;
-
+    if (update == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
     for (i = 0; i < MAX_PCRNUM; i++) {
         for (j = 0; j < MAX_SSLEVEL; j++) {
@@ -1046,16 +869,6 @@ int updateSnapshots(OPENPTS_CONTEXT *ctx) {
             }  // uss
         }  // level
     }  // pcr
-
-#if 0   // BAD location moved
-    /* Extend Collector Update event */
-    rc = extendEvCollectorUpdate(conf);
-    if (rc != PTS_SUCCESS) {
-        ERROR("updateSnapshots() - extendEvCollectorUpdate fail\n");
-    }
-#endif
-
-    /* free */
 
     return rc;
 }
@@ -1086,26 +899,42 @@ int update(
 
     DEBUG_CAL("update() - start\n");
 
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+
     /* ctx for init */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        rc = PTS_INTERNAL_ERROR;
-        goto free;
+        ERROR("no memory");
+        return PTS_FATAL;
     }
-
 
     /* add property */
     if (prop_count > 0) {
+        /* check */
+        if (prop_start == NULL) {
+            ERROR("null input\n");
+            return PTS_FATAL;
+        }
+        if (prop_end == NULL) {
+            ERROR("null input\n");
+            return PTS_FATAL;
+        }
         ctx->prop_start = prop_start;
-        ctx->prop_end = prop_end;
+        ctx->prop_end   = prop_end;
         ctx->prop_count = prop_count;
     }
 
     addPropertiesFromConfig(conf, ctx);
 
     /* UUID of this platform */
-    OUTPUT(NLS(MS_OPENPTS, OPENPTS_UPDATE_PLATFORM_UUID, "Platform UUID: %s\n"), conf->uuid->str);
-    OUTPUT(NLS(MS_OPENPTS, OPENPTS_UPDATE_RM_UUID, "Reference manifest UUID: %s\n"), conf->rm_uuid->str);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_UPDATE_PLATFORM_UUID,
+        "Platform UUID: %s\n"), conf->uuid->str);
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_UPDATE_RM_UUID,
+        "Reference manifest UUID: %s\n"), conf->rm_uuid->str);
     // OUTPUT("RM UUID (for next boot)     : %s\n", conf->newrm_uuid->str);  // NULL
 
     /* List RMs */
@@ -1327,14 +1156,17 @@ int update(
     return rc;
 }
 
-
+/**
+ *
+ */
 static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
-    int rc = -1;
+    int rc = PTS_FATAL;
     struct stat statBuf;
     int fd = open(fileName, O_RDONLY);
-    if ( -1 == fd ) {
+
+    if (fd == -1) {
         ERROR("Failed to open '%s', errno %d\n", fileName, errno);
-    } else if ( -1 == fstat(fd, &statBuf) ) {
+    } else if (fstat(fd, &statBuf) == -1) {
         ERROR("Failed to stat '%s' (fd %d), errno %d\n", fileName, fd, errno);
     } else if ( len != statBuf.st_size ) {
         DEBUG("File length for pending RM '%s' (%d) does not match cached length (%d) from collector.\n",
@@ -1347,14 +1179,19 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
             if ( -1 == bytesRead ) {
                 ERROR("Failed to read from fd %d, errno %d\n", fd, errno);
                 break;
-            } else if ( 0 == bytesRead ) {
-                ASSERT(totalBytesRead == len,
-                    "Finished reading from file prematurely, still expecting data.\n");
-                rc = 0;
+            } else if ( bytesRead == 0) {
+                if (totalBytesRead != len) {
+                    ERROR("Finished reading from file prematurely, still expecting data.");
+                    return PTS_FATAL;
+                }
+                rc = PTS_SUCCESS;
                 break;
             } else {
                 totalBytesRead += bytesRead;
-                ASSERT(totalBytesRead <= len, "Read more data from RM file than expected\n");
+                if (totalBytesRead > len) {
+                    ERROR("Read more data from RM file than expected.");
+                    return PTS_FATAL;
+                }
                 DEBUG("Read %ld bytes, total = %d out of %d\n", bytesRead, totalBytesRead, len);
 
                 if ( 0 != memcmp(page, contents, bytesRead) ) {
@@ -1366,16 +1203,18 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
         }
     }
 
-    if ( -1 != fd ) {
+    if ( fd != -1) {
         close(fd);
     }
 
     return rc;
 }
 
-
+/**
+ *
+ */
 int isNewRmStillValid(OPENPTS_CONTEXT *ctx, char *conf_dir) {
-    int rc = -1;
+    int rc = PTS_FATAL;
     BYTE *newRmSet;
 
     char *str_collector_uuid;
@@ -1394,21 +1233,38 @@ int isNewRmStillValid(OPENPTS_CONTEXT *ctx, char *conf_dir) {
     OPENPTS_CONFIG *target_conf = NULL;
 
     /* check */
-    ASSERT(NULL != ctx, "isNewRmStillValid() - ctx is null\n");
-
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
-    ASSERT(NULL != conf, "isNewRmStillValid() - conf is null\n");
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+
+
     /* version */
     // TODO
 
     newRmSet = conf->newRmSet;
-
-    ASSERT(0 != newRmSet, "isNewRmStillValid() - newRmSet is null\n");
-    ASSERT(0 != ctx->target_conf, "isNewRmStillValid() - target_conf is null\n");
-    ASSERT(0 != ctx->target_conf->uuid, "isNewRmStillValid() - target_conf->uuid is null\n");
-    ASSERT(0 != ctx->target_conf->rm_uuid, "isNewRmStillValid() - target_conf->rm_uuid is null\n");
-
+    if (newRmSet == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     target_conf = ctx->target_conf;
+    if (target_conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (target_conf->uuid == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (target_conf->rm_uuid == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
     /* UUID strings */
     str_collector_uuid = target_conf->uuid->str;
@@ -1544,19 +1400,36 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
     OPENPTS_CONFIG *target_conf = NULL;
 
     /* check */
-    ASSERT(NULL != ctx, "updateNewRm() - ctx is null\n");
-
+    if (ctx == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
-    ASSERT(NULL != conf, "updateNewRm() - conf is null\n");
+    if (conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+
     /* version */
     // TODO
 
     newRmSet = conf->newRmSet;
-
-    ASSERT(0 != newRmSet, "updateNewRm() - newRmSet is null\n");
-    ASSERT(0 != ctx->target_conf, "updateNewRm() - target_conf is null\n");
-    ASSERT(0 != ctx->target_conf->uuid, "updateNewRm() - target_conf->uuid is null\n");
-    ASSERT(0 != ctx->target_conf->rm_uuid, "updateNewRm() - target_conf->rm_uuid is null\n");
+    if (newRmSet == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (ctx->target_conf == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (ctx->target_conf->uuid == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+    if (ctx->target_conf->rm_uuid == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
 
     /* UUID strings */
     str_collector_uuid = ctx->target_conf->uuid->str;

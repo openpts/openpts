@@ -85,6 +85,13 @@ void displayXmlError(int errorIndex, int rc) {
         "xmlTextWriterEndDocument",
     };
 
+    /* check */
+    if (errorIndex >= XML_FUNC_END) {
+        ERROR("errorIndex(%d) > XML_FUNC_END(%d)",errorIndex, XML_FUNC_END);
+        return;
+    }
+
+    /* log */
     ERROR("XML function '%s' returned '%d'\n", xmlFuncStrings[errorIndex], rc);
 }
 
@@ -99,6 +106,12 @@ int freeAllFsm(OPENPTS_CONTEXT *ctx) {
     int i, j;
 
     DEBUG_CAL("resetFsm\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if (ctx->ss_table == NULL) {
         // DEBUG("resetFsm() - no SS table\n");
@@ -155,12 +168,14 @@ OPENPTS_IR_CONTEXT *newIrContext() {
 
     ctx = (OPENPTS_IR_CONTEXT *) xmalloc(sizeof(OPENPTS_IR_CONTEXT));
     if (ctx == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_IR_CONTEXT));
 
     ctx->buf = xmalloc(EVENTDATA_BUF_SIZE);
     if (ctx->buf == NULL) {
+        ERROR("no memory");
         xfree(ctx);
         return NULL;
     }
@@ -176,10 +191,13 @@ OPENPTS_IR_CONTEXT *newIrContext() {
  *
  */
 void freeIrContext(OPENPTS_IR_CONTEXT *ctx) {
+    /* check */
     if (ctx == NULL) {
+        ERROR("null input");
         return;
     }
 
+    /* free */
     if (ctx->buf != NULL) {
         xfree(ctx->buf);
     }
@@ -207,6 +225,12 @@ int writeComponentID(
     int rc = PTS_INTERNAL_ERROR;
     char id[256];
 
+    /* check */
+    if (cid == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     /* get strings */
     BYTE *simpleName = snmalloc2(cid->dataBlock.dataBlock,
                                  cid->simpleName.offset,
@@ -223,7 +247,7 @@ int writeComponentID(
     /* element "core:ComponentID" */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "core:ComponentID");
     if (rc < 0) {
-        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);  // TODO(munetoh) SYSLOG
+        displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         goto error;
     }
 
@@ -232,7 +256,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "Id",
-            BAD_CAST id);  // TODO(munetoh)
+            BAD_CAST id);
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -242,7 +266,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "ModelSystemClass",
-            BAD_CAST "745749J");  // TODO(munetoh)
+            BAD_CAST "TBD");  // TODO(munetoh)
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -252,7 +276,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "SimpleName",
-            BAD_CAST simpleName);  // "745749J 6DET58WW (3.08 )");
+            BAD_CAST simpleName);
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -262,7 +286,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "VersionBuild",
-            BAD_CAST "1250694000000");
+            BAD_CAST "1250694000000"); // TODO(munetoh)
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -273,7 +297,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "VersionString",
-            BAD_CAST versionString);  // "6DET58WW (3.08 )");
+            BAD_CAST versionString);
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -292,7 +316,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "Name",
-            BAD_CAST vendor);  // "LENOVO");
+            BAD_CAST vendor);
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -312,7 +336,7 @@ int writeComponentID(
     /* element "core:TcgVendorId" */
     rc = xmlTextWriterWriteFormatElement(
             writer,
-            BAD_CAST "core:TcgVendorId", "%s", "DEMO");
+            BAD_CAST "core:TcgVendorId", "%s", "DEMO");  // TODO(munetoh)
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         goto error;
@@ -423,8 +447,13 @@ int writeStuffObjects(
     char id[256];  // TODO(munetoh)
     int rc;
 
-    ASSERT(NULL != event, "writeStuffObjects, event == NULL\n");
+    /* check */
+    if (event == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
+    /* ID */
     snprintf(id, sizeof(id), "PCR_%d_LV%d_%d_%d_EVENT",
         event->ulPcrIndex, ss_level, event->eventType, eventindex);
 
@@ -581,6 +610,17 @@ int writePcrHash(
 
     DEBUG_CAL("writePcrHash - PCR[%d] level %d \n", pcrIndex, ss_level);
 
+    /* check */
+    if (startHash == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (hash == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+    /* ID */
     snprintf(id, sizeof(id), "PCR_%d_LV%d_HASH", pcrIndex, ss_level);
 
     /* Start an element named "eventdata" as child of "PcrHash". */
@@ -676,10 +716,23 @@ int writeSnapshot(
     char *str_ir_uuid;
     char id[256];  // TODO 3 + UUID = 3 + 36 = 39
     int level;
+    OPENPTS_PCR_EVENT_WRAPPER *eventWrapper;
 
+    /* check */
+    if (tpm == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (cid == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (ss == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     level = ss->level;
 
-    OPENPTS_PCR_EVENT_WRAPPER *eventWrapper;
 
     /* reset PCR */
     // FSM resetPCR(n) exist
@@ -771,7 +824,7 @@ int writeSnapshot(
 
     if (eventWrapper == NULL) {
         ERROR("writeSnapshot- eventWrapper is NULL\n");
-        rc = PTS_INTERNAL_ERROR;
+        rc = PTS_FATAL;
         goto free;
     }
 
@@ -803,14 +856,22 @@ int writeSnapshot(
 
     /* set curr PCR value */
     rc = getTpmPcrValue(tpm, index, ss->curr_pcr);
-    // TODO(munetoh) check with TSS/PCR value
+    if (rc != PTS_SUCCESS) {
+        ERROR("getTpmPcrValue() fail");
+        rc = PTS_INTERNAL_ERROR;
+        goto free;
+    }
 
     /* check with TPM value if this is the last snapshot */
-    // TODO(munetoh) copt level0 tpm_pcr to level1
+    // TODO(munetoh) copy level0 tpm_pcr to level1
 
     /* add PcrHash element */
     rc = writePcrHash(writer, index, level, ss->start_pcr, ss->curr_pcr, ALGTYPE_SHA1);
-    // NG rc = writePcrHash(writer, index, level, ss->start_pcr, ss->tpm_pcr, ALGTYPE_SHA1);
+    if (rc != PTS_SUCCESS) {
+        ERROR("writePcrHash() fail");
+        rc = PTS_INTERNAL_ERROR;
+        goto free;
+    }
 
     /* Close the element named "SnapshotCollection". */
     rc = xmlTextWriterEndElement(writer);
@@ -876,13 +937,18 @@ int writeQuote(
     BYTE select_byte[3];  // TODO TPM1.2, 24PCRs => 3 bytes
     char tagbuf[128];
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     if (ctx->pcrs == NULL) {
         TODO("writeQuote - OPENPTS_PCRS is NULL, SKIP QuoteData\n");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
     if (ctx->validation_data == NULL) {
         TODO("writeQuote - TSS_VALIDATION is NULL, SKIP QuoteData\n");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
 
     /* Start an element named "QuoteData" as child of Report. */
@@ -1242,13 +1308,18 @@ int writeQuote2(
     BYTE *composite_hash;
     char tagbuf[128];  // Quote tag
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     if (ctx->pcrs == NULL) {
         TODO("writeQuote2 - OPENPTS_PCRS is NULL, SKIP QuoteData\n");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
     if (ctx->validation_data == NULL) {
         TODO("writeQuote2 - TSS_VALIDATION is NULL, SKIP QuoteData\n");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
 
     /* Quote2 - tag [0:1] */
@@ -1511,9 +1582,6 @@ int writeQuote2(
         return PTS_INTERNAL_ERROR;
     }
 
-
-
-
     /* QuoteInfo2 - end  */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
@@ -1619,21 +1687,22 @@ int writeQuote2(
  *
  */
 // TODO remove file
-int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
-//int writeIr(OPENPTS_CONTEXT *ctx, int *savedFd) {
+int writeIr(
+    OPENPTS_CONTEXT *ctx,
+    const char *filenameDP,  // in  (set ctx->conf->ir_filename in normal operation)
+    int *savedFd)            // out
+{
     int rc = PTS_SUCCESS;
     int i;
     int irFd;
     int lengthOfIrFile;
     xmlTextWriterPtr writer;
     xmlBufferPtr xmlbuf;
-    // FILE *fp;
     PTS_ComponentId cid;
     OPENPTS_TPM_CONTEXT tpm;  // to calc snapshot PCR
     PTS_UUID *ir_uuid;
     char *str_ir_uuid;
     char *filename = NULL;
-    // char filename[256];  // TODO UUID_UUID.xml
 
     PTS_Byte smbios[12] = { 0x4A, 0x4A, 0x4A, 0x4A, 0x4A,
                             0x4A, 0x4A, 0x4A, 0x4A, 0x4A,
@@ -1646,13 +1715,10 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("ctx == NULL");
+        ERROR("null input");
         return PTS_FATAL;
     }
-    //if (filename == NULL) {
-    //    ERROR("filename == NULL");
-    //    return PTS_FATAL;
-    //}
+
 
     // TODO(munetoh) dummy data
     cid.vendor.offset = 0;
@@ -1725,8 +1791,6 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
-
-
 
     DEBUG_CAL("genIr - uuid done\n");
 
@@ -1890,31 +1954,13 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
         goto free;
     }
 
-#if 0
-    /* set IR file */
-    if (filename != NULL) {
-        /* use given filename */
-        ctx->conf->ir_filename = smalloc((char *)file);
-    } else {
-        /* use default filename */
-        if (ctx->conf->ir_filename != NULL) {
-            free(ctx->conf->ir_filename);
-        }
-        if (ctx->conf->ir_dir == NULL) {
-            ERROR("Set ir.dir at ptsc.conf. \n");
-            ctx->conf->ir_dir = smalloc("/tmp/.ptsc");
-        }
-        snprintf(filename, sizeof(filename), "%s_%s.xml",
-            ctx->str_uuid,
-            str_ir_uuid);
 
-        ctx->conf->ir_filename = getFullpathName(ctx->conf->ir_dir, filename);
-    }
-#endif
-    if (ctx->ir_filename != NULL) {
+
+    /* check filename */
+    if (filenameDP != NULL) {
         /* use given filename  for the Unit Test*/
-        // filename = smalloc(ctx->conf->ir_filename);        filename = ctx->conf->ir_filename;
     } else {
+        /* create new IR filename, save to ctx->ir_filename */
         char buf[1024];
         /* use default filename */
         if (ctx->conf->ir_dir == NULL) {
@@ -1926,30 +1972,16 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
             str_ir_uuid);
 
         ctx->ir_filename = getFullpathName(ctx->conf->ir_dir, buf);
+        filenameDP = ctx->ir_filename;
     }
 
-    filename = ctx->ir_filename;
-    DEBUG("Write Integrity Report (IR)  : %s\n", filename);
+    //filename = ctx->ir_filename;
+    DEBUG("Write Integrity Report (IR)  : %s\n", filenameDP);  //filename);
 
     /* write to file */
     xmlFreeTextWriter(writer);
 
-#if 0
-    fp = fopen(ctx->conf->ir_filename, "w");
-    if (fp == NULL) {
-        ERROR("testXmlwriterMemory: Error at fopen, %s\n", ctx->conf->ir_filename);
-        rc = PTS_INTERNAL_ERROR;
-        goto free;
-    }
-
-    fprintf(fp, "%s", (const char *) xmlbuf->content);
-
-    rc = PTS_SUCCESS;  // 0
-
-    fclose(fp);
-#endif
-
-    irFd = open(filename, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
+    irFd = open(filenameDP, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
     if (-1 == irFd) {
         ERROR("Failed to open ir file '%s' for writing, errno = %d\n", filename, errno);
         rc = PTS_INTERNAL_ERROR;
@@ -1961,7 +1993,7 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
        This is most useful during verification when running "ptsc -m". Anyway,
        serious hackers probably wouldn't be deterred by this ... */
     if (NULL != savedFd &&
-        -1 == unlink(filename)) {
+        -1 == unlink(filenameDP)) {
         ERROR("Failed to unlink file '%s', errno = %d\n", filename, errno);
     }
 
@@ -1986,14 +2018,11 @@ int writeIr(OPENPTS_CONTEXT *ctx, const char *filenameDP, int *savedFd) {
  free:
     xfree(ir_uuid);
     xfree(str_ir_uuid);
-    //if (filename != NULL) xfree(filename);
 
  freexml:
     xmlBufferFree(xmlbuf);
 
  error:
-
-    
     DEBUG_CAL("writeIr - done\n");
 
     return rc;
@@ -2036,6 +2065,12 @@ void  irStartDocument(void * ctx) {
     OPENPTS_CONTEXT * pctx = (OPENPTS_CONTEXT *)ctx;
     OPENPTS_IR_CONTEXT * ir_ctx = pctx->ir_ctx;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     ir_ctx->sax_error = 0;
     ir_ctx->event_index = 0;
 
@@ -2047,6 +2082,12 @@ void  irStartDocument(void * ctx) {
  * SAX parser
  */
 void  irEndDocument(void * ctx) {
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     // printf("END DOC \n");
 }
 
@@ -2056,6 +2097,14 @@ void  irEndDocument(void * ctx) {
    wrongly into presenting a valid attestation of a compromised system. */
 static int getPcrIndexFromIR(char *value) {
     unsigned int index = atoi(value);
+
+    /* check */
+    if (value == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+
+    index = atoi(value);
     if ( index > MAX_PCRNUM ) {
         return -1;
     } else {
@@ -2067,16 +2116,39 @@ static int getPcrIndexFromIR(char *value) {
  * SAX parser - Start of Element
  */
 void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
-    OPENPTS_CONTEXT * pctx = (OPENPTS_CONTEXT *)ctx;
-    OPENPTS_IR_CONTEXT * ir_ctx = pctx->ir_ctx;
-    TSS_VALIDATION *validation_data = pctx->validation_data;
-    OPENPTS_PCRS *pcrs = pctx->pcrs;
+    OPENPTS_CONTEXT * pctx;
+    OPENPTS_IR_CONTEXT * ir_ctx;
+    TSS_VALIDATION *validation_data;
+    OPENPTS_PCRS *pcrs;
     BYTE *b64buf = NULL;
     int b64buf_len;
     int i;
     char *type;
     char *value;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    pctx = (OPENPTS_CONTEXT *)ctx;
+    ir_ctx = pctx->ir_ctx;
+    if (ir_ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    pcrs = pctx->pcrs;
+    if (pcrs == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return;
+    }
+    validation_data = pctx->validation_data;  // ckeck later
+
+    /* IR */
     ir_ctx->char_size = 0;
 
     if (!strcmp((char *)name, "Report")) {
@@ -2265,6 +2337,10 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
             for (i = 0;(atts[i] != NULL);i++) {
                 type = (char *)atts[i++];
 
+                if (validation_data == NULL) {
+                    ERROR("validation_data == NULL");
+                    return;
+                }
                 if (validation_data->rgbData == NULL) {
                     // TODO 1.2 only
                     validation_data->ulDataLength = 48;
@@ -2353,6 +2429,10 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
             for (i = 0;(atts[i] != NULL);i++) {
                 type = (char *)atts[i++];
 
+                if (validation_data == NULL) {
+                    ERROR("validation_data == NULL");
+                    return;
+                }
                 if (validation_data->rgbData == NULL) {
                     // TODO 1.2 only
                     validation_data->ulDataLength = 52;
@@ -2425,14 +2505,37 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
  * SAX parser - End of Element
  */
 void irEndElement(void * ctx, const xmlChar * name) {
-    OPENPTS_CONTEXT * pctx = (OPENPTS_CONTEXT *)ctx;
-    OPENPTS_IR_CONTEXT * ir_ctx = pctx->ir_ctx;
-    TSS_VALIDATION *validation_data = pctx->validation_data;
-    OPENPTS_PCRS *pcrs = pctx->pcrs;
+    OPENPTS_CONTEXT * pctx;
+    OPENPTS_IR_CONTEXT * ir_ctx;
+    TSS_VALIDATION *validation_data;
+    OPENPTS_PCRS *pcrs;
     int rc;
     BYTE *b64buf = NULL;
     int b64buf_len;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    pctx = (OPENPTS_CONTEXT *)ctx;
+    ir_ctx = pctx->ir_ctx;
+    if (ir_ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    pcrs = pctx->pcrs;
+    if (pcrs == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (name == NULL) {
+        ERROR("null input");
+        return;
+    }
+    validation_data = pctx->validation_data;  // ckeck later
+
+    /* END ELEMENT */
     if (!strcmp((char *)name, "stuff:Objects")) {
         int extend = 0;
         int pcr_index = -1;
@@ -2556,7 +2659,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
         free(b64buf);
         /* Check with PCR in TPM */
         rc = checkTpmPcr2(&pctx->tpm, ir_ctx->pcr_index, ir_ctx->pcr);
-        if (rc != 0) {
+        if (rc != PTS_SUCCESS) {
             ERROR("ERROR PCR[%d] != IML\n", ir_ctx->pcr_index);
             ir_ctx->sax_error = 1;
             // verbose = DEBUG_FLAG | DEBUG_TPM_FLAG;  // switch DEBUG MODE
@@ -2595,9 +2698,17 @@ void irEndElement(void * ctx, const xmlChar * name) {
         }
     } else if (!strcmp((char *)name, "LocalityAtRelease")) {
         // TODO
+        if (validation_data == NULL) {
+            ERROR("validation_data == NULL");
+            return;
+        }
         validation_data->rgbData[31] = atoi(ir_ctx->buf);
     } else if (!strcmp((char *)name, "CompositeHash")) {
         // DEBUG("CompositeHash %s", ir_ctx->buf);
+        if (validation_data == NULL) {
+            ERROR("validation_data == NULL");
+            return;
+        }
         b64buf = decodeBase64(
             (char *)ir_ctx->buf,
             ir_ctx->char_size,
@@ -2669,6 +2780,10 @@ void irEndElement(void * ctx, const xmlChar * name) {
         if (pcrs->pcr_select_byte == NULL) {
             ERROR("pcrs->pcr_select_byte is null");
         } else {
+            if (validation_data == NULL) {
+                ERROR("validation_data == NULL");
+                return;
+            }
             validation_data->rgbData[26] = 0;
             validation_data->rgbData[27] = pcrs->pcr_select_size;
             validation_data->rgbData[28] = pcrs->pcr_select_byte[0];
@@ -2681,6 +2796,10 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ERROR("buf is small %d \n", ir_ctx->char_size);
             ir_ctx->sax_error++;
         } else {
+            if (validation_data == NULL) {
+                ERROR("validation_data == NULL");
+                return;
+            }
             if (validation_data->rgbValidationData != NULL) {
                 xfree(validation_data->rgbValidationData);
             }
@@ -2754,8 +2873,25 @@ void irEndElement(void * ctx, const xmlChar * name) {
  * 
  */
 void irCharacters(void* ctx, const xmlChar * ch, int len) {
-    OPENPTS_CONTEXT * pctx = (OPENPTS_CONTEXT *)ctx;
-    OPENPTS_IR_CONTEXT * ir_ctx = pctx->ir_ctx;
+    OPENPTS_CONTEXT * pctx;
+    OPENPTS_IR_CONTEXT * ir_ctx;
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    pctx = (OPENPTS_CONTEXT *)ctx;
+    ir_ctx = pctx->ir_ctx;
+    if (ir_ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
+    //if (ch == NULL) {
+    //    ERROR("null input");
+    //    return;
+    //}
+
 
     /* copy to buf at ir_ctx, but check length first, ensuring additional space
        for NULL terminator */
@@ -2808,11 +2944,23 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
     DEBUG("validateIr - start\n");
 
     /* check */
-    ASSERT(NULL != ctx, "ctx == NULL\n");
-    ASSERT(NULL != ctx->target_conf, "ctx->target_conf == NULL\n");
-    ASSERT(NULL != ctx->ir_filename, "ctx->ir_filename == NULL\n");
-
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (ctx->target_conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (ctx->ir_filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     conf = ctx->target_conf;
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* new */
     if (ctx->pcrs == NULL) {
@@ -3019,7 +3167,9 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
  * @retval PTS_SUCCESS
  * @retval PTS_INTERNAL_ERROR
  */
-int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx, int *savedFd) {
+int genIrFromSecurityfs(
+    OPENPTS_CONTEXT *ctx,
+    int *savedFd /* out*/ ) {
     int rc;
     /* get IML via securityfs */
 
@@ -3029,6 +3179,12 @@ int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx, int *savedFd) {
 #else
     DEBUG("TPM Quote not work with config option iml.mode=securityfs\n");
 #endif
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* reset TPM emu */
     resetTpm(&ctx->tpm, ctx->drtm);
@@ -3075,8 +3231,9 @@ int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx, int *savedFd) {
     // }
     // ctx->conf->ir_filename = tempnam(NULL, "ir_");
 
-    /* save IR */
-    rc = writeIr(ctx, ctx->conf->ir_filename, savedFd);
+    /* save IR (new file in tmp dir) */
+    rc = writeIr(ctx, NULL, savedFd);
+    // rc = writeIr(ctx, ctx->ir_filename, savedFd);
     if (rc != 0) {
         ERROR("fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
@@ -3092,8 +3249,16 @@ int genIrFromSecurityfs(OPENPTS_CONTEXT *ctx, int *savedFd) {
  * @retval PTS_SUCCESS
  * @retval PTS_INTERNAL_ERROR 
  */
-int genIrFromTss(OPENPTS_CONTEXT *ctx, int *savedFd) {
+int genIrFromTss(
+    OPENPTS_CONTEXT *ctx,
+    int *savedFd /* out */ ) {
     int rc;
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* get IML via securityfs */
 
@@ -3201,8 +3366,9 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx, int *savedFd) {
     //ctx->conf->ir_filename = tempnam(NULL, "ir_");
     //DEBUG("ctx->conf->ir_filename : %s\n", ctx->conf->ir_filename);
 
-    /* save IR */
-    rc = writeIr(ctx, ctx->conf->ir_filename, savedFd);  // ir.c
+    /* save IR (new file in tmp dir) */
+    rc = writeIr(ctx, NULL, savedFd);
+    // rc = writeIr(ctx, ctx->ir_filename, savedFd);  // ir.c
     if (rc != 0) {
         ERROR("fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
@@ -3218,8 +3384,19 @@ int genIrFromTss(OPENPTS_CONTEXT *ctx, int *savedFd) {
  * @retval PTS_SUCCESS
  * @retval PTS_INTERNAL_ERROR
  */
-int genIr(OPENPTS_CONTEXT *ctx, int *savedFd) {
+int genIr(
+    OPENPTS_CONTEXT *ctx,
+    int *savedFd /* out */) {
     int rc = PTS_INTERNAL_ERROR;
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
+
+    /* gen */
     if (ctx->conf->iml_mode == 1) {
         rc = genIrFromSecurityfs(ctx, savedFd);
         if (rc != PTS_SUCCESS) {

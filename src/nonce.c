@@ -119,6 +119,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc */
     ctx = xmalloc(sizeof(OPENPTS_NONCE));
     if (ctx == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_NONCE));
@@ -126,6 +127,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc req */
     ctx->req = (PTS_IF_M_DH_Nonce_Parameters_Request *)xmalloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Request));
     if (ctx->req == NULL) {
+        ERROR("no memory");
         xfree(ctx);
         return NULL;
     }
@@ -134,6 +136,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc res */
     ctx->res = xmalloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Responce));
     if (ctx->res == NULL) {
+        ERROR("no memory");
         xfree(ctx->req);
         xfree(ctx);
         return NULL;
@@ -143,6 +146,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc fin */
     ctx->fin = xmalloc(sizeof(PTS_IF_M_DH_Nonce_Finish));
     if (ctx->fin == NULL) {
+        ERROR("no memory");
         xfree(ctx->req);
         xfree(ctx->res);
         xfree(ctx);
@@ -169,6 +173,12 @@ OPENPTS_NONCE *newNonceContext() {
  */
 int freeNonceContext(OPENPTS_NONCE *ctx) {
     DEBUG_CAL("freeNonceContext\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* free req */
     if (ctx->req != NULL) {
@@ -224,9 +234,18 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
     char c = '1';
 
     // DEBUG("calcExternalDataValue\n");
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     ctx->nonce_length = SHA1_DIGEST_SIZE;
     ctx->nonce = xmalloc_assert(SHA1_DIGEST_SIZE);
+    if (ctx->nonce == NULL) {
+        ERROR("no memory");
+        return PTS_FATAL;
+    }
 
     SHA1_Init(&sha_ctx);
     SHA1_Update(&sha_ctx, &c, 1);
@@ -257,15 +276,29 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
 int getDhResponce(OPENPTS_NONCE *ctx) {
     int rc = 0;
     BIGNUM *p, *g;
-    PTS_IF_M_DH_Nonce_Parameters_Request  *req = ctx->req;
-    PTS_IF_M_DH_Nonce_Parameters_Responce *res = ctx->res;
+    PTS_IF_M_DH_Nonce_Parameters_Request  *req;
+    PTS_IF_M_DH_Nonce_Parameters_Responce *res;
 
     // DEBUG("getDhResponce at Respondor\n");
 
     /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    req = ctx->req;
+    if (req == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    res = ctx->res;
+    if (res == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     if (req->reserved != 0) {
         ERROR("reserved must be 0\n");
-        return -1;
+        return PTS_INTERNAL_ERROR;
     }
 
     /* select nonce size */
@@ -303,8 +336,8 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
         BN_hex2bn(&p, group14);
     } else {
         res->selected_dh_group = 0;
-        ERROR("");
-        return -1;
+        ERROR("Unknown DH group set 0x%x", req->dh_group_set);
+        return PTS_DENIED;
     }
 
     BN_set_word(g, 2);
@@ -320,6 +353,7 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     /* malloc */
     res->dh_respondor_nonce = xmalloc(res->nonce_length);
     if (res->dh_respondor_nonce == NULL) {
+        ERROR("dh_respondor_nonce is null");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -339,7 +373,8 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     /* malloc */
     res->dh_respondor_public = xmalloc(DH_size(ctx->dh));
     if (res->dh_respondor_public == NULL) {
-        return PTS_INTERNAL_ERROR;
+        ERROR("no memory");
+        return PTS_FATAL;
     }
 
     /* set */
@@ -365,6 +400,12 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
 int setDhPubkeylength(OPENPTS_NONCE *ctx) {
     PTS_IF_M_DH_Nonce_Parameters_Responce *res = ctx->res;
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     /* select DH group */
     if (res->selected_dh_group == DH_GROUP_2) {
         ctx->pubkey_length = DH_GROUP_2_SIZE;
@@ -373,8 +414,8 @@ int setDhPubkeylength(OPENPTS_NONCE *ctx) {
     } else if (res->selected_dh_group == DH_GROUP_14) {
         ctx->pubkey_length = DH_GROUP_14_SIZE;
     } else {
-        ERROR("Bad DH group\n");
-        return -1;
+        ERROR("Bad DH group 0x%x\n", res->selected_dh_group);
+        return PTS_DENIED;  // TODO
     }
 
     return PTS_SUCCESS;
@@ -393,14 +434,29 @@ int calcDh(OPENPTS_NONCE *ctx) {
     int rc = 0;
     BIGNUM *p, *g;
     BIGNUM *pub_key;
-    PTS_IF_M_DH_Nonce_Parameters_Responce *res = ctx->res;
-    PTS_IF_M_DH_Nonce_Finish *fin = ctx->fin;
+    PTS_IF_M_DH_Nonce_Parameters_Responce *res;
+    PTS_IF_M_DH_Nonce_Finish *fin;
 
     /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    res = ctx->res;
+    if (res == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    fin = ctx->fin;
+    if (fin == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     if (res->reserved[0] != 0) {
         // TODO check 1,2 too
         ERROR("reserved must be 0\n");
-        return -1;
+        return PTS_INTERNAL_ERROR;
     }
 
     /* set DH Hash Alg */
@@ -409,8 +465,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
         fin->selected_hash_alg = DH_HASH_SHA1;
         ctx->selected_hash_alg = DH_HASH_SHA1;
     } else {
-        ERROR("Bad DH hash\n");
-        return -1;
+        ERROR("Bad DH hash set 0x%x\n", res->hash_alg_set);
+        return PTS_DENIED;
     }
 
     /* store respondor nonce */
@@ -437,8 +493,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
         BN_hex2bn(&p, group14);
         ctx->pubkey_length = DH_GROUP_14_SIZE;
     } else {
-        ERROR("Bad DH group\n");
-        return -1;
+        ERROR("Bad DH group 0x%x\n", res->selected_dh_group);
+        return  PTS_DENIED;
     }
 
     BN_set_word(g, 2);
@@ -458,7 +514,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
     /* malloc */
     ctx->secret = xmalloc(ctx->secret_length);
     if (ctx->secret == NULL) {
-        return PTS_INTERNAL_ERROR;
+        ERROR("no memory");
+        return PTS_FATAL;
     }
 
     /* calc key */
@@ -467,7 +524,8 @@ int calcDh(OPENPTS_NONCE *ctx) {
     /* initiator nonce */
     fin->dh_initiator_nonce = xmalloc(fin->nonce_length);
     if (fin->dh_initiator_nonce == NULL) {
-        return PTS_INTERNAL_ERROR;
+        ERROR("no memory");
+        return PTS_FATAL;
     }
 
     /* set random */
@@ -506,11 +564,22 @@ int calcDh(OPENPTS_NONCE *ctx) {
  */
 int calcDhFin(OPENPTS_NONCE *ctx) {
     BIGNUM *pub_key;
-    PTS_IF_M_DH_Nonce_Finish *fin = ctx->fin;
+    PTS_IF_M_DH_Nonce_Finish *fin;
 
     // DEBUG("calcDhFin at Respondor\n");
     // printHex("fin->dh_initiator_nonce :",fin->dh_initiator_nonce,fin->nonce_length,"\n");
     // printHex("fin->dh_initiator_public:",fin->dh_initiator_public,ctx->pubkey_length,"\n");
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    fin = ctx->fin;
+    if (fin == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* initiator nonce */
     ctx->initiator_nonce_length = fin->nonce_length;

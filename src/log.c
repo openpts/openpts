@@ -27,9 +27,31 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-05-07
  * cleanup 2011-01-22 SM
+ * cleanup 2011-12-28 SM
  *
- * syslog wrapper
+ *  Verbose  OUTPUT    VERBOSE       LOGGING
+ *   Level   (stdout)  (stderr)      (console/syslog/file)
+ *  --------------------------------------------------
+ *     0     ON        ERROR msg.    ERROR/INFO
+ *     1     ON        +verbose msg. ERROR/INFO
+ *     2     ON                      ERROR/INFO+DEBUG
+ *  --------------------------------------------------
  *
+ *   LOG
+ *    off
+ *    error
+ *    on/debug
+ *
+ *  Config
+ *    verbose=0
+ *    logging.location=console|syslog|file
+ *    logging.file=./ptsc.log
+ *    debug.mode=0x01
+ *
+ *   Priority
+ *    1. Commandline option (location/file must be given by conf)
+ *    2. ENV
+ *    3. Conf file 
  *
  *  LOG("msg",format)
  *
@@ -59,29 +81,27 @@
 
 #include <openpts_log.h>
 
-
 #define SYSLOG_BUF_SIZE 1024
-
-
 
 #ifdef AIX
 
 #ifndef DEFAULT_LOG_LOCATION
 #define DEFAULT_LOG_LOCATION   OPENPTS_LOG_FILE
 #endif
-
 #ifndef DEFAULT_LOG_FILE
 #define DEFAULT_LOG_FILE       "/var/adm/ras/openpts/log"
 #endif
+#define DEFAULT_LOG_FILE_PERM  (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)
+#define DEFAULT_LOG_FILE_SIZE  0x100000
 
-#define DEFAULT_LOG_FILE_PERM  (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)
-#define DEFAULT_LOG_FILE_SIZE  0x100000
-#else  // AIX
+#else  // !AIX
+
 #define DEFAULT_LOG_LOCATION   OPENPTS_LOG_FILE
-#define DEFAULT_LOG_FILE       "~/.openpts/log"
+#define DEFAULT_LOG_FILE       "~/.openpts/openpts.log"
 #define DEFAULT_LOG_FILE_PERM  (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)
 #define DEFAULT_LOG_FILE_SIZE  0x100000
-#endif
+
+#endif  // AIX
 
 #ifdef ENABLE_NLS
 #ifdef HAVE_CATGETS
@@ -103,6 +123,8 @@ static int alreadyWarnedAboutLogFile = 0;
 
 static int openLogFile(void);
 static void addToLog(char* log_entry);
+
+static char * command_name = NULL;
 
 /**
  *
@@ -151,11 +173,20 @@ static void expandLogFilePath(char *unexpandedPath) {
 }
 
 /**
+ * set LogLocation by ENV
  *
+ * export OPENPTS_LOG_FILE=/tmp/openpts.log
+ * export OPENPTS_LOG_CONSOLE=1
+ * export OPENPTS_LOG_SYSLOG=1
+ * export OPENPTS_DEBUG_MODE=0x01
  */
-static void determineLogLocation(void) {
+void determineLogLocationByEnv(void) {
     char *tempLogFileName = NULL;
+    char *tempDebugMode = NULL;
 
+
+
+    /* Location */
     if (getenv("OPENPTS_LOG_SYSLOG") != NULL) {
         logLocation = OPENPTS_LOG_SYSLOG;
     } else if (getenv("OPENPTS_LOG_CONSOLE") != NULL) {
@@ -173,6 +204,12 @@ static void determineLogLocation(void) {
     if (logLocation == OPENPTS_LOG_FILE) {
         expandLogFilePath(tempLogFileName);
     }
+
+    /* debug mode => debugBits */
+    if ((tempDebugMode = getenv("OPENPTS_DEBUG_MODE")) != NULL) {
+        debugBits = (int) strtol(tempDebugMode,NULL,16);
+        DEBUG("DEBUG FLAG(0x%x) set by ENV\n", debugBits);
+    }
 }
 
 /**
@@ -183,6 +220,28 @@ void setLogLocation(int ll, char *filename) {
 
     if (ll == OPENPTS_LOG_FILE) {
         expandLogFilePath(filename);
+    }
+}
+
+void setSyslogCommandName(char *name) {
+    command_name = name;
+}
+
+/**
+ * return loglocation in String (char*)
+ */
+char *getLogLocationString() {
+    if (logLocation == OPENPTS_LOG_SYSLOG) {
+        return "syslog";
+    } else if (logLocation == OPENPTS_LOG_CONSOLE) {
+        return "console(stderr)";
+    } else if (logLocation == OPENPTS_LOG_NULL) {
+        return "n/a";
+    } else if (logLocation == OPENPTS_LOG_FILE) {
+        return logFileName;
+    } else {
+        ERROR("logLocation %d\n", logLocation);
+        return "TBD";
     }
 }
 
@@ -203,7 +262,7 @@ static void createLogEntry(
         "[ERROR] ",
         "[WARNING] ",
         "[NOTICE] ",
-        "[INFO] ",
+        "[INFO]  ",
         "[DEBUG] "
     };
     /* number of chars written (not including '\0') */
@@ -245,7 +304,9 @@ void writeLog(int priority, const char *format, ...) {
 
 
     if (logLocation == OPENPTS_LOG_UNDEFINED) {
-        determineLogLocation();
+        determineLogLocationByEnv();
+        // fprintf(stderr, "logLocation == OPENPTS_LOG_UNDEFINED\n");
+        return;
     }
 
     if (logLocation == OPENPTS_LOG_NULL) {
@@ -270,12 +331,18 @@ void writeLog(int priority, const char *format, ...) {
         {
             char buf[SYSLOG_BUF_SIZE];
 
-            /* daemon -> syslog */
-            openlog("ptsc", LOG_NDELAY|LOG_PID, LOG_LOCAL5);
+            /* ptsc -m (IF-M) -> syslog */
+            if (command_name == NULL) {
+                openlog("ptsc", LOG_NDELAY|LOG_PID, LOG_LOCAL5);
+            } else {
+                openlog(command_name, LOG_NDELAY|LOG_PID, LOG_LOCAL5);
+            }
 
             /* vsyslog is not supported by some unix */
             vsnprintf(buf, SYSLOG_BUF_SIZE, format, list);
-            if (priority >= LOG_DEBUG) priority = LOG_INFO;
+
+            /* priority is controlled by syslog conf */
+            /* for DEBUG, use OPENPTS_LOG_FILE */
             syslog(priority, "%s", buf);
 
             closelog();
@@ -283,7 +350,7 @@ void writeLog(int priority, const char *format, ...) {
         }
     case OPENPTS_LOG_FILE:
         {
-            if ( -1 == openLogFile() ) {
+            if (openLogFile() == -1) {
                 if ( !alreadyWarnedAboutLogFile ) {
                     fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_CANNOT_OPEN_LOGFILE,
                         "Unable to open logfile '%s'\n"), logFileName);
@@ -350,7 +417,8 @@ static int openLogFile(void) {
         return logFileFd;
     }
 
-    logFileFd = open(logFileName, O_RDWR|O_CREAT|O_TRUNC, DEFAULT_LOG_FILE_PERM);
+    //logFileFd = open(logFileName, O_RDWR|O_CREAT|O_TRUNC, DEFAULT_LOG_FILE_PERM);
+    logFileFd = open(logFileName, O_WRONLY|O_CREAT|O_APPEND, DEFAULT_LOG_FILE_PERM);
     return logFileFd;
 }
 

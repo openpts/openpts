@@ -26,7 +26,7 @@
  * \brief emulate TPM
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-01-21 SM
+ * cleanup 2011-12-31 SM
  *
  *  Emulate TPM to validate IML and PCR
  */
@@ -45,7 +45,6 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 
 /* TPM functions */
@@ -58,6 +57,7 @@ int resetTpm(OPENPTS_TPM_CONTEXT *tctx, int drtm) {
 
     DEBUG_TPM("tpm.c - RESET (POR)\n");
 
+    /* check */
     if (tctx == NULL) {
         ERROR("ERROR TPM_CONTEXT is NULL");
         return -1;
@@ -78,7 +78,6 @@ int resetTpm(OPENPTS_TPM_CONTEXT *tctx, int drtm) {
 
     DEBUG_TPM("tpm.c - RESET (POR)\n");
 
-    // iml = (IML *) xmalloc(sizeof(IML) * MAX_PCRNUM);
     return 0;
 }
 
@@ -90,6 +89,7 @@ int resetTpmPcr(OPENPTS_TPM_CONTEXT *tctx, int index) {
 
     DEBUG_TPM("resetTpmPcr - RESET just one PCR %d\n", index);
 
+    /* check */
     if (tctx == NULL) {
         ERROR("ERROR TPM_CONTEXT is NULL");
         return -1;
@@ -109,6 +109,14 @@ int resetTpmPcr(OPENPTS_TPM_CONTEXT *tctx, int index) {
  */
 int isZero(BYTE * digest) {
     int i;
+
+    /* check */
+    if (digest == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+
+    /* is zero? */
     for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
         if (digest[i] != 0 ) return 0;
     }
@@ -122,6 +130,14 @@ int isZero(BYTE * digest) {
  */
 void setFF(BYTE * digest) {
     int i;
+
+    /* check */
+    if (digest == NULL) {
+        ERROR("null input");
+        return;
+    }
+
+    /* set FF... */
     for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
         digest[i] = 0xff;
     }
@@ -138,32 +154,31 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
     int index;
     BYTE * digest;
 
+    /* check */
     if (tctx == NULL) {
         ERROR("TPM_CONTEXT is NULL\n");
-        return -1;
+        return PTS_FATAL;
     }
-
     if (event == NULL) {
         ERROR("TSS_PCR_EVENT is NULL\n");
-        return -1;
+        return PTS_FATAL;
+    }
+
+    digest = event->rgbPcrValue;
+    if (digest == NULL) {
+        ERROR("event->rgbPcrValue is NULL\n");
+        return PTS_FATAL;
     }
 
     index = event->ulPcrIndex;
-    digest = event->rgbPcrValue;
-
-    if (digest == NULL) {
-        ERROR("event->rgbPcrValue is NULL\n");
-        return -1;
-    }
-
     if (index >= MAX_PCRNUM) {
-        ERROR("BAD PCR INDEX %d\n", index);
-        return -1;
+        ERROR("BAD PCR INDEX %d >= %d\n", index, MAX_PCRNUM);
+        return PTS_INTERNAL_ERROR;
     }
 
     if (index < 0) {
-        ERROR("ERROR BAD PCR INDEX %d\n", index);
-        return -1;
+        ERROR("ERROR BAD PCR INDEX %d < 0\n", index);
+        return PTS_INTERNAL_ERROR;
     }
 
     if (index == 10) {  // Linux-IML, 0000... -> FFFF...
@@ -186,9 +201,7 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
         OUTPUT("\n");
     }
 
-    // if (verbose>0) printf("extendTpm - done \n");
-
-    return 0;  // TODO(munetoh)
+    return PTS_SUCCESS;
 }
 
 /**
@@ -201,8 +214,20 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
 int extendTpm2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
     SHA_CTX ctx;
 
-    if (index >= MAX_PCRNUM)
-        return -1;
+    /* check */
+    if (tctx == NULL) {
+        ERROR("TPM_CONTEXT is NULL\n");
+        return PTS_FATAL;
+    }
+    if (digest == NULL) {
+        ERROR("null input\n");
+        return PTS_FATAL;
+    }
+
+    if (index >= MAX_PCRNUM) {
+        ERROR("BAD pcr index, %d >= %d", index, MAX_PCRNUM);
+        return PTS_INTERNAL_ERROR;
+    }
 
     // TODO(munetoh)
     if (index == 10) {  // Linux-IML, 0000... -> FFFF...
@@ -223,7 +248,7 @@ int extendTpm2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
         OUTPUT("\n");
     }
 
-    return 0;  // TODO(munetoh)
+    return PTS_SUCCESS;
 }
 
 /**
@@ -235,10 +260,17 @@ int extendTpm2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
  */
 int checkTpmPcr2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
     int i;
-    for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
-        if (tctx->pcr[index][i] != digest[i]) return -1;
+
+    /* check */
+    if (tctx == NULL) {
+        ERROR("TPM_CONTEXT is NULL\n");
+        return PTS_FATAL;
     }
-    return 0;
+
+    for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
+        if (tctx->pcr[index][i] != digest[i]) return PTS_INTERNAL_ERROR;  // TODO
+    }
+    return PTS_SUCCESS;
 }
 
 /**
@@ -249,9 +281,10 @@ int printTpm(OPENPTS_TPM_CONTEXT *tctx) {
 
     DEBUG_FSM("tpm.c - pprint pcrs\n");
 
+    /* check */
     if (tctx == NULL) {
-        ERROR("TPM_CONTEXT is NULL");
-        return -1;
+        ERROR("TPM_CONTEXT is NULL\n");
+        return PTS_FATAL;
     }
 
     for (i = 0; i < MAX_PCRNUM; i++) {
@@ -262,31 +295,43 @@ int printTpm(OPENPTS_TPM_CONTEXT *tctx) {
         OUTPUT("\n");
     }
 
-    // iml = (IML *) xmalloc(sizeof(IML) * MAX_PCRNUM);
-    return 0;
+    return PTS_SUCCESS;
 }
 
 /**
  * get TPM PCR value
  */
 int getTpmPcrValue(OPENPTS_TPM_CONTEXT *tpm, int index, BYTE *digest) {
-    int rc =0;
     int j;
 
     DEBUG_CAL("getTpmPcrValue - pcr[%d]\n", index);
 
+    /* check */
+    if (tpm == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     if (digest == NULL) {
-        ERROR("null \n");
-        return -1;
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (index >= MAX_PCRNUM) {
+        ERROR("BAD PCR INDEX %d >= %d\n", index, MAX_PCRNUM);
+        return PTS_INTERNAL_ERROR;
+    }
+    if (index < 0) {
+        ERROR("ERROR BAD PCR INDEX %d < 0\n", index);
+        return PTS_INTERNAL_ERROR;
     }
 
+    /* copy */
     for (j = 0; j < SHA1_DIGEST_SIZE; j++) {
         digest[j]=tpm->pcr[index][j];
     }
 
     DEBUG_CAL("getTpmPcrValue - done\n");
 
-    return rc;
+    return PTS_SUCCESS;
 }
 
 

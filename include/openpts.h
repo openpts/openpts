@@ -924,7 +924,7 @@ UINT32 b2l(UINT32 in);
 void debugHex(char *head, BYTE *data, int num, char *tail);
 
 int saveToFile(char * filename, int len, BYTE * msg);
-int getUint32(BYTE *buf);
+UINT32 getUint32(BYTE *buf);
 int makeDir(char *dirname);
 int checkDir(char *dirname);
 int checkFile(char *filename);

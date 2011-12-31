@@ -114,6 +114,12 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
     char uuid_file[PATH_MAX];
     char *homeDir = getenv("HOME");
 
+    /* check */
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     snprintf(dirpath, PATH_MAX, "%s/.openpts", homeDir);
     snprintf(conf_file, PATH_MAX, "%s/.openpts/openpts.conf", homeDir);
     snprintf(uuid_file, PATH_MAX, "%s/.openpts/uuid", homeDir);
@@ -231,9 +237,21 @@ int verifierHandleCapability(
      *currentRmOutOfDate = 0;
      *notifiedOfPendingRm = 0;
 
-    /**/
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
-    verifier_uuid = ctx->conf->uuid;
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    verifier_uuid = conf->uuid;
+    if (verifier_uuid == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* collector UUID */
     if (ctx->collector_uuid != NULL) {
@@ -555,23 +573,30 @@ int verifierHandleCapability(
  */
 int verifierHandleRimmSet(
     OPENPTS_CONTEXT *ctx,
-    BYTE *value) {
+    BYTE *value)
+{
     int rc = PTS_SUCCESS;
     OPENPTS_CONFIG *target_conf;
     int i;
     struct stat st;
     char buf[BUF_SIZE];
-
-
     int num;
     int len;
 
     /* check */
-    ASSERT(NULL != ctx, "verifierHandleRimmSet() - ctx is NULL\n");
-    ASSERT(NULL != ctx->target_conf, "verifierHandleRimmSet() - target_conf is NULL\n");
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     target_conf = ctx->target_conf;
-
-    ASSERT(NULL != value, "verifierHandleRimmSet() - value is NULL\n");
+    if (target_conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* num */
     num = getUint32(value);
@@ -660,6 +685,16 @@ int  writePolicyConf(OPENPTS_CONTEXT *ctx, char *filename) {
 
     DEBUG("writePolicyConf       : %s\n", filename);
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     if ((fp = fopen(filename, "w")) == NULL) {
         fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_OPEN_FAILED, "Failed to open policy file '%s'\n"), filename);
         return -1;
@@ -722,6 +757,16 @@ int  writeAideIgnoreList(OPENPTS_CONTEXT *ctx, char *filename) {
     int rc;
 
     DEBUG("writeAideIgnoreList     : %s\n", filename);
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     if ((fp = fopen(filename, "w")) == NULL) {
         fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_OPEN_FAILED_2,
@@ -815,11 +860,19 @@ int verifierHandleIR(
     int i;
 
     /* check */
-    ASSERT(NULL != ctx, "verifierHandleRimmSet() - ctx is NULL\n");
-    ASSERT(NULL != ctx->target_conf, "verifierHandleRimmSet() - target_conf is NULL\n");
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     target_conf = ctx->target_conf;
-
-    ASSERT(NULL != value, "verifierHandleRimmSet() - value is NULL\n");
+    if (target_conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* save IR to file */
     if (length > 0) {
@@ -936,13 +989,15 @@ int enroll(
     OPENPTS_IF_M_Capability *cap;
     OPENPTS_TARGET *target;
 
-    /* check */
-    // TODO
-
     DEBUG("enroll() - start, force = %d  (1:overwite) --------------------------------------\n", force);
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_INTERNAL_ERROR;
+    }
     if (ctx->conf == NULL) {
-        ERROR("ctx->conf\n");
+        ERROR("null input");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1301,7 +1356,7 @@ int verifier(
     char *conf_dir,
     int mode) {
     const int MINIMUM_NONCE_LENGTH = 16;
-    int rc = PTS_VERIFY_FAILED; /* guilty until proven innocent */
+    int rc = PTS_VERIFY_FAILED;  /* guilty until proven innocent */
     int result = OPENPTS_RESULT_INVALID;
     int len;
     /* sock */
@@ -1311,8 +1366,6 @@ int verifier(
     /* TLV/PTS */
     PTS_IF_M_Attribute *read_tlv = NULL;
     OPENPTS_CONFIG *conf;
-    // char * collector_dir = NULL;
-    // char * rm_dir = NULL;
     OPENPTS_IF_M_Capability *cap;
     int notifiedOfPendingRm = 0;
     int currentRmOutOfDate = 0;
@@ -1322,10 +1375,15 @@ int verifier(
     DEBUG("  mode                 : %d  (0:just verify, 1:update the policy)\n", mode);
 
     /* check */
-    ASSERT(ctx != NULL, "ctx is null\n");
-    ASSERT(ctx->conf != NULL, "conf is null\n");
-
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
+    if (conf == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* connect to the target collector */
     ssh_pid = ssh_connect(host,
@@ -1478,6 +1536,7 @@ int verifier(
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != INTEGRITY_REPORT) {
+        ERROR("read_tlv->type != INTEGRITY_REPORT, but 0x%X (0x0F:OPENPTS_ERROR)", read_tlv->type);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1500,6 +1559,7 @@ int verifier(
         /* V->C template RIMM req  */
         rc = writePtsTlv(ctx, sock, REQUEST_NEW_RIMM_SET);
         if (rc < 0) {
+            ERROR("writePtsTlv() fail");
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -1523,6 +1583,7 @@ int verifier(
     /* V->C VR */
     len = writePtsTlv(ctx, sock, VERIFICATION_RESULT);
     if (len < 0) {
+        ERROR("writePtsTlv() fail");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }

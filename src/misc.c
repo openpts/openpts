@@ -49,7 +49,6 @@
 #include <fcntl.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /**
    Due to the frequent use of malloc/free in the code base (as opposed to
@@ -79,13 +78,17 @@ void *xmalloc_assert(size_t size) {
     char *result = malloc(size);
     if (NULL == result) {
         ERROR("Failed to allocate %d bytes of memory\n", size);
-        ASSERT(0, "About to return NULL pointer - cannot continue\n");
+        OUTPUT("About to return NULL pointer - cannot continue\n");
+        exit(1);
     }
     return result;
 }
 
 void xfree(void *buf) {
-    ASSERT(NULL != buf, "Freeing a NULL pointer is bad\n");
+    if (buf == NULL) {
+        ERROR("Freeing a NULL pointer is bad");
+        return;
+    }
 #ifndef NEVER_FREE_MEMORY
     free(buf);
 #endif
@@ -100,7 +103,7 @@ char *smalloc(char *str) {
     char *out;
 
     if (str == NULL) {
-        DEBUG("smalloc - string is NULL\n");
+        DEBUG("null input\n");
         return NULL;
     }
 
@@ -109,29 +112,6 @@ char *smalloc(char *str) {
     if (out == NULL) {
         ERROR("Failed to duplicate string '%s'\n", str);
     }
-
-#if 0
-    len = (int)strlen(str);
-
-    /* malloc */
-    out = (char *) malloc(len + 1);
-    if (out == NULL) {
-        ERROR("smalloc - no memory\n");
-        return NULL;
-    }
-
-    /* copy */
-    memcpy(out, str, len);
-    out[len] = 0;  // \n
-
-    /* remove bad chars :-P */
-    // TODO 20101118 SM added for the safe print
-    for (i = 0; i < len; i++) {
-        if ((out[i] < 0x20) || (0x7e < out[i])) {
-            out[i] = '_';
-        }
-    }
-#endif
 
     return out;
 }
@@ -153,7 +133,8 @@ char *smalloc_assert(char *str) {
     out = strdup(str);
     if (NULL == out) {
         ERROR("Failed to duplicate string '%s'\n", str);
-        ASSERT(0, "About to return NULL pointer - cannot continue\n");
+        OUTPUT("About to return NULL pointer - cannot continue\n");
+        exit(1);
     }
 
     return out;
@@ -173,7 +154,7 @@ char *snmalloc(char *str, int len) {
 
     /* check */
     if (str == NULL) {
-        DEBUG("smalloc - string is NULL\n");
+        ERROR("smalloc - string is NULL\n");
         return NULL;
     }
 
@@ -203,6 +184,22 @@ char *snmalloc(char *str, int len) {
  * @param len
  */
 BYTE *snmalloc2(BYTE *buf, int offset, int len) {
+
+    /* check */
+    if (buf == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (offset < 0) {
+        ERROR("offset < 0");
+        return NULL;
+    }
+    if (len < 0) {
+        ERROR("len < 0");
+        return NULL;
+    }
+
+    /* alloc */
     BYTE *output = (BYTE *) xmalloc(len + 1);
     if (output == NULL) {
         return NULL;
@@ -241,8 +238,14 @@ char *getFullpathName(char *basepath, char *filename) {
     int slash = 0;
 
     /* check */
-    ASSERT(filename != NULL, "getFullpathName - filename is NULL\n");
-    ASSERT(basepath != NULL, "getFullpathName - basepath is NULL\n");
+    if (basepath == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+    if (filename == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
     /* start from root */
     if (filename[0] == '/') {
@@ -332,11 +335,14 @@ char *getFullpathName(char *basepath, char *filename) {
  */
 char *getFullpathDir(char *filename) {
     char *fullpath = NULL;
-    // char *slash;
     int filename_len;
     int i;
 
-    ASSERT(filename != NULL, "getFullpathDir - filename is NULL\n");
+    /* check */
+    if (filename == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
     filename_len = strlen(filename);
 
@@ -364,18 +370,10 @@ UINT32 byte2uint32(BYTE *b) {
 
     if (b == NULL) {
         ERROR("byte2uint32 - NULL");
-        exit(-1);
+        OUTPUT("About to return NULL pointer - cannot continue\n");  // TODO
+        exit(1);
     }
 
-#if 0  // BE
-    a = b[0];
-    a = a << 8;
-    a += b[1];
-    a = a << 8;
-    a += b[2];
-    a = a << 8;
-    a += b[3];
-#else
     a = b[3];
     a = a << 8;
     a += b[2];
@@ -383,7 +381,6 @@ UINT32 byte2uint32(BYTE *b) {
     a += b[1];
     a = a << 8;
     a += b[0];
-#endif
 
     return a;
 }
@@ -398,8 +395,13 @@ char * trim(char *str) {
     size_t strLen;
     char *start, *end;
 
-    ASSERT(str != NULL, "trim - str is NULL\n");
+    /* check */
+    if (str == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
+    /* check len */
     strLen = strlen(str);
     if (0 == strLen) {
         return str;
@@ -435,12 +437,10 @@ char *getHexString(BYTE *bin, int size) {
     int len;
 
     /* check */
-    // if (bin == NULL) {
-    //    ERROR("getHexString() buf is null\n");
-    //    return NULL;
-    // }
-    ASSERT(bin != NULL, "getHexString - bin is NULL\n");
-
+    if (bin == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
     buf = xmalloc_assert(size * 2 + 1);
     ptr = buf;
@@ -467,11 +467,25 @@ void snprintHex(
     int outSoFar = 0;
     int i;
 
-    ASSERT(outBuf != NULL, "snprintHex - outBuf is NULL\n");
-    ASSERT(head != NULL, "snprintHex - head is NULL\n");
-    ASSERT(data != NULL, "snprintHex - data is NULL\n");
-    ASSERT(tail != NULL, "snprintHex - tail is NULL\n");
+    /* check */
+    if (outBuf == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (head == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (data == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (tail == NULL) {
+        ERROR("null input");
+        return;
+    }
 
+    /* */
     outSoFar += snprintf(outBuf, outBufLen, "%s[%d]=", head, num);
 
     for (i = 0; i < num; i++) {
@@ -486,6 +500,7 @@ void snprintHex(
 
 void printHex(char *head, BYTE *data, int num, char *tail) {
     char outBuf[1024];
+
     snprintHex(outBuf, 1023, head, data, num, tail);
     /* I could just use OUTPUT(outBuf), but since warnings are errors
        I have to use this less efficient form */
@@ -500,6 +515,18 @@ void debugHex(char *head, BYTE *data, int num, char *tail) {
 
 void fprintHex(FILE *fp, BYTE *data, int num) {
     int i;
+
+    /* check */
+    if (fp == NULL) {
+        ERROR("null input");
+        return;
+    }
+    if (data == NULL) {
+        ERROR("null input");
+        return;
+    }
+
+    /* fprintf */
     for (i = 0; i < num; i++) {
         fprintf(fp, "%02X", data[i]);
     }
@@ -541,6 +568,7 @@ int saveToFile(
     int n_tries = 0;
     int ptr = 0;
 
+    /* check */
     if (len < 0) {
         ERROR("len <0 \n");
         return PTS_FATAL;
@@ -585,9 +613,18 @@ int saveToFile(
 }
 
 /**
+ * byte[4] => UINT32
  */
-int getUint32(BYTE *buf) {
-    int data;
+UINT32 getUint32(BYTE *buf) {
+    UINT32 data;
+
+    /* check */
+    if (buf == NULL) {
+        ERROR("null input");
+        return 0;  // TODO
+    }
+    // TODO check the size?
+
     data = (buf[0] << 24) |
            (buf[1] << 16) |
            (buf[2] << 8)  |
@@ -603,6 +640,12 @@ int getUint32(BYTE *buf) {
 int makeDir(char *dirname) {
     int rc = PTS_SUCCESS;
     struct stat st;
+
+    /* check */
+    if (dirname == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     /* create anyway */
     rc = mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR |
@@ -656,7 +699,9 @@ int makeDir(char *dirname) {
 int checkDir(char *dirname) {
     struct stat st;
 
+    /* check */
     if (dirname == NULL) {
+        ERROR("null input");
         return PTS_FATAL;
     }
 
@@ -677,7 +722,9 @@ int checkDir(char *dirname) {
 int checkFile(char *filename) {
     struct stat st;
 
+    /* check */
     if (filename == NULL) {
+        ERROR("null input");
         return PTS_FATAL;
     }
 
@@ -697,6 +744,13 @@ int checkFile(char *filename) {
  */
 ssize_t wrapRead(int fd, void *buf, size_t count) {
     ssize_t len;
+
+    /* check */
+    if (buf == NULL) {
+        ERROR("null input");
+        return 0;  // TODO
+    }
+
     while (1) {
         len = read(fd, buf, count);
         if ((len < 0) && (errno == EAGAIN || errno == EINTR)) {
@@ -711,6 +765,13 @@ ssize_t wrapRead(int fd, void *buf, size_t count) {
  */
 ssize_t wrapWrite(int fd, const void *buf, size_t count) {
     ssize_t len;
+
+    /* check */
+    if (buf == NULL) {
+        ERROR("null input");
+        return 0;  // TODO
+    }
+
     while (1) {
         len = write(fd, buf, count);
         if ((len < 0) && (errno == EAGAIN || errno == EINTR)) {
@@ -726,11 +787,15 @@ ssize_t wrapWrite(int fd, const void *buf, size_t count) {
 static int unlinkDir_(char *dirPath) {
     DIR *dirHandle;
     struct dirent *entry;
-    // int retVal;
     char path[PATH_MAX + 1];
     struct dirent dr;
     int rc;
 
+    /* check */
+    if (dirPath == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
 
     dirHandle = opendir(dirPath);
     if (dirHandle == NULL) {
@@ -790,8 +855,14 @@ static int unlinkDir_(char *dirPath) {
 int unlinkDir(const char *dirPath) {
     char path[PATH_MAX + 1];
 
-    if (dirPath == NULL || dirPath[0] == '\0' || strlen(dirPath) >= PATH_MAX) {
-        return -1;
+    /* check */
+    if (dirPath == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+    if (dirPath[0] == '\0' || strlen(dirPath) >= PATH_MAX) {
+        ERROR("bad dirPath, %s", dirPath);
+        return PTS_FATAL;
     }
 
     strncpy(path, dirPath, sizeof(path));

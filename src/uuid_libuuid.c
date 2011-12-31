@@ -26,7 +26,7 @@
  * \brief UUID wrapper (libuuid part)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-11-29
- * cleanup 2011-10-07 SM
+ * cleanup 2011-12-31 SM
  *
  * Linux uses libuuid
  *
@@ -94,6 +94,7 @@ PTS_UUID *newUuid() {
 
     uuid = xmalloc(sizeof(PTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
 
@@ -107,6 +108,12 @@ PTS_UUID *newUuid() {
  * free UUID
  */
 void freeUuid(PTS_UUID *uuid) {
+    /* check */
+    if (uuid == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     xfree(uuid);
 }
 
@@ -119,16 +126,22 @@ PTS_UUID *getUuidFromString(char *str) {
     uuid_t uu;
     int rc;
 
+    /* check */
+    if (str == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     rc = uuid_parse(str, uu);
     if (rc != 0) {
-        ERROR("getUuidFromString() - uuid_parse fail, rc=%d, UUID='%s'\n",
+        ERROR("getUuidFromString() - uuid_parse fail, rc=%d, UUID='%s'",
             rc, str);
         return NULL;
     }
 
     uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
-        ERROR("\n");
+        ERROR("no memory");
         return NULL;
     }
     memcpy(uuid, uu, 16);
@@ -143,8 +156,15 @@ char * getStringOfUuid(PTS_UUID *uuid) {
     char *str_uuid;
     uuid_t uu;
 
+    /* check */
+    if (uuid == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     str_uuid = xmalloc(37);
     if (str_uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
 
@@ -208,6 +228,7 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
 
     pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memcpy(pdt, &time, (9*4));
@@ -230,6 +251,7 @@ PTS_DateTime * getDateTime() {
 
     pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memcpy(pdt, &ttm, (9*4));

@@ -517,6 +517,7 @@ int init(
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_SUCCESS,
         "\nptsc has successfully initialized!\n\n"));
+    INFO("ptsc has successfully initialized!\n");
     goto free;
 
  error:
@@ -524,6 +525,7 @@ int init(
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_FAIL,
         "ptsc initialization was failed\n\n"));
     printReason(ctx, 0);
+    INFO("ptsc initialization was failed\n");
 
  free:
     /* free */

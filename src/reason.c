@@ -48,9 +48,11 @@
 void freeReason(OPENPTS_REASON *reason) {
     /* check */
     if (reason == NULL) {
+        ERROR("null input");
         return;
     }
 
+    /* free */
     xfree(reason->message);
     xfree(reason);
 
@@ -61,10 +63,13 @@ void freeReason(OPENPTS_REASON *reason) {
  * Free Reason Chain
  */
 int freeReasonChain(OPENPTS_REASON *reason) {
+    /* check */
     if (reason == NULL) {
-        return PTS_INTERNAL_ERROR;
+        ERROR("null input");
+        return PTS_FATAL;
     }
 
+    /* chain */
     if (reason->next != NULL) {
         freeReasonChain(reason->next);
     }
@@ -85,6 +90,12 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
 
     // DEBUG("addReason - [%s]\n", message);
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     len = strlen(message);
 
     start = ctx->reason_start;
@@ -92,8 +103,8 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
 
     reason = (OPENPTS_REASON *) xmalloc(sizeof(OPENPTS_REASON));
     if (reason == NULL) {
-        ERROR("");
-        return -1;
+        ERROR("no memory");
+        return PTS_FATAL;
     }
     memset(reason, 0, sizeof(OPENPTS_REASON));
 
@@ -112,13 +123,18 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
     }
     reason->pcr = pcr;
     reason->message = xmalloc(len +1);
+    if (reason->message == NULL) {
+        ERROR("no memory");
+        xfree(reason);
+        return PTS_FATAL;
+    }
     memcpy(reason->message, message, len);
     reason->message[len] = 0;
     ctx->reason_count++;
 
     // DEBUG("addReason - done %d [%s]\n", ctx->reason_count, reason->message);
 
-    return 0;
+    return PTS_SUCCESS;
 }
 
 /**
@@ -131,6 +147,12 @@ int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...) {
     va_list list;
     va_start(list, format);
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return PTS_FATAL;
+    }
+
     vsnprintf(buf, MAX_REASON_SIZE, format, list);
 
     rc = addReason_old(ctx, pcr, (char *)buf);
@@ -138,6 +160,10 @@ int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...) {
     return rc;
 }
 
+/**
+ * PCR Usage HINT for each platform.
+ * TODO supply them by Conf.
+ */
 #ifdef AIX_TARGET
 char *reason_pcr_hints[] = {
     "IBM Partition Firmware Images",
@@ -152,9 +178,32 @@ char *reason_pcr_hints[] = {
     NULL, /* PCR9 Unused */
     "Trusted Execution Database"
 };
-#else
+#else // TPM v1.2, PC Linux, TODO add other type of platform?
 char *reason_pcr_hints[] = {
-    NULL
+    "CRTM, BIOS and Platform Extensions",
+    "Platform Configuration",
+    "Option ROM Code",
+    "Option ROM Configuration and Data",
+    "IPL Code (usually the MBR)",
+    "IPL Code Configuration and Data (for use by the IPL code)",
+    "State Transition and Wake Events",
+    "Host Platform Manufacturer Control",   // v1.1"Reserved for future usage. Do not use.", 
+    "OS Kernels (GRUB-IMA)",
+    NULL, /* PCR9 Unused */
+    "Applications (LINUX-IMA)", /* PCR10 */
+    "OpenPTS", /* PCR11 */
+    NULL, /* PCR12 Unused */
+    NULL, /* PCR13 Unused */
+    NULL, /* PCR14 Unused */
+    NULL, /* PCR15 Unused */
+    "Debug", /* PCR16 */
+    "Associated with the D-CRTM (Locality 4)", /* PCR17 */
+    "Host Platform defined (locality 3)", /* PCR18 */
+    "Trusted Operating System (locality 2)", /* PCR19 */
+    "Used by Trusted Operating System (locality 1)", /* PCR20 */
+    "Used by Trusted Operating System", /* PCR21 */
+    "Used by Trusted Operating System", /* PCR22 */
+    "Application Support", /* PCR23 */
 };
 #endif
 
@@ -165,6 +214,12 @@ char *reason_pcr_hints[] = {
 void printReason(OPENPTS_CONTEXT *ctx, int print_pcr_hints) {
     OPENPTS_REASON *reason;
     unsigned int i = 0, pcrmask = 0;
+
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return;
+    }
     reason = ctx->reason_start;
 
     while (reason != NULL) {
@@ -175,11 +230,10 @@ void printReason(OPENPTS_CONTEXT *ctx, int print_pcr_hints) {
         i++;
     }
     if (print_pcr_hints) {
-    for (i = 0; i < sizeof(reason_pcr_hints) / sizeof(char *); i++) {
-        if (!(pcrmask & (1 << i)) || reason_pcr_hints[i] == NULL)
-        continue;
-        OUTPUT("PCR%02d corresponds to: %s\n", i, reason_pcr_hints[i]);
-    }
+        for (i = 0; i < sizeof(reason_pcr_hints) / sizeof(char *); i++) {
+            if (!(pcrmask & (1 << i)) || reason_pcr_hints[i] == NULL) continue;
+            OUTPUT("PCR%02d corresponds to: %s\n", i, reason_pcr_hints[i]);
+        }
     }
 }
 

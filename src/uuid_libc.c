@@ -26,7 +26,7 @@
  * \brief UUID wrapper (using libc UUIDs)
  * @author Olivier Valentin <olivier.valentin@us.ibm.com>
  * @date 2011-02-02
- * cleanup 2011-03-06 SM
+ * cleanup 2011-12-31 SM
  *
  */
 
@@ -77,6 +77,7 @@ PTS_UUID *newUuid() {
 
     uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
 
@@ -97,6 +98,12 @@ PTS_UUID *newUuid() {
  * free UUID
  */
 void freeUuid(PTS_UUID *uuid) {
+    /* check */
+    if (uuid == NULL) {
+        ERROR("null input");
+        return;
+    }
+
     xfree(uuid);
 }
 
@@ -108,8 +115,15 @@ PTS_UUID *getUuidFromString(char *str) {
     uuid_t uu;
     unsigned32 status;
 
+    /* check */
+    if (str == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(uuid, 0, UUIDSIZE);
@@ -134,8 +148,15 @@ char * getStringOfUuid(PTS_UUID *uuid) {
     char *str_uuid_backup;
     unsigned32 status;
 
+    /* check */
+    if (uuid == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
+
     str_uuid = xmalloc(UUID_STRLEN + 1);
     if (str_uuid == NULL) {
+        ERROR("no memory");
         return NULL;
     }
 

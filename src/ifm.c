@@ -59,6 +59,11 @@
 #define MAX_TLV_MESSAGE_LENGTH 5120000
 
 void htoncl(uint8_t *ptr, uint32_t value) {
+    /* check */
+    if (ptr == NULL) {
+        ERROR("null input");
+        return;
+    }
     /* Convert value to network endian */
     *ptr++ = (uint8_t)(value >> 24);
     *ptr++ = (uint8_t)(value >> 16);
@@ -67,6 +72,12 @@ void htoncl(uint8_t *ptr, uint32_t value) {
 }
 
 uint32_t nctohl(uint8_t *ptr) {
+    /* check */
+    if (ptr == NULL) {
+        ERROR("null input");
+        return 0;
+    }
+
     return ((uint32_t)ptr[0] << 24) | ((uint32_t)ptr[1] << 16) |
            ((uint32_t)ptr[2] << 8)  | ptr[3];
 }
@@ -82,6 +93,7 @@ uint32_t nctohl(uint8_t *ptr) {
 
 // http://linux.die.net/man/2/sendfile
 // sendfile - transfer data between file descriptors
+// TODO offset?
 ssize_t my_sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     char buf[SENDFILE_BUF_SIZE];
     ssize_t read_size;
@@ -90,7 +102,6 @@ ssize_t my_sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
 
     DEBUG_IFM("my_sendfile(), size=%d ############################\n", count);
 
-    // offset == NULL
     do {
         /* set read size */
         if ((count - sum) > SENDFILE_BUF_SIZE) {
@@ -137,7 +148,12 @@ ssize_t copyfile(BYTE *buf, int in_fd, size_t count) {
 
     DEBUG_IFM("copyfile(), size=%d ############################\n", count);
 
-    // offset == NULL
+    /* check */
+    if (buf == NULL) {
+        ERROR("null input");
+        return 0;
+    }
+
     do {
         /* set read size */
         if ((count - ptr) > SENDFILE_BUF_SIZE) {
@@ -182,6 +198,7 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
     /* malloc TLV for read */
     read_tlv = (PTS_IF_M_Attribute *)xmalloc(sizeof(PTS_IF_M_Attribute));
     if (read_tlv == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     memset(read_tlv, 0, sizeof(PTS_IF_M_Attribute));
@@ -189,7 +206,7 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
     /* read IF-M header */
     rc = wrapRead(fdin, head, 12);
     if (rc == 0) {
-        ERROR("sock read fail. probably end of the handshake\n");
+        DEBUG_IFM("sock read fail. probably end of the handshake\n");
         goto error;
     }
 
@@ -262,7 +279,9 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
  * free PTS_IF_M_Attribute
  */
 void freePtsTlv(PTS_IF_M_Attribute *tlv) {
+    /* check */
     if (tlv == NULL) {
+        ERROR("null input");
         return;
     }
 
@@ -288,6 +307,7 @@ BYTE *getTlvBuffer(int type, int length) {
     PTS_IF_M_Attribute *write_tlv;
 
     if ((buf = xmalloc(12 + length)) == NULL) {
+        ERROR("no memory");
         return NULL;
     }
     /* setup TLV header */
@@ -315,21 +335,24 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
     int ptr;
     int rc;
     UINT16 nbou16;
-
     int fsize[MAX_RM_NUM];
     int fd[MAX_RM_NUM];
     int count[MAX_RM_NUM];
     struct stat st[MAX_RM_NUM];
-
     UINT32 num;
 
     DEBUG("writePtsTlvToSock - start\n");
 
     /* check */
-    ASSERT(NULL != ctx, "ctx is NULL\n");
-
+    if (ctx == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
     conf = ctx->conf;
-    ASSERT(NULL != conf, "conf is NULL\n");
+    if (conf == NULL) {
+        ERROR("null input");
+        return NULL;
+    }
 
     /* init fd[] */
     for (i = 0; i < MAX_RM_NUM; i++) {
@@ -349,14 +372,12 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 #ifdef CONFIG_AIDE
     case REQUEST_AIDE_DATABASE:
 #endif
-//    {
         buf = getTlvBuffer(type, 0);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         break;
-//    }
-
     /* Collector <-> Verifier */
     case OPENPTS_CAPABILITIES:
     {
@@ -364,6 +385,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
 
@@ -413,6 +435,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
             length = ctx->conf->pubkey_length;
             buf = getTlvBuffer(type, length);
             if (buf == NULL) {
+                ERROR("getTlvBuffer() is null");
                 goto error;
             }
 
@@ -494,6 +517,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
         /* check */
         if (conf->newrm_num == 0) {
             /* New RM is missing => send Error massage */
+            DEBUG_IFM("New RM is missing. send Error massage\n");
             ctx->ifm_errno = PTS_FATAL;
             ctx->ifm_strerror = smalloc_assert("New Manifest not found, check the collector");
             goto error;
@@ -526,6 +550,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         ptr = 12;
@@ -560,7 +585,10 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
     {
         length = ctx->nonce->nonce_length;
         buf = getTlvBuffer(type, length);
-        if (buf == NULL) goto error;
+        if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
+            goto error;
+        }
         memcpy(&buf[12], ctx->nonce->nonce, length);
         break;
     }
@@ -589,6 +617,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         ptr = 12;
@@ -644,6 +673,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         ptr = 12;
@@ -704,6 +734,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         ptr = 12;
@@ -752,6 +783,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         ptr = 12;
@@ -795,6 +827,7 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         buf = getTlvBuffer(type, length);
         if (buf == NULL) {
+            ERROR("getTlvBuffer() is null");
             goto error;
         }
         ptr = 12;
@@ -874,11 +907,18 @@ int writePtsTlv(OPENPTS_CONTEXT *ctx, int fdout, int type) {
 
     DEBUG_CAL("writePtsTlvToSock - start\n");
 
+    /* check */
+    if (ctx == NULL) {
+        ERROR("null input");
+        return -1;
+    }
+
     message = getPtsTlvMessage(ctx, type, &length);
     if (message != NULL) {
         rc = wrapWrite(fdout, message, length);
         DEBUG_IFM("writePtsTlv - type=%d, length = %d", type, length);
     } else {
+        DEBUG_IFM("getPtsTlvMessage() is null");
         goto error;
     }
 
@@ -889,7 +929,7 @@ int writePtsTlv(OPENPTS_CONTEXT *ctx, int fdout, int type) {
     return rc;
 
   error:
-    ERROR("writePtsTlvToSock()\n");
+    DEBUG_IFM("writePtsTlvToSock() fail, send error mgs\n");
 
     /* send ERROR */
     len = writePtsTlv(ctx, fdout, OPENPTS_ERROR);
