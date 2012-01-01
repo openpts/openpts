@@ -26,7 +26,7 @@
  * \brief  TPM(emu)/TSS
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2011-02-15
- * cleanup 
+ * cleanup 2012-01-02 SM
  *
  */
 
@@ -117,20 +117,36 @@ int printTpm(OPENPTS_TPM_CONTEXT *tctx);
 int getTpmPcrValue(OPENPTS_TPM_CONTEXT *tpm, int index, BYTE *digest);
 int resetTpmPcr(OPENPTS_TPM_CONTEXT *tctx, int index);
 
+/* Attestation(sign) key */
+// TSS_PS_TYPE_USER   1
+// TSS_PS_TYPE_SYSTEM 2
+// key_storage_type
+#define OPENPTS_AIK_STORAGE_TYPE_BLOB        0
+#define OPENPTS_AIK_STORAGE_TYPE_TSS_USER    1
+#define OPENPTS_AIK_STORAGE_TYPE_TSS_SYSTEM  2
+#define OPENPTS_AIK_STORAGE_TYPE_TSS         2  // default
+
+// auth_type
+#define OPENPTS_AIK_AUTH_TYPE_NULL    0
+#define OPENPTS_AIK_AUTH_TYPE_COMMON  1
+
 /* tss.c */
 int printTssKeyList(int ps_type);
 int createTssSignKey(
     PTS_UUID *uuid,
-    int ps_type,
+    int key_storage_type,
     char *filename,
     int auth_type,
     int force,
     int srk_password_mode);
-int deleteTssKey(PTS_UUID *uuid, int ps_type);
+int deleteTssKey(
+    PTS_UUID *uuid,
+    int key_storage_type,
+    char *filename);
 int getTpmVersion(TSS_VERSION *version);
 int getTssPubKey(
     PTS_UUID *uuid,
-    int ps_type,
+    int key_storage_type,
     int srk_password_mode,
     int resetdalock,
     char *filename,
@@ -138,7 +154,7 @@ int getTssPubKey(
     int *pubkey_length, BYTE **pubkey);
 int quoteTss(
     PTS_UUID *uuid,
-    int ps_type,
+    int key_storage_type,
     int srk_password_mode,
     char *filename,
     int auth_type,
@@ -147,7 +163,7 @@ int quoteTss(
     TSS_VALIDATION *validationData);
 int quote2Tss(
     PTS_UUID *uuid,
-    int ps_type,
+    int key_storage_type,
     int srk_password_mode,
     char *filename,
     int auth_type,

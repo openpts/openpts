@@ -26,7 +26,7 @@
  * \brief 
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-06-17
- * cleanup 2011-01-21 SM
+ * cleanup 2012-01-02 SM
  *
  */
 
@@ -424,7 +424,6 @@ typedef struct {
     int status;
 } OPENPTS_UUID;
 
-//<<<<<<< HEAD
 /* information about the components described by the models */
 typedef struct {
     char *SimpleName;
@@ -447,13 +446,6 @@ typedef struct {
     } VendorID_type;
     char *VendorID_Value;
 } OPENPTS_COMPID;
-//=======
-/* Attestation(sign) key */
-#define OPENPTS_AIK_STORAGE_TYPE_TSS  0
-#define OPENPTS_AIK_STORAGE_TYPE_BLOB 1
-#define OPENPTS_AIK_AUTH_TYPE_NULL    0
-#define OPENPTS_AIK_AUTH_TYPE_COMMON  1
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
 
 /**
  * Config

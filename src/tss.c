@@ -27,7 +27,7 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-18
  * refactoring 2011-02-15 SM
- * cleanup 2011-12-31 SM
+ * cleanup 2012-01-02 SM
  *
  * Create Sign Key
  * Create AIK
@@ -81,12 +81,12 @@ int printTssKeyList(int ps_type) {
     return TSS_SUCCESS;
 }
 
-int createTssSignKey(PTS_UUID *uuid, int ps_type, char *filename, int force, int srk_password_mode) {
+int createTssSignKey(PTS_UUID *uuid, int key_storage_type, char *filename, int force, int srk_password_mode) {
     /* dummy */
     return TSS_SUCCESS;
 }
 
-int deleteTssKey(PTS_UUID *uuid, int ps_type) {
+int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -104,7 +104,7 @@ int createAIK() {
 
 int getTssPubKey(
     PTS_UUID *uuid,
-    int ps_type, int srk_password_mode,
+    int key_storage_type, int srk_password_mode,
     int resetdalock, char *filename, int *pubkey_length, BYTE **pubkey) {
     /* dummy */
     return TSS_SUCCESS;
@@ -113,7 +113,7 @@ int getTssPubKey(
 int quoteTss(
         /* Key */
         PTS_UUID *uuid,
-        int ps_type,
+        int key_storage_type,
         int srk_password_mode,
         char *filename,
         /* Nonce */
@@ -129,7 +129,7 @@ int quoteTss(
 int quote2Tss(
         /* Key */
         PTS_UUID *uuid,
-        int ps_type,
+        int key_storage_type,
         int srk_password_mode,
         char *filename,
         /* Nonce */
@@ -467,12 +467,24 @@ int createTssSignKey(
 
     /* check */
     if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
+        /* TSS */
         ERROR("null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
-    if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) && (filename == NULL)) {
-        ERROR("null input");
-        return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+    if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+        if (filename == NULL) {
+            /* BLOB */
+            ERROR("null input");
+            return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+        } else {
+            if (force != 1) {
+                /* check file */
+                if (checkFile(filename) == OPENPTS_FILE_EXISTS) {
+                    ERROR("Blob file already exit. %s", filename);
+                    return TSS_E_KEY_ALREADY_REGISTERED;
+                }
+            }
+        }
     }
 
     /* Open TSS */
@@ -499,9 +511,11 @@ int createTssSignKey(
     }
 
     /* load SRK */
-    result = Tspi_Context_LoadKeyByUUID(hContext,
-                                        TSS_PS_TYPE_SYSTEM, SRK_UUID,
-                                        &hSRK);
+    result = Tspi_Context_LoadKeyByUUID(
+                hContext,
+                TSS_PS_TYPE_SYSTEM,  // SRK in PS_SYSTEM
+                SRK_UUID,
+                &hSRK);
     if (result != TSS_SUCCESS) {
         ERROR("Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
          result);
@@ -622,12 +636,6 @@ int createTssSignKey(
         /* save as blob */
         FILE *fp;
 
-        if (filename == NULL) {
-            ERROR("key blob filename is NULL\n");
-            result = TSS_E_KEY_NOT_LOADED;
-            goto close;
-        }
-
         fp = fopen(filename, "w");
         if (fp==NULL) {
             ERROR("file open fail, key blob file is %s",filename);
@@ -657,12 +665,13 @@ int createTssSignKey(
     } else {
         /* managed by TSS  */
   regkey:
-        result = Tspi_Context_RegisterKey(hContext,
-                                          hKey,
-                                          TSS_PS_TYPE_SYSTEM,
-                                          tss_uuid,
-                                          TSS_PS_TYPE_SYSTEM,
-                                          SRK_UUID);
+        result = Tspi_Context_RegisterKey(
+                    hContext,
+                    hKey,
+                    (UINT32)key_storage_type,  // TSS_PS_TYPE_SYSTEM,
+                    tss_uuid,
+                    TSS_PS_TYPE_SYSTEM,  // SRK
+                    SRK_UUID);
 
         if (result != TSS_SUCCESS) {
             if (result == 0x2008) {
@@ -670,11 +679,11 @@ int createTssSignKey(
                 if (force == 1) {
                     /* delete key */
                     TSS_HKEY hKey;
-                    result =
-                        Tspi_Context_UnregisterKey(hContext,
-                                                   TSS_PS_TYPE_SYSTEM,
-                                                   tss_uuid,
-                                                   &hKey);
+                    result = Tspi_Context_UnregisterKey(
+                               hContext,
+                               (UINT32)key_storage_type,  //TSS_PS_TYPE_SYSTEM,
+                               tss_uuid,
+                               &hKey);
                     if (result != TSS_SUCCESS) {
                         ERROR("Tspi_Context_UnregisterKey failed rc=0x%x\n",
                          result);
@@ -719,14 +728,35 @@ int createAIK() {
  * delete TSS key (UUID)
  * BLOB => just delete the file
  */
-int deleteTssKey(PTS_UUID *uuid, int ps_type) {
+int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HKEY hKey;
     TSS_UUID tss_uuid;
 
-    /* check */
-    if (uuid == NULL) {
+    /* check BLOB */
+    if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
+        if (filename == NULL) {
+            ERROR("null input");
+            return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
+        } else {
+            /* check file */
+            if (checkFile(filename) != OPENPTS_FILE_EXISTS) {
+                ERROR("Blob file not found. %s", filename);
+                return TSS_E_BAD_PARAMETER;
+            }
+            /* delete file */
+            if (remove(filename) != 0) {
+                ERROR("remove key blob is fail. %s", filename);
+                return TSS_E_FAIL;
+            }
+            /* OK */
+            return TSS_SUCCESS;
+        }
+    }
+
+    /* check TSS */
+    if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
         ERROR("null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
@@ -751,10 +781,11 @@ int deleteTssKey(PTS_UUID *uuid, int ps_type) {
 
     /* delete key */
     result =
-        Tspi_Context_UnregisterKey(hContext,
-                                   (UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
-                                   tss_uuid,
-                                   &hKey);
+        Tspi_Context_UnregisterKey(
+            hContext,
+            (UINT32)key_storage_type,  // TSS_PS_TYPE_SYSTEM
+            tss_uuid,
+            &hKey);
     if (result != TSS_SUCCESS) {
         ERROR("Tspi_Context_UnregisterKey failed rc=0x%x\n",
          result);
@@ -839,7 +870,7 @@ int getTssPubKey(
     /* Get SRK handles */
     result = Tspi_Context_LoadKeyByUUID(
                 hContext,
-                TSS_PS_TYPE_SYSTEM,
+                TSS_PS_TYPE_SYSTEM,  // SRK in PS_SYSTEM
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
@@ -922,7 +953,7 @@ int getTssPubKey(
         /* TSS PS*/
         result = Tspi_Context_LoadKeyByUUID(
                     hContext,
-                    TSS_PS_TYPE_SYSTEM,  //(UINT32) ps_type,  // ,
+                    (UINT32)key_storage_type,  //TSS_PS_TYPE_SYSTEM,
                     tss_uuid,
                     &hKey);
         if (result == 0x803) {
@@ -1220,7 +1251,7 @@ int quoteTss(
     /* Get SRK handles */
     result = Tspi_Context_LoadKeyByUUID(
                 hContext,
-                TSS_PS_TYPE_SYSTEM,
+                TSS_PS_TYPE_SYSTEM,  // SRK in PS_SYSTEM
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
@@ -1304,7 +1335,7 @@ int quoteTss(
         /* load from TSS's PS */
         result = Tspi_Context_LoadKeyByUUID(
                     hContext,
-                    TSS_PS_TYPE_SYSTEM, //(UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
+                    (UINT32)key_storage_type,  // TSS_PS_TYPE_SYSTEM
                     tss_uuid,
                     &hKey);
         if (result != TSS_SUCCESS) {
@@ -1626,7 +1657,7 @@ int quote2Tss(
     /* Get SRK handles */
     result = Tspi_Context_LoadKeyByUUID(
                 hContext,
-                TSS_PS_TYPE_SYSTEM,
+                TSS_PS_TYPE_SYSTEM, // SRK in PS_SYSTEM
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
@@ -1710,7 +1741,7 @@ int quote2Tss(
         /* load from TSS's PS */
         result = Tspi_Context_LoadKeyByUUID(
                     hContext,
-                    TSS_PS_TYPE_SYSTEM,  //(UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
+                    key_storage_type, // TSS_PS_TYPE_SYSTEM,
                     tss_uuid,
                     &hKey);
         if (result != TSS_SUCCESS) {
