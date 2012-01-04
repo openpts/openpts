@@ -373,9 +373,14 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
  *
  *  linux.kernel.cmdline.ro="" 
  *  linux.kernel.cmdline.ima_tcb="1" 
- * 
+ *
  *
  * UnitTest - tests/check_action.c
+ *
+ * 2012-01-04 conflict happen
+ * e.g.
+ *  linux.kernel.cmdline.rd_LVM_LV=vg_oc3277723285/lv_root
+ *  linux.kernel.cmdline.rd_LVM_LV=vg_oc3277723285/lv_swap
  * 
  */
 int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
@@ -425,11 +430,28 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
             /* A=B? */
             ep = strchr(tp, '=');
             if (ep != NULL) {
+                OPENPTS_PROPERTY *prop;
                 *ep = 0;
                 ep++;
                 snprintf(name, BUF_SIZE, "linux.kernel.cmdline.%s", tp);
                 snprintf(value, BUF_SIZE, "%s", ep);
-                addProperty(ctx, name, value);
+                /* check */
+                prop = getProperty(ctx, name);
+                if (prop != NULL) {
+                    // conflict
+                    DEBUG(
+                        "Property %s=%s and %s=%s are conflicted. Drop them from the policy list.",
+                        name, prop->value,
+                        name, value);
+                    VERBOSE(2, // TODO NLS
+                        "Property %s=%s and %s=%s are conflicted. Drop them from the policy list.",
+                        name, prop->value,
+                        name, value);
+                    prop->ignore = 1;
+                } else {
+                    // new prop, no conflict
+                    addProperty(ctx, name, value);
+                }
                 cnt++;
             } else {
                 snprintf(name, BUF_SIZE, "linux.kernel.cmdline.%s", tp);

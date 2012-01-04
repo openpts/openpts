@@ -715,6 +715,9 @@ int  writePolicyConf(OPENPTS_CONTEXT *ctx, char *filename) {
             /* IMA measurement - SKIP */
         } else if (!strncmp(prop->name, "disable.", 8)) {
             /* Indicates a disabled tpm quote - SKIP */
+        } else if (prop->ignore == 1) {
+            ERROR( // TODO NLS
+                "The property %s is conflicted and excluded from the policy.\n", prop->name);
         } else {
             fprintf(fp, "%s=%s\n", prop->name, prop->value);
             i++;

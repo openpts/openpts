@@ -154,6 +154,7 @@
  */
 typedef struct {
     int num;     /**< */
+    int ignore;   /**< flag to exclude policy check. 0: policy check, 1:ignore*/
     char *name;  /**< name */
     char *value; /**< value */
     void *next;  /**< ptr to the next property */
