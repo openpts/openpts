@@ -1,0 +1,169 @@
+.\" Copyright (C) 2012 International Business Machines Corporation
+.\"
+.de Sh \" Subsection
+.br
+.if t .Sp
+.ne 5
+.PP
+\fB\\$1\fR
+.PP
+..
+.de Sp \" Vertical space (when we can't use .PP)
+.if t .sp .5v
+.if n .sp
+..
+.de Ip \" List item
+.br
+.ie \\n(.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+.TH "ptsc.conf" 5 "2012-01-04" "OpenPTS"
+.ce 1
+Open Platform Trust Services(PTS)
+.SH NAME
+tcsd.conf \- configuration file for the PTS collector.
+.SH "DESCRIPTION"
+.PP
+This file, by default
+.IR /etc/ptsc.conf
+is read by the ptsc command, (see ptsc(8)).
+The ptsc.conf file that is installed by openpts contains all the default options, commented out.
+
+.SH "OPTIONS(Generic)"
+.PP
+.BI config.dir
+The directory to store the platform/collector data. /var/lib/openpts
+
+.BI ir.dir
+The directory to store the integrity report. /tmp/.ptsc
+
+.BI uuid.file
+The file store the UUID of the collector. /var/lib/openpts/uuid
+
+.BI newrm.uuid.file
+The file store the UUID of the new manifest. /var/lib/openpts/newrm_uuid
+
+.BI ifm.timeout
+The timeout value [sec].
+
+.BI srk.password.mode
+The SRK authentication type.
+.br
+null    tpm_takeownership with null password (just enter)
+.br
+known   tpm_takeownership with -z option
+
+.BI tpm.resetdalock
+Force reset the TPM LOCK FLAG if your TPM returns 0x803 error. "on" or "off"(default)
+
+.BI tpm.quote.type
+Select TPM_Quote or TPM_Quote2 for an attestation. 
+OpenSSL before version 1.0 can't validate TPM_Quote2 signature.
+If the platform uses DRTM, use quote2 to cover PCR16-23
+./br
+quote  TPM v1.1b. PCR[0:15]
+.br
+quote2 TPMv1.2 PCR[0:23]
+
+
+.BI iml.mode
+Select the IML access types.
+.br
+tss        via TSS
+.br
+securityfs direct access to the IML files
+
+.BI bios.iml.file
+For iml.mode=tss.
+/sys/kernel/security/tpm0/binary_bios_measurements
+
+.BI runtime.iml.file
+For iml.mode=tss.
+/sys/kernel/security/ima/binary_runtime_measurements
+
+.BI pcrs.file
+For iml.mode=tss.
+/sys/class/misc/tpm0/device/pcrs
+
+.BI runtime.iml.type
+Select binary format of Linux-IMA
+.br
+IMAORIG kernel 2.6.XX - 2.6.29
+.br
+IMA31   kernel 2.6.30 - 2.6.31
+.br
+IMA32   kernel 2.6.32 -
+
+.BI aik.storage.type
+Select storage location of AIK. For Infineon v1.2 TPM use "blob".
+.br
+tss  TSS PS storage
+.br
+blob file
+
+
+#
+BI. aik.storage.filename
+The filename of key blob file. ./key.blob
+
+BI. aik.auth.type
+The authentication type of AIK.
+./br
+null    null
+./br
+common  Common secret
+
+
+.SH "OPTIONS(Validation Models)"
+.PP
+
+.BI model.dir
+The location of model files. /usr/share/openpts/models
+
+.BI rm.basedir
+The directory to store the manifests. /var/lib/openpts/
+
+.BI. rm.num
+The number/level of manifest.
+
+.BI rm.model.NUM1.pcr.NUM2
+The validatiom model for each level(NUM1) and pcr index(NUM2).
+
+.SH "OPTIONS (Debug)"
+.PP
+.BI logging.file
+The location of logging file.
+
+.BI logging.location
+The logging loation: syslog, console
+
+.BI debug.mode
+The debbug mode. Set 0x01 for debug.
+
+
+.SH "EXAMPLE (PC PLATFORM)"
+.PP
+.IP
+.nf
+model.dir=/usr/share/openpts/models
+rm.basedir=/var/lib/openpts/
+rm.num=1
+rm.model.0.pcr.0=bios_pcr0.uml
+rm.model.0.pcr.1=bios_pcr1.uml
+rm.model.0.pcr.2=bios_pcr2.uml
+rm.model.0.pcr.3=bios_pcr3.uml
+rm.model.0.pcr.4=bios_pcr4.uml
+rm.model.0.pcr.5=bios_pcr5.uml
+rm.model.0.pcr.6=bios_pcr6.uml
+rm.model.0.pcr.7=bios_pcr7.uml
+.fi
+.SH "SEE ALSO"
+.PP
+\fBptsc\fR(8)
+.SH "AUTHOR"
+Seiji Munetoh
+.SH "REPORTING BUGS"
+Report bugs to <openpts-users@lists.sourceforge.jp>
+
+

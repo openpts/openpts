@@ -120,7 +120,8 @@ getent group ptsc >/dev/null || groupadd -r ptsc
 %{_prefix}/share/locale/ja/LC_MESSAGES/openpts.mo
 %config(noreplace) %attr(640, root, ptsc) %{_sysconfdir}/ptsc.conf
 #%{_mandir}/man1/openpts*
-#%{_mandir}/man8/openpts*
+%{_mandir}/man5/*
+%{_mandir}/man8/*
 # Fedora/RHEL
 %{_initrddir}/ptsc
 

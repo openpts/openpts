@@ -1,0 +1,85 @@
+.\" Copyright (C) 2011 International Business Machines Corporation
+.\"
+.de Sh \" Subsection
+.br
+.ie \\n(.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+.TH "iml2text" 8 "2012-01-04"  "Platform Trust Services(PTS)"
+.ce 1
+Platform Trust Services(PTS) - iml2text
+.SH NAME
+iml2text \- Integrity Measurement Log (IML) dump command
+.SH "SYNOPSIS"
+.ad l
+.hy 0
+.B iml2text
+.RB [ OPTION ]
+
+.SH "DESCRIPTION"
+.PP
+The iml2text utility is a filter which displays the Integrity Measurement Log (IML) in text format.
+
+
+.SH "OPTIONS"
+
+.TP
+\fB-i filename\fR
+Set binary eventlog file.
+
+.TP
+\fB-p pcr_index\fR
+Select pcr index [0:23]
+
+.TP
+\fB-I mode\fR
+Select IMA's log format (32:Kernel 2.6.32)
+
+.TP
+\fB-z\fR
+Set the SRK secret to all zeros (20 bytes of zeros)
+
+.TP
+\fB-V\fR
+Verify
+
+.TP
+\fB-D\fR
+DRTM
+
+.TP
+\fB-E\fR
+Enable endian conversion (BE->LE or LE->BE)
+
+.TP
+\fB-P\fR
+Show pcrs calculated from the IML
+
+.TP
+\fB-h\fR
+Help message
+
+.SH "TSS CONFIGRATION"
+.PP
+.IP
+
+The iml2text access the system IML via TSS.
+Thus the TSS must be configured to access the IMLs.
+
+Example /etc/tcsd.conf:
+.nf
+firmware_log_file = /sys/kernel/security/tpm0/binary_bios_measurements
+firmware_pcrs = 0,1,2,3,4,5,6,7,8
+kernel_log_file = /sys/kernel/security/ima/binary_runtime_measurements
+kernel_pcrs = 10
+.fi
+
+
+.SH "SEE ALSO"
+.PP
+\fBptsc\fR(8),\fBtcsd.conf\fR(5),
+.SH "AUTHOR"
+Seiji Munetoh
+.SH "REPORTING BUGS"
+Report bugs to <openpts-users@lists.sourceforge.jp>

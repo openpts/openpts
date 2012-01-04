@@ -1,0 +1,86 @@
+.\" Copyright (C) 2011 International Business Machines Corporation
+.\"
+.de Sh \" Subsection
+.br
+.ie \\n(.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+.TH "ptsc" 8 "2012-01-04"  "Platform Trust Services(PTS)"
+.ce 1
+Platform Trust Services(PTS) - ptsc
+.SH NAME
+ptsc \- PTS verifier command
+.SH "SYNOPSIS"
+.ad l
+.hy 0
+.B ptsc
+.RB [ OPTION ]
+.RB [ COMMAND ]
+
+.SH "DESCRIPTION"
+.PP
+\fBptsc\fR is a collector side application of Platform Trust Services(PTS).
+
+
+.SH "COMMANDS"
+
+.TP
+\fB-i\fR
+Initialize PTS collector
+
+.TP
+\fB-t\fR
+Self test (attestation)
+
+.TP
+\fB-s\fR
+Startup (selftest + timestamp)
+
+.TP
+\fB-u\fR
+Update the reference manifests(RM)
+
+.TP
+\fB-c\fR
+Clear PTS collector
+
+.TP
+\fB-U\fR
+Update the RM (auto)
+
+.TP
+\fB-D\fR
+Display the configuration
+
+.SH "OPTIONS"
+
+.TP
+\fB-c configfile\fR
+Set configuration file. defalt is /etc/ptsc.conf
+
+.TP
+\fB-P name=value\fR
+Set properties.
+
+.TP
+\fB-R\fR
+Remove RMs
+
+.TP
+\fB-z\fR
+Set the SRK secret to all zeros (20 bytes of zeros)
+
+.TP
+\fB-v\fR
+Verbose mode. Multiple -v options increase the verbosity.
+
+
+.SH "SEE ALSO"
+.PP
+\fBptsc.conf\fR(5),\fBopenpts\fR(8)
+.SH "AUTHOR"
+Seiji Munetoh
+.SH "REPORTING BUGS"
+Report bugs to <openpts-users@lists.sourceforge.jp>
+
