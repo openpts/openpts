@@ -99,13 +99,14 @@ ir2text_SOURCES = ir2text.c
 
 #base64.c log.c
 
-ptsevt_CFLAGS = $(AM_CFLAGS)
-ptsevt_LDFLAGS = $(AM_LDFLAGS)
-ptsevt_SOURCES = ptsevt.c
+# AIX
+#ptsevt_CFLAGS = $(AM_CFLAGS)
+#ptsevt_LDFLAGS = $(AM_LDFLAGS)
+#ptsevt_SOURCES = ptsevt.c
 
-ptsevtd_CFLAGS = $(AM_CFLAGS)
-ptsevtd_LDFLAGS = $(AM_LDFLAGS) -lrt
-ptsevtd_SOURCES = ptsevtd.c
+#ptsevtd_CFLAGS = $(AM_CFLAGS)
+#ptsevtd_LDFLAGS = $(AM_LDFLAGS) -lrt
+#ptsevtd_SOURCES = ptsevtd.c
 
 
 if HAVE_LIBUUID

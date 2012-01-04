@@ -68,20 +68,20 @@ void global_lock(int type) {
     // TODO HOME/.openpts/rwlock is hardcoded here
     home = getenv("HOME");
     if (home == NULL) {
-        ERROR("HOME environment variable not defined\n");
+        LOG(LOG_ERR, "HOME environment variable not defined\n");
         exit(1);
     }
 
     snprintf(path, PATH_MAX, "%s/.openpts", home);
     if (mkdir(path, 0700) < 0 && errno != EEXIST) {
-        ERROR("Can't create dir, %s", path);
+        LOG(LOG_ERR, "Can't create dir, %s", path);
         exit(1);
     }
 
     snprintf(path, PATH_MAX, "%s/.openpts/rwlock", home);
     fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666);
     if (fd < 0) {
-        ERROR("Can't open lock file, %s", path);
+        LOG(LOG_ERR, "Can't open lock file, %s", path);
         exit(1);
     }
 
@@ -94,7 +94,8 @@ void global_lock(int type) {
     if (fcntl(fd, F_SETLK, &fl) < 0) {
         // get PID of the process holding that lock
         fcntl(fd, F_GETLK, &fl);
-        fprintf(stderr, "Openpts configulation is locked by other(pid=%d)\n", fl.l_pid);
+        ERROR(  // TODO NLS
+            "Openpts configulation is locked by other(pid=%d)\n", fl.l_pid);
         exit(1);
     }
 }
@@ -116,7 +117,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
 
     /* check */
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -128,7 +129,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
     if (checkDir(dirpath) == PTS_SUCCESS) {
         struct stat statBuf;
         if (-1 == stat(conf_file, &statBuf) && ENOENT == errno) {
-            ERROR("Found openpts dir '%s', but no config file - will create one.", dirpath);
+            LOG(LOG_ERR, "Found openpts dir '%s', but no config file - will create one.", dirpath);
             createBasicConfig = 1;
         }
         configDirExists = 1;
@@ -136,7 +137,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         // create and initialize the $HOME/.openpts directory
         rc = mkdir(dirpath, S_IRUSR | S_IWUSR | S_IXUSR);
         if (rc != 0) {
-            ERROR("mkdir on %s failed (errno=%d)", dirpath, errno);
+            LOG(LOG_ERR, "mkdir on %s failed (errno=%d)", dirpath, errno);
             rc=PTS_FATAL;
             goto error;
         }
@@ -154,7 +155,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         genOpenptsUuid(conf->uuid);
         rc = writeOpenptsUuidFile(conf->uuid, 1);
         if (rc != PTS_SUCCESS) {
-            ERROR("Can't create UUID file, %s", uuid_file);
+            LOG(LOG_ERR, "Can't create UUID file, %s", uuid_file);
             rc=PTS_FATAL;
             goto error;
         }
@@ -162,7 +163,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         /* write Conf */
         rc = writeOpenptsConf(conf, conf_file);
         if (rc != PTS_SUCCESS) {
-            ERROR("Can't create config file, %s", conf_file);
+            LOG(LOG_ERR, "Can't create config file, %s", conf_file);
             rc=PTS_FATAL;
             goto error;
         }
@@ -172,7 +173,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
     DEBUG("read conf file          : %s\n", conf_file);
     rc = readOpenptsConf(conf, conf_file);
     if (rc != PTS_SUCCESS) {
-        ERROR("readOpenptsConf() failed\n");
+        LOG(LOG_ERR, "readOpenptsConf() failed\n");
     }
 
     return rc;
@@ -181,7 +182,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
     if (configDirExists == 1) {
         /* rollback delete conf dir? */
         // TODO
-        ERROR("Can't configure the openpts(verifier). "
+        LOG(LOG_ERR, "Can't configure the openpts(verifier). "
               "remove the wasted dir, e.g. rm -rf %s)", dirpath);
     }
 
@@ -239,17 +240,17 @@ int verifierHandleCapability(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     verifier_uuid = conf->uuid;
     if (verifier_uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -259,7 +260,7 @@ int verifierHandleCapability(
     }
     ctx->collector_uuid = newOpenptsUuid2(&cap->platform_uuid);
     if (ctx->collector_uuid == NULL) {
-        // ERROR("Bad collector uuid\n");
+        // LOG(LOG_ERR, "Bad collector uuid\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -270,7 +271,7 @@ int verifierHandleCapability(
     }
     ctx->rm_uuid = newOpenptsUuid2(&cap->manifest_uuid);
     if (ctx->rm_uuid == NULL) {
-        // ERROR("Bad RM uuid\n");
+        // LOG(LOG_ERR, "Bad RM uuid\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -282,7 +283,7 @@ int verifierHandleCapability(
     rc = checkDir(collector_dir);
     if (rc != PTS_SUCCESS) {
         /* DIR is missing, unknwon collector */
-        ERROR("verifier() - Unknown collector, UUID= %s dir= %s, rc=%d\n",
+        LOG(LOG_ERR, "verifier() - Unknown collector, UUID= %s dir= %s, rc=%d\n",
             ctx->collector_uuid->str, collector_dir, rc);
         addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_MISSING_CONFIG_2,
             "Missing collector configuration"));
@@ -312,7 +313,7 @@ int verifierHandleCapability(
 
         rc = readTargetConf(target_conf, target_conf->config_file);
         if (rc != PTS_SUCCESS) {
-            ERROR("verifier() - readTargetConf failed, %s\n", target_conf->config_file);
+            LOG(LOG_ERR, "verifier() - readTargetConf failed, %s\n", target_conf->config_file);
             // WORK NEEDED: Please use NLS for i18n
             addReason(ctx, -1, "Missing collector configuration file");
             addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_COLLECTOR_HOSTNAME,
@@ -328,7 +329,7 @@ int verifierHandleCapability(
         target_conf = ctx->target_conf;
         if (memcmp(target_conf->uuid->uuid, ctx->collector_uuid->uuid, 16) != 0) {
             /* Miss, hostname or IP address was changed?  */
-            ERROR("verifier() - Unexpected collector UUID= %s, must be %s\n",
+            LOG(LOG_ERR, "verifier() - Unexpected collector UUID= %s, must be %s\n",
                 ctx->collector_uuid->str, target_conf->uuid->uuid);
             // WORK NEEDED: Please use NLS for i18n
             addReason(ctx, -1, "Collector configuration was changed");
@@ -424,7 +425,7 @@ int verifierHandleCapability(
             /* Save Old RM */
             rc = writeOpenptsUuidFile(target_conf->oldrm_uuid, 1);
             if (rc != PTS_SUCCESS) {
-                ERROR("writeOpenptsUuidFile fail\n");
+                LOG(LOG_ERR, "writeOpenptsUuidFile fail\n");
             }
 
             /* Copy NEWRM to RM */
@@ -436,7 +437,7 @@ int verifierHandleCapability(
             /* Save RM */
             rc = writeOpenptsUuidFile(target_conf->rm_uuid, 1);
             if (rc != PTS_SUCCESS) {
-                ERROR("writeOpenptsUuidFile fail\n");
+                LOG(LOG_ERR, "writeOpenptsUuidFile fail\n");
             }
 
             /* Delete New RM */
@@ -451,7 +452,7 @@ int verifierHandleCapability(
             (target_conf->oldrm_uuid->uuid != NULL) &&
             (memcmp(target_conf->oldrm_uuid->uuid, ctx->rm_uuid->uuid, 16) == 0)) {
             /* HIT - fallback ? */
-            TODO("Fallback - TBD\n");
+            LOG(LOG_TODO, "Fallback - TBD\n");
             rc = PTS_RULE_NOT_FOUND;  // TODO
             goto close;
         } else {
@@ -460,7 +461,7 @@ int verifierHandleCapability(
             PTS_DateTime *t0;
             PTS_DateTime *t1;
 
-            ERROR("RM changed %s -> %s (not new rm)\n",
+            LOG(LOG_ERR, "RM changed %s -> %s (not new rm)\n",
                 target_conf->rm_uuid->str, ctx->rm_uuid->str);
 
             // TODO DEBUG("RM changed %s -> %s\n", target_conf->rm_uuid->str, rm_uuid->str);
@@ -513,7 +514,7 @@ int verifierHandleCapability(
     rc = checkDir(rm_dir);
     if (rc != PTS_SUCCESS && 0 == *currentRmOutOfDate) {
         /* unknwon RM */
-        ERROR("verifier() - Unknown RM, (RM dir = %s)\n", rm_dir);
+        LOG(LOG_ERR, "verifier() - Unknown RM, (RM dir = %s)\n", rm_dir);
         addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_MISSING_RM,
             "Missing Reference Manifest (RM)"));
         addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_COLLECTOR_HOSTNAME,
@@ -551,7 +552,7 @@ int verifierHandleCapability(
     for (i = 0; i< target_conf->rm_num; i++) {
         struct stat st;
         if (lstat(target_conf->rm_filename[i], &st) == -1) {
-            ERROR("verifier - RM (%s) is missing. Get RM from target. enroll(init) first\n",
+            LOG(LOG_ERR, "verifier - RM (%s) is missing. Get RM from target. enroll(init) first\n",
                 target_conf->rm_filename[i]);
             rc = PTS_INTERNAL_ERROR;
             goto close;
@@ -585,16 +586,16 @@ int verifierHandleRimmSet(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     target_conf = ctx->target_conf;
     if (target_conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (value == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -611,14 +612,14 @@ int verifierHandleRimmSet(
         /* Missing rm_basedir => create */
         rc = mkdir(target_conf->rm_basedir, S_IRUSR | S_IWUSR | S_IXUSR);
         if (rc != 0) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONF_DIR_CREATE_FAILED,
-                    "Failed to create the configuration directory '%s'\n"), buf);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONF_DIR_CREATE_FAILED,
+                "Failed to create the configuration directory '%s'\n"), buf);
             rc = PTS_INTERNAL_ERROR;
             goto error;
         }
     } else if ((st.st_mode & S_IFMT) != S_IFDIR) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_RM_DIR_NOT_DIR,
-                "The reference manifest path '%s' is not a directory\n"), buf);
+        ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_RM_DIR_NOT_DIR,
+            "The reference manifest path '%s' is not a directory\n"), buf);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -646,7 +647,7 @@ int verifierHandleRimmSet(
 
         rc = saveToFile(target_conf->rm_filename[i], len, value);
         if (rc != PTS_SUCCESS) {
-            ERROR("enroll - save RM[%d], %s failed\n", i, target_conf->rm_filename[i]);
+            LOG(LOG_ERR, "enroll - save RM[%d], %s failed\n", i, target_conf->rm_filename[i]);
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -660,7 +661,7 @@ int verifierHandleRimmSet(
 
     rc = writeOpenptsUuidFile(target_conf->rm_uuid, 1);  // TODO do not overwite?
     if (rc != PTS_SUCCESS) {
-        ERROR("writeOpenptsUuidFile fail\n");
+        LOG(LOG_ERR, "writeOpenptsUuidFile fail\n");
     }
 
   close:
@@ -687,17 +688,18 @@ int  writePolicyConf(OPENPTS_CONTEXT *ctx, char *filename) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     if ((fp = fopen(filename, "w")) == NULL) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_OPEN_FAILED, "Failed to open policy file '%s'\n"), filename);
-        return -1;
+        ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_OPEN_FAILED,
+            "Failed to open policy file '%s'\n"), filename);
+        return PTS_FATAL;
     }
 
     /* top */
@@ -760,16 +762,16 @@ int  writeAideIgnoreList(OPENPTS_CONTEXT *ctx, char *filename) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     if ((fp = fopen(filename, "w")) == NULL) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_OPEN_FAILED_2,
+        ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_OPEN_FAILED_2,
             "Failed to open AIDE ignore list '%s'\n"), filename);
         return -1;
     }
@@ -777,7 +779,7 @@ int  writeAideIgnoreList(OPENPTS_CONTEXT *ctx, char *filename) {
     /* top */
     ss = getSnapshotFromTable(ctx->ss_table, 10, 1);  // Linux-IMA, TODO define by CONF?
     if (ss == NULL) {
-        ERROR("Snapshot at PCR[10] level 1 is missing\n");
+        LOG(LOG_ERR, "Snapshot at PCR[10] level 1 is missing\n");
     } else {
         ew = ss->start;
 
@@ -791,11 +793,11 @@ int  writeAideIgnoreList(OPENPTS_CONTEXT *ctx, char *filename) {
         rc = hcreate_r(HASH_TABLE_SIZE, &hd);
         if (rc == 0) {
             if (errno == ENOMEM) {
-                ERROR("ENOMEM\n");
+                LOG(LOG_ERR, "ENOMEM\n");
                 cnt = -1;
                 goto error;
             }
-            ERROR("ERROR rc=%d\n", rc);
+            LOG(LOG_ERR, "ERROR rc=%d\n", rc);
             // return -1;
             cnt = -1;
             goto error;
@@ -861,16 +863,16 @@ int verifierHandleIR(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     target_conf = ctx->target_conf;
     if (target_conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (value == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -880,14 +882,14 @@ int verifierHandleIR(
         if (rc != PTS_SUCCESS) {
             DEBUG("target_conf->ir_filename, %s\n", target_conf->ir_filename);
             addReason(ctx, -1, "[IMV] failed to save IR, %s)", target_conf->ir_filename);
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_SAVE_IR_FAILED,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_SAVE_IR_FAILED,
                 "[verifier] failed to save IR\n"));
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
     } else {
         addReason(ctx, -1, "[IMV] failed to send IR)");
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_VERIFIER_SEND_IR_FAILED,
+        ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_SEND_IR_FAILED,
             "[verifier] failed to send IR\n"));
         rc = PTS_INTERNAL_ERROR;
         goto close;
@@ -899,7 +901,7 @@ int verifierHandleIR(
     for (i = 0; i <  target_conf->rm_num; i++) {
         rc = readRmFile(ctx, target_conf->rm_filename[i], i);
         if (rc < 0) {
-            ERROR("readRmFile fail\n");
+            LOG(LOG_ERR, "readRmFile fail\n");
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -910,7 +912,7 @@ int verifierHandleIR(
         DEBUG("Load Policy  -------------------------------- \n");
         rc = loadPolicyFile(ctx, target_conf->policy_filename);
         if (rc < 0) {
-            ERROR("loadPolicyFile fail\n");
+            LOG(LOG_ERR, "loadPolicyFile fail\n");
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -932,7 +934,7 @@ int verifierHandleIR(
 
         rc = saveProperties(ctx, target_conf->prop_filename);
         if (rc != PTS_SUCCESS) {
-            ERROR("saveProperties was failed %s\n", target_conf->prop_filename);
+            LOG(LOG_ERR, "saveProperties was failed %s\n", target_conf->prop_filename);
             goto close;
         }
     } else if (mode == OPENPTS_UPDATE_MODE) {
@@ -947,7 +949,7 @@ int verifierHandleIR(
         }
 #endif
     } else {
-        ERROR("unknown mode %d\n", mode);
+        LOG(LOG_ERR, "unknown mode %d\n", mode);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -993,11 +995,11 @@ int enroll(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_INTERNAL_ERROR;
     }
     if (ctx->conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1019,7 +1021,7 @@ int enroll(
         // the target UUID may have been reseted, erase the known one
         unlinkDir(target->dir);
     } else if (ctx->target_conf != NULL) {
-        ERROR("enroll() - target_conf of %s already exist?\n", host);
+        LOG(LOG_ERR, "enroll() - target_conf of %s already exist?\n", host);
         goto out;
     }
 
@@ -1047,7 +1049,7 @@ int enroll(
     /* V->C capability (hello) */
     len = writePtsTlv(ctx, sock, OPENPTS_CAPABILITIES);
     if (len < 0) {
-        ERROR("Failed to send capability message, rc = %d\n", len);
+        LOG(LOG_ERR, "Failed to send capability message, rc = %d\n", len);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1055,19 +1057,19 @@ int enroll(
     /* C->V capability (hello) */
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("Can not get the message from collector\n");
+        LOG(LOG_ERR, "Can not get the message from collector\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
 
     if (read_tlv->type != OPENPTS_CAPABILITIES) {
-        ERROR("Expected OPENPTS_CAPABILITIES reply, instead got type '%d'\n", read_tlv->type);
+        LOG(LOG_ERR, "Expected OPENPTS_CAPABILITIES reply, instead got type '%d'\n", read_tlv->type);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
 
     if (read_tlv->length != sizeof(OPENPTS_IF_M_Capability)) {  // TODO set name
-        ERROR("UUID length = %d != 36\n", read_tlv->length);
+        LOG(LOG_ERR, "UUID length = %d != 36\n", read_tlv->length);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1163,7 +1165,7 @@ int enroll(
     /* V->C template RIMM req  */
     len = writePtsTlv(ctx, sock, REQUEST_RIMM_SET);
     if (len < 0) {
-        ERROR("template RIMM req was failed\n");
+        LOG(LOG_ERR, "template RIMM req was failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1171,22 +1173,22 @@ int enroll(
     /* C->V template RIMM (RIMM embedded to CTX) */
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("Problem receiving PTS message\n");
+        LOG(LOG_ERR, "Problem receiving PTS message\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type == OPENPTS_ERROR) {
-        ERROR("Request RIMM_SET was failed. collector returns error message");
+        LOG(LOG_ERR, "Request RIMM_SET was failed. collector returns error message");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != RIMM_SET) {
-        ERROR("Bad return message, %X != %X", read_tlv->type, RIMM_SET);
+        LOG(LOG_ERR, "Bad return message, %X != %X", read_tlv->type, RIMM_SET);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
 
     rc = verifierHandleRimmSet(ctx, (BYTE*) read_tlv->value);
     if (rc != PTS_SUCCESS) {
-        ERROR("Bad RIMM_SET?");
+        LOG(LOG_ERR, "Bad RIMM_SET?");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1200,7 +1202,7 @@ int enroll(
     len = writePtsTlv(ctx, sock, REQUEST_TPM_PUBKEY);  // ifm.c
 
     if (len < 0) {
-        ERROR("enroll() - REQUEST_TPM_PUBKEY was failed, len=%d\n", len);
+        LOG(LOG_ERR, "enroll() - REQUEST_TPM_PUBKEY was failed, len=%d\n", len);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1208,18 +1210,18 @@ int enroll(
     /* C->V TPM PUBKEY */
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("Problem receiving PTS message\n");
+        LOG(LOG_ERR, "Problem receiving PTS message\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type == OPENPTS_ERROR) {
         // TODO Ignore now
-        TODO("Target did not have TPM_PUBKEY");
+        LOG(LOG_TODO, "Target did not have TPM_PUBKEY");
         // WORK NEEDED - Please use NLS for i18n
         addReason(ctx, -1, "Target did not have TPM_PUBKEY\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != TPM_PUBKEY) {
-        ERROR("read_tlv->type != TPM_PUBKEY, but %d", read_tlv->type);
+        LOG(LOG_ERR, "read_tlv->type != TPM_PUBKEY, but %d", read_tlv->type);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1249,12 +1251,12 @@ int enroll(
 
 
 #ifdef CONFIG_AIDE
-    // TODO(munetoh) capability defile validation mode of collector
+    // LOG(LOG_TODO, munetoh) capability defile validation mode of collector
     /* V->C AIDE_DATABASE req  */
     len = writePtsTlv(ctx, sock, REQUEST_AIDE_DATABASE);
 
     if (len < 0) {
-        ERROR("template RIMM req was failed\n");
+        LOG(LOG_ERR, "template RIMM req was failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1262,7 +1264,7 @@ int enroll(
     /* C->V AIDE DATABASE */
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("Problem receiving PTS message\n");
+        LOG(LOG_ERR, "Problem receiving PTS message\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != AIDE_DATABASE) {
@@ -1272,7 +1274,7 @@ int enroll(
             target_conf->ima_validation_mode = OPENPTS_VALIDATION_MODE_NONE;
             DEBUG("enroll - AIDE DB is missing. do not validate IMA's IMLs\n");
         } else {
-            ERROR("enroll - RAIDE DB req. returns unknown message type 0x%x", read_tlv->type);
+            LOG(LOG_ERR, "enroll - RAIDE DB req. returns unknown message type 0x%x", read_tlv->type);
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -1284,7 +1286,7 @@ int enroll(
 
             rc = saveToFile(target_conf->aide_database_filename, read_tlv->length, read_tlv->value);
             if (rc < 0) {
-                ERROR("enroll - save AIDE DB failed\n");
+                LOG(LOG_ERR, "enroll - save AIDE DB failed\n");
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1295,7 +1297,7 @@ int enroll(
                     ctx->conf->aide_database_filename,
                     ctx->conf->aide_sqlite_filename);
             if (rc != PTS_SUCCESS) {
-                ERROR("enroll - convert AIDE DB to SQLiteDB was failed\n");
+                LOG(LOG_ERR, "enroll - convert AIDE DB to SQLiteDB was failed\n");
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1376,12 +1378,12 @@ int verifier(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1393,7 +1395,7 @@ int verifier(
                           &sock);
 
     if (ssh_pid == -1) {
-        ERROR("connection failed (server = %s)\n", host);
+        LOG(LOG_ERR, "connection failed (server = %s)\n", host);
         addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONNECT_FAILED,
             "Connection failed (server = %s)\n"), host);
         rc = PTS_OS_ERROR;
@@ -1405,7 +1407,7 @@ int verifier(
     /* V->C capability (hello) */
     len = writePtsTlv(ctx, sock, OPENPTS_CAPABILITIES);
     if (len < 0) {
-        ERROR("Failed to send capability message\n");
+        LOG(LOG_ERR, "Failed to send capability message\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1413,16 +1415,16 @@ int verifier(
     /* C->V capability (hello) */
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("can't connect to target, %s\n", host);
+        LOG(LOG_ERR, "can't connect to target, %s\n", host);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != OPENPTS_CAPABILITIES) {
-        ERROR("Expected OPENPTS_CAPABILITIES reply, instead got type '%d'\n", read_tlv->type);
+        LOG(LOG_ERR, "Expected OPENPTS_CAPABILITIES reply, instead got type '%d'\n", read_tlv->type);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->length != sizeof(OPENPTS_IF_M_Capability)) {
         // TODO PTS_CAPABILITIES_SIZE
-        ERROR("UUID length = %d != 36\n", read_tlv->length);
+        LOG(LOG_ERR, "UUID length = %d != 36\n", read_tlv->length);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1431,7 +1433,7 @@ int verifier(
     rc = verifierHandleCapability(ctx, conf_dir, host, cap,
                                   &notifiedOfPendingRm, &currentRmOutOfDate);
     if (rc != PTS_SUCCESS) {
-        ERROR("Failed to exchange capabilities\n");
+        LOG(LOG_ERR, "Failed to exchange capabilities\n");
         goto close;
     }
 
@@ -1444,7 +1446,7 @@ int verifier(
     /*   send req   */
     len = writePtsTlv(ctx, sock, DH_NONCE_PARAMETERS_REQUEST);
     if (len < 0) {
-        ERROR("Failed to send nonce parameters request\n");
+        LOG(LOG_ERR, "Failed to send nonce parameters request\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1455,11 +1457,11 @@ int verifier(
 
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("[IF-M] DH_NONCE_PARAMETERS_REQUEST was failed, check the collector");
+        LOG(LOG_ERR, "[IF-M] DH_NONCE_PARAMETERS_REQUEST was failed, check the collector");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != DH_NONCE_PARAMETORS_RESPONSE) {
-        ERROR("Expected DH_NONCE_PARAMETORS_RESPONSE reply, but instead got type '%d'\n",
+        LOG(LOG_ERR, "Expected DH_NONCE_PARAMETORS_RESPONSE reply, but instead got type '%d'\n",
             read_tlv->type);
         rc = PTS_INTERNAL_ERROR;
         goto close;
@@ -1475,7 +1477,7 @@ int verifier(
     ctx->nonce->res->hash_alg_set        = (read_tlv->value[6]<<8) | read_tlv->value[7];
 
     if (ctx->nonce->res->nonce_length < MINIMUM_NONCE_LENGTH) {
-        ERROR("Expected minimum nonce length of '%d', instead got '%d'\n",
+        LOG(LOG_ERR, "Expected minimum nonce length of '%d', instead got '%d'\n",
             MINIMUM_NONCE_LENGTH, ctx->nonce->res->nonce_length);
         rc = PTS_INTERNAL_ERROR;
         goto close;
@@ -1483,7 +1485,7 @@ int verifier(
 
     /* set pubkey length */
     if ( 0 != setDhPubkeylength(ctx->nonce) ) {
-        ERROR("setDhPubkeylength failed\n");
+        LOG(LOG_ERR, "setDhPubkeylength failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1505,7 +1507,7 @@ int verifier(
 
     rc = calcDh(ctx->nonce);
     if (rc != 0) {
-        ERROR("calcDh failed\n");
+        LOG(LOG_ERR, "calcDh failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1513,7 +1515,7 @@ int verifier(
     /* V->C D-H nonce finish  --------------------------------------------- */
     len = writePtsTlv(ctx, sock, DH_NONCE_FINISH);
     if (len < 0) {
-        ERROR("Failed to send nonce finish message\n");
+        LOG(LOG_ERR, "Failed to send nonce finish message\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1521,7 +1523,7 @@ int verifier(
     /* V->C IR req -------------------------------------------------------- */
     len = writePtsTlv(ctx, sock, REQUEST_INTEGRITY_REPORT);
     if (len < 0) {
-        ERROR("Failed to send request integrity report message\n");
+        LOG(LOG_ERR, "Failed to send request integrity report message\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1532,18 +1534,18 @@ int verifier(
 
     read_tlv = readPtsTlv(sock);
     if (read_tlv == NULL) {
-        ERROR("Failed to get integrity report. Please check the collector.\n");
+        LOG(LOG_ERR, "Failed to get integrity report. Please check the collector.\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     } else if (read_tlv->type != INTEGRITY_REPORT) {
-        ERROR("read_tlv->type != INTEGRITY_REPORT, but 0x%X (0x0F:OPENPTS_ERROR)", read_tlv->type);
+        LOG(LOG_ERR, "read_tlv->type != INTEGRITY_REPORT, but 0x%X (0x0F:OPENPTS_ERROR)", read_tlv->type);
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
 
     rc = verifierHandleIR(ctx, read_tlv->length, read_tlv->value, mode, &result);
     if (rc != PTS_SUCCESS) {
-        ERROR("verifierHandleIR fail\n");
+        LOG(LOG_ERR, "verifierHandleIR fail\n");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
@@ -1559,7 +1561,7 @@ int verifier(
         /* V->C template RIMM req  */
         rc = writePtsTlv(ctx, sock, REQUEST_NEW_RIMM_SET);
         if (rc < 0) {
-            ERROR("writePtsTlv() fail");
+            LOG(LOG_ERR, "writePtsTlv() fail");
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -1583,7 +1585,7 @@ int verifier(
     /* V->C VR */
     len = writePtsTlv(ctx, sock, VERIFICATION_RESULT);
     if (len < 0) {
-        ERROR("writePtsTlv() fail");
+        LOG(LOG_ERR, "writePtsTlv() fail");
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }

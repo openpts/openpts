@@ -78,7 +78,8 @@ extern char *ptsc_command;
  * Usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_USAGE, "OpenPTS command\n\n"
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_USAGE_1,
+        "OpenPTS command\n\n"
         "Usage: openpts [options] {-i [-f]|[-v]||-r|-D} <target>\n"
         "       openpts -D\n\n"
         "Commands:\n"
@@ -91,10 +92,12 @@ void usage(void) {
         "  -h                    Show this help message\n"
         "  -V                    Verbose mode. Multiple -V options increase the verbosity.\n"
         "\n"
-        "Options:\n"
+        "Options:\n"));
 #ifdef CONFIG_AUTO_RM_UPDATE
-        "  -u                    Accept a measurement update during attestation, if there are any available.\n"
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_USAGE_2,
+        "  -u                    Accept a measurement update during attestation, if there are any available.\n"));
 #endif
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_USAGE_3,
         "  -l username           ssh username [ssh default]\n"
         "  -p port               ssh port number [ssh default]\n"
         "  -c configfile         Set configuration file [~/.openpts/openpts.conf]\n"
@@ -110,7 +113,7 @@ void usage(void) {
 #define DISPLAY 4
 #define NONE    5
 
-
+#define OPENPTS_LOG_FILENAME  "~/.openpts/openpts.log"
 
 
 
@@ -229,45 +232,26 @@ int main(int argc, char *argv[]) {
 
     cmdline_hostname = argv[0];
 
+    /* default logging scheme */
+    debugBits = 0;
+    setLogLocation(OPENPTS_LOG_FILE, OPENPTS_LOG_FILENAME);
 
     /* check */
     if ((ptsc_path != NULL) && (ptsc_conf != NULL)) {
         int len;
         // char ptsc_command[PATH_MAX];
-        INFO("ptsc debug mode\n");
+        LOG(LOG_INFO, "ptsc debug mode\n");
         // len = strlen(ptsc_path) + strlen(ptsc_conf) + 13;
         // snprintf(ptsc_command, PATH_MAX - 1, "%s -m -v -c %s", ptsc_path, ptsc_conf);
 
         len =  strlen(ptsc_path) + strlen(ptsc_conf) + 13;
         ptsc_command = xmalloc(len);
         snprintf(ptsc_command, len, "%s -m -v -c %s", ptsc_path, ptsc_conf);
-        INFO("command: %s\n", ptsc_command);
+        LOG(LOG_INFO, "command: %s\n", ptsc_command);
     }
 
     /* default command is to verify */
     if (command == NONE) command = VERIFY;
-
-#if 0  // 2011-12-28 controlled by conf
-    /* Log */
-    setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
-#ifdef OPENPTS_DEBUG
-    setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
-#else
-    /* set the DEBUG level, 1,2,3
-       WORK NEEDED - should have a debug flag too. */
-
-    if (getVerbosity() > 2) {
-        setDebugFlags(DEBUG_FLAG | DEBUG_FSM_FLAG | DEBUG_IFM_FLAG);
-        DEBUG("verbose mode            : >=3");
-    } else if (getVerbosity() > 1) {
-        setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG);
-        DEBUG("verbose mode            : 2");
-    } else if (getVerbosity() > 0) {
-        setDebugFlags(DEBUG_FLAG);
-        DEBUG("verbose mode            : 1");
-    }
-#endif
-#endif // 0
 
     /* Set logging (location,filename)  by ENV */
     determineLogLocationByEnv();
@@ -304,13 +288,13 @@ int main(int argc, char *argv[]) {
 
     // setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
 
-    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONFIG_FILE,
+    VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONFIG_FILE,
         "Config file         : %s\n"), conf->config_file);
-    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_VERBOSITY,
+    VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_VERIFIER_VERBOSITY,
         "Verbosity           : %d\n"), getVerbosity());
-    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_DEBUG_OUT,
+    VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_VERIFIER_DEBUG_OUT,
         "Logging location    : %s\n"), getLogLocationString());
-    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFIER_DEBUG_MODE,
+    VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_VERIFIER_DEBUG_MODE,
         "Logging(debig) mode : 0x%x\n"), getDebugFlags());
 
     /* we always need the target list */
@@ -339,7 +323,7 @@ int main(int argc, char *argv[]) {
         /* look up the conf of target(hostname) */
         /* set the target hostname:port and search */
         if (conf->hostname != NULL) {
-            TODO("realloc conf->hostname\n");
+            LOG(LOG_TODO, "realloc conf->hostname\n");
             xfree(conf->hostname);
         }
         conf->hostname = smalloc_assert(cmdline_hostname);
@@ -381,11 +365,11 @@ int main(int argc, char *argv[]) {
             /* look up */
             if (target_collector != NULL) {
                 // WORK NEEDED: Please use NLS for i18n output
-                printf("hostname  : %s\n", target_hostname);
-                printf("UUID      : %s\n", target_collector->str_uuid);
-                printf("State     : %d\n", target_collector->state);
-                printf("Dir       : %s\n", target_collector->dir);
-                printf("Manifests :\n");
+                OUTPUT("hostname  : %s\n", target_hostname);
+                OUTPUT("UUID      : %s\n", target_collector->str_uuid);
+                OUTPUT("State     : %d\n", target_collector->state);
+                OUTPUT("Dir       : %s\n", target_collector->dir);
+                OUTPUT("Manifests :\n");
 
                 getRmList(target_conf, target_conf->config_dir);
                 printRmList(target_conf, "");
@@ -423,7 +407,7 @@ int main(int argc, char *argv[]) {
     if (command == REMOVE) {
         /* delete */
         if (unlinkDir(target_conf_dir) != 0) {
-            ERROR("unlinkDir(%s) failed", target_conf_dir);
+            LOG(LOG_ERR, "unlinkDir(%s) failed", target_conf_dir);
             retVal = RETVAL_TARGET_ERROR;
             goto out_free;
         }
@@ -440,7 +424,7 @@ int main(int argc, char *argv[]) {
     if (ssh_username != NULL) {
         target_conf->ssh_username = strdup(ssh_username);
         if (target_conf->ssh_username == NULL) {
-            ERROR("No memory");
+            LOG(LOG_ERR, "No memory");
             retVal = RETVAL_GLOBAL_ERROR;
             goto out_free;
         }
@@ -486,7 +470,8 @@ int main(int argc, char *argv[]) {
         DEBUG("conf->config_dir %s\n", conf->config_dir);
         rc = enroll(ctx, target_hostname, ssh_username, ssh_port, conf->config_dir, force);  // verifier.c
         if (rc != 0) {
-            DEBUG("enroll was failed, rc = %d\n", rc);
+            ERROR(  // TODO NLS
+                "enroll was failed, rc = %d\n", rc);
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_NOTENROLLED;
             goto out_free;
@@ -495,7 +480,9 @@ int main(int argc, char *argv[]) {
         DEBUG("conf->config_dir %s\n", conf->config_dir);
         rc =  verifier(ctx, target_hostname, ssh_username, ssh_port, conf->config_dir, 1);  // init
         if (rc != OPENPTS_RESULT_VALID) {
-            ERROR("initial verification was failed, rc = %d\n", rc);
+            LOG(LOG_ERR, "initial verification was failed, rc = %d\n", rc);
+            ERROR(  // TODO NLS
+                "initial verification was failed, rc = %d\n", rc);
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_NOTTRUSTED;
             goto out_free;
@@ -504,28 +491,30 @@ int main(int argc, char *argv[]) {
         retVal = RETVAL_OK_TRUSTED;
 
         /* message */
-        printf(NLS(MS_OPENPTS, OPENPTS_INIT_TARGET, "Target: %s\n"), target_hostname);
+        VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_INIT_TARGET,
+            "Target: %s\n"), target_hostname);
 
         if (ctx->target_conf != NULL) {
             if (ctx->target_conf->rm_uuid != NULL) {
-                printf(NLS(MS_OPENPTS, OPENPTS_INIT_MANIFEST_UUID,
+                VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_INIT_MANIFEST_UUID,
                     "Manifest UUID: %s\n"), ctx->target_conf->rm_uuid->str);
                 for (i = 0; i< ctx->conf->rm_num; i ++) {
-                    printf(NLS(MS_OPENPTS, OPENPTS_INIT_MANIFEST,
+                    VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_INIT_MANIFEST,
                         "Manifest[%d]: %s\n"), i, ctx->target_conf->rm_filename[i]);
                 }
             }
             /* having indentation specific to one language will make the
                translated versions (i.e. french, japanese) look ugly */
-            printf(NLS(MS_OPENPTS, OPENPTS_INIT_COLLECTOR_UUID,
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_INIT_COLLECTOR_UUID,
                 "Collector UUID: %s\n"), ctx->target_conf->uuid->str);
-            printf(NLS(MS_OPENPTS, OPENPTS_INIT_CONFIG,
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_INIT_CONFIG,
                 "Configuration: %s\n"), ctx->target_conf->config_file);
-            printf(NLS(MS_OPENPTS, OPENPTS_INIT_VALIDATION,
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_INIT_VALIDATION,
                 "Validation policy: %s\n"), ctx->target_conf->policy_filename);
         } else {
             // TODO never happen?
-            printf(NLS(MS_OPENPTS, OPENPTS_INIT_NEW_CONFIG, "Configuration: new target\n"));
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_NEW_CONFIG,
+                "Configuration: new target\n"));
         }
         break;
     }
@@ -538,24 +527,26 @@ int main(int argc, char *argv[]) {
         rc = verifier(ctx, target_hostname, ssh_username, ssh_port, conf->config_dir, 0);  // normal
 
         /* messages */
-        // printf("target        : %s\n", argv[0]);
-        printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_TARGET, "Target: %s\n"), target_hostname);
+        VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_TARGET,
+            "Target: %s\n"), target_hostname);
         if (target_conf != NULL) {
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_COLLECTOR_UUID, "Collector UUID: %s "), target_conf->uuid->str);
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_COLLECTOR_UUID, "Collector UUID: %s "), target_conf->uuid->str);
             // TODO set this when load the uuid
             if (target_conf->uuid->time == NULL) {
                 target_conf->uuid->time = getDateTimeOfUuid(target_conf->uuid->uuid);
             }
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE, "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE,
+                "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
                 target_conf->uuid->time->year + 1900,
                 target_conf->uuid->time->mon + 1,
                 target_conf->uuid->time->mday,
                 target_conf->uuid->time->hour,
                 target_conf->uuid->time->min,
                 target_conf->uuid->time->sec);
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_MANIFEST_UUID,
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_MANIFEST_UUID,
                 "Manifest UUID: %s "), target_conf->rm_uuid->str);
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE, "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE,
+                "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
                 target_conf->rm_uuid->time->year + 1900,
                 target_conf->rm_uuid->time->mon + 1,
                 target_conf->rm_uuid->time->mday,
@@ -563,12 +554,15 @@ int main(int argc, char *argv[]) {
                 target_conf->rm_uuid->time->min,
                 target_conf->rm_uuid->time->sec);
 
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_USERNAME, "username(ssh): %s\n"),
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_USERNAME,
+                "username(ssh): %s\n"),
                 conf->ssh_username ? conf->ssh_username : "default");
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_PORT, "port(ssh): %s\n"),
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_PORT,
+                "port(ssh): %s\n"),
                 conf->ssh_port ? conf->ssh_port : "default");
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_POLICY, "policy file: %s\n"), target_conf->policy_filename);
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_PROPERTY,
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_POLICY,
+                "policy file: %s\n"), target_conf->policy_filename);
+            VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_VERIFY_PROPERTY,
                 "property file: %s\n"), target_conf->prop_filename);  // TODO property or prop
         } else {
             retVal = RETVAL_GLOBAL_ERROR;
@@ -576,24 +570,27 @@ int main(int argc, char *argv[]) {
         }
 
         if (rc == OPENPTS_RESULT_VALID) {
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_VALID, "integrity: valid\n"));
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_VALID, "integrity: valid\n"));
             retVal = RETVAL_OK_TRUSTED;
         } else if (rc == OPENPTS_RESULT_INVALID ||
                    rc == PTS_VERIFY_FAILED ||
                    rc == PTS_NOT_INITIALIZED ||  // <-- happens when a target changed its UUID (re-init)
                    rc == PTS_RULE_NOT_FOUND) {   // <-- happens when a target has updated its RM
                                                  //     (failed selftest using -s)
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_INVALID, "integrity: invalid\n"));
+            ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFY_INVALID,
+                "integrity: invalid\n"));
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_NOTTRUSTED;
             goto out_free;
         } else if (rc == OPENPTS_RESULT_UNKNOWN) {
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_UNKNOWN, "integrity: unknown\n"));
+            ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFY_UNKNOWN,
+                "integrity: unknown\n"));
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_TARGET_ERROR;
             goto out_free;
         } else {
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_ERROR, "integrity: unknown (INTERNAL ERROR) rc=%d\n"), rc);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFY_ERROR,
+                "integrity: unknown (INTERNAL ERROR) rc=%d\n"), rc);
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_TARGET_ERROR;
             goto out_free;
@@ -619,7 +616,8 @@ int main(int argc, char *argv[]) {
                     printHex(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_UUID_LOCAL,
                         "NEWRM UUID (local): "), (BYTE*)target_conf->newrm_uuid->uuid, 16, "\n");
                 } else {
-                    printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_UUID_MISSING, "NEWRM UUID (local): missing\n"));
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_UUID_MISSING,
+                        "NEWRM UUID (local): missing\n"));
                 }
             }
 
@@ -630,10 +628,11 @@ int main(int argc, char *argv[]) {
                                 (BYTE*)target_conf->newrm_uuid->uuid, 16) &&
                     0 == isNewRmStillValid(ctx, conf->config_dir) ) {
                     /* HIT */
-                    printf("---------------------------------------------------------\n");
-                    printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_UUID,
+                    OUTPUT("---------------------------------------------------------\n");
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_UUID,
                         "New Manifest UUID: %s "), target_conf->newrm_uuid->str);
-                    printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE, "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE,
+                        "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
                         target_conf->newrm_uuid->time->year + 1900,
                         target_conf->newrm_uuid->time->mon + 1,
                         target_conf->newrm_uuid->time->mday,
@@ -644,17 +643,19 @@ int main(int argc, char *argv[]) {
                     goto out_free;
                 } else {
                     /* local is old? */
-                    printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_ALREADY_EXISTS,
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_ALREADY_EXISTS,
                            "A new reference manifest has been received, but an update exists\n"));
                 }
             }
 
             /* msg */
-            printf("---------------------------------------------------------\n");
+            OUTPUT("---------------------------------------------------------\n");
             uuid_time = getDateTimeOfUuid(conf->target_newrm_uuid);
             uuid_str = getStringOfUuid(conf->target_newrm_uuid);
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_UUID, "New Manifest UUID: %s "), uuid_str);
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE, "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_UUID,
+                "New Manifest UUID: %s "), uuid_str);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_DATE,
+                "(date: %04d-%02d-%02d-%02d:%02d:%02d)\n"),
                 uuid_time->year + 1900,
                 uuid_time->mon + 1,
                 uuid_time->mday,
@@ -665,7 +666,7 @@ int main(int argc, char *argv[]) {
 
             if (isatty(STDIN_FILENO) && !update_by_default) {
                 char *lineFeed;
-                printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_UPDATE,
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_NEW_MANIFEST_UPDATE,
                     "A new reference manifest exists. Update? [Y/n]\n"));
                 if ( NULL != fgets(ans, 32, stdin) ) {
                     // strip the ending line-feed
@@ -691,17 +692,19 @@ int main(int argc, char *argv[]) {
             if (ansIsYes) {
                 rc = updateNewRm(ctx, target_hostname, conf->config_dir);  // aru.c
                 if (rc == PTS_SUCCESS) {
-                    printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_SAVE_NEW_MANIFEST, "Save new reference manifest\n"));
+                    OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_SAVE_NEW_MANIFEST,
+                        "Save new reference manifest\n"));
                     // TODO UUID
                     retVal = RETVAL_OK_TRUSTED;
                 } else {
                     retVal = RETVAL_TARGET_ERROR;
                 }
             } else if (ansIsNo) {
-                printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_KEEP_CURRENT_MANIFEST, "Keep current manifest\n"));
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_KEEP_CURRENT_MANIFEST,
+                    "Keep current manifest\n"));
                 retVal = RETVAL_OK_PENDINGUPDATE;
             } else {
-                ERROR("Bad answer %s, exit\n", ans);
+                LOG(LOG_ERR, "Bad answer %s, exit\n", ans);
                 retVal = RETVAL_GLOBAL_ERROR;
                 goto out_free;
             }
@@ -709,7 +712,7 @@ int main(int argc, char *argv[]) {
             // TODO validate new RM
             // TODO e.g. gen new RM by verifier and compare both
         } else if (rc == PTS_RULE_NOT_FOUND) {
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_RUN_OPENPTS,
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_RUN_OPENPTS,
                 "A new reference manifest exists. If this is expected, "
                 "please update the manifest with 'openpts -i -f'\n"));
             retVal = RETVAL_NOTENROLLED;
@@ -719,7 +722,7 @@ int main(int argc, char *argv[]) {
         }
 #else
         if (rc == PTS_RULE_NOT_FOUND) {
-            printf(NLS(MS_OPENPTS, OPENPTS_VERIFY_RUN_OPENPTS,
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_VERIFY_RUN_OPENPTS,
                 "A new reference manifest exists. If this is expected, "
                 "please update the manifest with 'openpts -i -f'\n"));
             retVal = RETVAL_NOTENROLLED;

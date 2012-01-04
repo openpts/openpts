@@ -23,22 +23,8 @@
 # http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-man8_MANS =	openpts.8
-
-#		tpm_clear.8		\
-#		tpm_createek.8		\
-#		tpm_getpubek.8		\
-#		tpm_restrictpubek.8	\
-#		tpm_selftest.8		\
-#		tpm_setactive.8		\
-#		tpm_setclearable.8	\
-#		tpm_setenable.8		\
-#		tpm_setownable.8	\
-#		tpm_setpresence.8	\
-#		tpm_takeownership.8
-#
-#if TSS_LIB_IS_12
-#man8_MANS+=tpm_revokeek.8 tpm_setoperatorauth.8 tpm_resetdalock.8
-#endif
+man8_MANS = openpts.8 \
+            ptsc.8 \
+            iml2text.8
 
 EXTRA_DIST = $(man8_MANS)

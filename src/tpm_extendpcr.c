@@ -94,7 +94,7 @@ int hex2bin(void *dest, const void *src, size_t n) {
     unsigned char *ussrc = (unsigned char *) src;
 
     if (n & 0x01) {
-        ERROR("ERROR: hex2bin wrong size %d\n", (int)n);
+        LOG(LOG_ERR, "ERROR: hex2bin wrong size %d\n", (int)n);
         return -1;
     }
 
@@ -126,15 +126,15 @@ int hex2bin(void *dest, const void *src, size_t n) {
 }
 
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_USAGE,
-                    "OpenPTS command\n\n"
-                    "Usage: tpm_extendpcr [options] filename\n\n"
-                    "  filename              file to be measured\n"
-                    "Options:\n"
-                    "  -p pcr_index          Set PCR index to extend\n"
-                    "  -t event_type         Set event type\n"
-                    "  -h                    Help\n"
-                    "\n"));
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_USAGE,
+        "OpenPTS command\n\n"
+        "Usage: tpm_extendpcr [options] filename\n\n"
+        "  filename              file to be measured\n"
+        "Options:\n"
+        "  -p pcr_index          Set PCR index to extend\n"
+        "  -t event_type         Set event type\n"
+        "  -h                    Help\n"
+        "\n"));
 }
 
 
@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
     filename = argv[0];
 
     if (filename == NULL) {
-        printf("ERROR: missing filename\n");
+        ERROR("Missing filename\n");
         usage();
         goto end;
     }
@@ -210,14 +210,14 @@ int main(int argc, char *argv[]) {
     /* TSS open */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
               result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -242,14 +242,14 @@ int main(int argc, char *argv[]) {
                                     &prgbRespData);
 
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_TPM_GetCapability() failed, rc=0x%x\n", result);
         goto close;
     }
 
     pcrnum = * (UINT32 *) prgbRespData;
     if (pcrindex > (int) pcrnum) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_BAD_RANGE,
-            "ERROR: pcrindex %d is out of range, this must be 0 to %d\n"),
+        ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_BAD_RANGE,
+            "pcrindex %d is out of range, this must be 0 to %d\n"),
             pcrindex, pcrnum);
         goto close;
     }
@@ -266,7 +266,7 @@ int main(int argc, char *argv[]) {
 
 
         if ((fd = open(filename, O_RDONLY)) < 0) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_OPEN_FAIL,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_OPEN_FAIL,
                 "Failed to open file '%s'\n"), filename);
             goto close;
         }
@@ -274,12 +274,12 @@ int main(int argc, char *argv[]) {
         fileLength = lseek(fd, 0, SEEK_END);
         if (fileLength < 0) {
             // WORK NEEDED: Please use NLS for i18n
-            fprintf(stderr, "file %s seek fail\n", filename);
+            ERROR("file %s seek fail\n", filename);
             goto close;
         }
 
         if ((fileMap = mmap(NULL, fileLength, PROT_READ, MAP_SHARED, fd, 0)) == NULL) {
-            perror("mmap");
+            ERROR("mmap fail\n");
             exit(1);
         }
 
@@ -316,11 +316,11 @@ int main(int argc, char *argv[]) {
                         &prgbPcrValue);
 
             if (result != TSS_SUCCESS) {
-                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FAILED,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FAILED,
                     "Failed to extend PCR at event %d\n"), eventCount);
-                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_INDEX,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_INDEX,
                     " pcr index: %d\n"), pcrEvent.ulPcrIndex);
-                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_EVENT_TYPE,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_EVENT_TYPE,
                     " event type: 0x%x\n"), pcrEvent.eventType);
                 exit(1);
             }
@@ -339,13 +339,13 @@ int main(int argc, char *argv[]) {
         close(fd);
 
         if (getVerbosity() > 0) {
-            printf(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FED_TPM,
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FED_TPM,
                 "Fed the TPM/log with %d events\n"), eventCount);
         }
     } else {
         /* File => mmap */
         if ((fd = open(filename, O_RDONLY)) < 0) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_OPEN_FAIL,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_OPEN_FAIL,
                 "Failed to open file '%s'"), filename);
             goto close;
         }
@@ -353,7 +353,7 @@ int main(int argc, char *argv[]) {
         fileLength = lseek(fd, 0, SEEK_END);
 
         if ((fileMap = mmap(NULL, fileLength, PROT_READ, MAP_SHARED, fd, 0)) == NULL) {
-            perror("mmap");
+            ERROR("mmap fail\n");
             exit(1);
         }
 
@@ -365,7 +365,7 @@ int main(int argc, char *argv[]) {
         memcpy(fscan->filename, filename, filename_len);
 
         if (stat(filename, &stat_buf) != 0) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_STAT_FAILED,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_EXTENDPCR_STAT_FAILED,
                 "Failed to retrieve file information for '%s'\n"), filename);
             exit(1);
         }
@@ -381,7 +381,7 @@ int main(int argc, char *argv[]) {
         SHA1_Final(fscan->fileDigest, &sha_ctx);
 
         if (getVerbosity() > 0) {
-            printf(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FILENAME, "Filename: %s\n"), filename);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_FILENAME, "Filename: %s\n"), filename);
             printHex(NLS(MS_OPENPTS, OPENPTS_TPM_EXTENDPCR_DIGEST, "Digest: "), fscan->fileDigest, 20, "");
         }
 
@@ -408,7 +408,7 @@ int main(int argc, char *argv[]) {
                                     &ulPcrValueLength,
                                     &rgbPcrValue);
         if (result != TSS_SUCCESS) {
-            ERROR("ERROR: failed rc=0x%x\n", result);
+            LOG(LOG_ERR, "ERROR: failed rc=0x%x\n", result);
             goto free;
         }
 

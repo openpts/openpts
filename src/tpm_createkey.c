@@ -72,8 +72,7 @@ const char short_option[] = "u:flNPt:a:hSUB:Cvz";
 int hex2bin(void *dest, const void *src, size_t n);
 
 void usage() {
-//<<<<<<< HEAD
-    printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_USAGE,
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_USAGE,
            "Usage: tpm_createkey [options]\n"
            "\t-h           Display command usage info.\n"
            "\t-u           Set UUID of key. Default is randum number\n"
@@ -86,22 +85,6 @@ void usage() {
            "\t-S           Use SYSTEM_PS\n"
            "\t-U           Use USER_PS\n"
            "\t-B filename  Use blob file\n"));
-//=======
-//    printf("Usage: tpm_createkey [options]\n");
-//    printf("\t-h\tDisplay command usage info.\n");
-//    printf("\t-u\tSet UUID of key. Default is randum number\n");
-//    printf("\t-N\tCreate key without auth secret\n");
-//    printf("\t-a PASSWORD\tCreate key with auth secret, PASSWORD\n");
-//    printf("\t-P\tUse TSS diaglog to set the authsecret\n");
-//    printf("\t-C\tUse common authsecret\n");
-//    printf("\t-f\tUpdate the key\n");
-//    printf("\t-z\tUse the SRK secret of all zeros (20 bytes of zeros).\n");
-
-//    /* Key storage */
-///    printf("\t-S\tUse SYSTEM_PS\n");
-//    printf("\t-U\tUse USER_PS\n");
-//    printf("\t-B\tUse blob file\n");
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
 }
 
 int hex2bin(void *dest, const void *src, size_t n) {
@@ -110,7 +93,7 @@ int hex2bin(void *dest, const void *src, size_t n) {
     unsigned char *ussrc = (unsigned char *) src;
 
     if (n & 0x01) {
-        ERROR("ERROR: hex2bin wrong size %d\n", (int)n);
+        LOG(LOG_ERR, "ERROR: hex2bin wrong size %d\n", (int)n);
         return -1;
     }
 
@@ -217,7 +200,7 @@ int main(int argc, char *argv[]) {
         switch (so) {
         case 'u':  /* UUID of AIK/SignKey */
             if (strlen(optarg) != 32) {
-                printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_INVALID_UUID_SIZE, "ERROR invalid UUID size, %s\n"),
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_INVALID_UUID_SIZE, "ERROR invalid UUID size, %s\n"),
                        optarg);
                 usage();
                 return -1;
@@ -279,13 +262,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("SM DEBUG\n");
-
     if (noauth != 1) {
         /* key needs authorization */
         initFlag |= TSS_KEY_AUTHORIZATION;
     }
-
 
     /* SRK well_known = 0x00 x 20 */
     if (srk_password_mode == 1) {
@@ -306,14 +286,14 @@ int main(int argc, char *argv[]) {
 
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Create failed rc=0x%x\n",
                result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -335,14 +315,14 @@ int main(int argc, char *argv[]) {
                     ppKeyHierarchy);
 
         if (result != TSS_SUCCESS) {
-            ERROR("ERROR: Tspi_Context_GetRegisteredKeysByUUID failed rc=0x%x\n",
+            LOG(LOG_ERR, "ERROR: Tspi_Context_GetRegisteredKeysByUUID failed rc=0x%x\n",
              result);
         } else {
             int i;
             TSS_KM_KEYINFO *info = ppKeyHierarchy[0];
-            printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_KEYNUM, "Key number   : %d\n"), ulKeyHierarchySize);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_KEYNUM, "Key number   : %d\n"), ulKeyHierarchySize);
             for (i = 0; i < (int)ulKeyHierarchySize; i++) {
-                printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_KEY, "Key %d\n"), i);
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_KEY, "Key %d\n"), i);
                 buf = (BYTE *) & info->versionInfo;
                 printHex(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_VERSION, " version     : "), buf, 4, "\n");
                 buf = (BYTE *) & info->keyUUID;
@@ -360,7 +340,7 @@ int main(int argc, char *argv[]) {
 
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -373,10 +353,10 @@ int main(int argc, char *argv[]) {
                                         &hSRK);
 
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
               result);
         if (result == 0x2020) {
-            printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_BAD_STORAGE,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_BAD_STORAGE,
                 "The key storage for tcsd is damaged or missing.\n"));
         }
         goto close;
@@ -386,7 +366,7 @@ int main(int argc, char *argv[]) {
 
     result = Tspi_GetPolicyObject(hSRK, TSS_POLICY_USAGE, &hSRKPolicy);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -397,7 +377,7 @@ int main(int argc, char *argv[]) {
                 srk_auth_len,
                 srk_auth);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -407,7 +387,7 @@ int main(int argc, char *argv[]) {
     if (createUuid == 1) {
         result = Tspi_TPM_GetRandom(hTPM, sizeof(TSS_UUID), &buf);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_TPM_GetRandom failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_TPM_GetRandom failed rc=0x%x\n",
                   result);
             Tspi_Context_FreeMemory(hContext, NULL);
             goto close;
@@ -425,7 +405,7 @@ int main(int argc, char *argv[]) {
                                        TSS_OBJECT_TYPE_RSAKEY,
                                        initFlag, &hKey);
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_Context_CreateObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -440,49 +420,16 @@ int main(int argc, char *argv[]) {
         char *ps1;
         int size0, size1;
 
-#if 0
-        // result = Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hKeyPolicy);
-
-        // -a option
-        result =
-            Tspi_Context_CreateObject(hContext,
-                                      TSS_OBJECT_TYPE_POLICY,
-                                      TSS_POLICY_USAGE,
-                                      &hKeyPolicy);
-
-        if (result != TSS_SUCCESS) {
-            printf
-            ("ERROR: Tspi_GetPolicyObject failed rc=0x%x\n",
-             result);
-            goto close;
-        }
-#endif
 
         if (popup == 1) {
-#if 0
-            result = Tspi_SetAttribUint32(
-                        hContext,
-                        TSS_TSPATTRIB_CONTEXT_SILENT_MODE,
-                        0,
-                        TSS_TSPATTRIB_CONTEXT_NOT_SILENT);
-
-            if (result != TSS_SUCCESS) {
-                printf
-                ("ERROR: Tspi_SetAttribUint32 failed rc=0x%x, TSS_TSPATTRIB_CONTEXT_NOT_SILENT\n",
-                 result);
-                goto close;
-            }
-#endif
             result = Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hKeyPolicy);
             if (result != TSS_SUCCESS) {
-                printf("ERROR: Tspi_GetPolicyObject failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                       result);
                 goto close;
             }
 
             /* popup - set message */
-#if 1
-            // TODO did not work???
             // char *popupMsg = "Signature Key Password";
             uint16_t popupMsg[] = {
                 'S', 'e', 't', ' ',
@@ -490,8 +437,6 @@ int main(int argc, char *argv[]) {
                 'K', 'e', 'y', ' ',
                 'P', 'a', 's', 's', 'w', 'o', 'r', 'd'
             };
-            // printf("DEBUG popupMsg %s\n",popupMsg);
-            // printf("POPUP\n");
             result = Tspi_SetAttribData(
                         hKeyPolicy,
                         TSS_TSPATTRIB_POLICY_POPUPSTRING,
@@ -500,23 +445,21 @@ int main(int argc, char *argv[]) {
                         (BYTE *) popupMsg);
 
             if (result != TSS_SUCCESS) {
-                printf("ERROR: Tspi_SetAttribData failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_SetAttribData failed rc=0x%x\n",
                       result);
                 goto close;
             }
-#endif
+
             /* popup - go */
-            // printf("POPUP\n");
             result = Tspi_Policy_SetSecret(hKeyPolicy,
                                            TSS_SECRET_MODE_POPUP,
                                            0, NULL);
 
             if (result != TSS_SUCCESS) {
-                printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x @POPUP\n",
+                LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x @POPUP\n",
                       result);
                 goto close;
             }
-            // printf("POPUP\n");
         } else {  // CUI or commandline
             result =
                 Tspi_Context_CreateObject(hContext,
@@ -525,7 +468,7 @@ int main(int argc, char *argv[]) {
                                           &hKeyPolicy);
 
             if (result != TSS_SUCCESS) {
-                ERROR("ERROR: Tspi_Context_CreateObject failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
                       result);
                 goto close;
             }
@@ -542,14 +485,14 @@ int main(int argc, char *argv[]) {
                 size1 = strlen(ps1);
 
                 if (size0 != size1) {
-                    printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_PASSWORD_MISMATCH, "Passwords didn't match %d %d\n"),
+                    ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_PASSWORD_MISMATCH, "Passwords didn't match %d %d\n"),
                            size0, size1);
                     xfree(ps0);
                     goto close;
                 }
 
                 if (strncmp(ps0, ps1, size0) != 0) {
-                    printf(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_PASSWORD_MISMATCH_2, "Passwords didn't match %d\n"),
+                    ERROR(NLS(MS_OPENPTS, OPENPTS_TPM_CREATEKEY_PASSWORD_MISMATCH_2, "Passwords didn't match %d\n"),
                      strncmp(ps0, ps1, size0));
                     xfree(ps0);
                     goto close;
@@ -583,7 +526,7 @@ int main(int argc, char *argv[]) {
                                            len,
                                            (BYTE *) str);
             if (result != TSS_SUCCESS) {
-                ERROR("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                       result);
                 goto close;
             }
@@ -591,7 +534,7 @@ int main(int argc, char *argv[]) {
             result = Tspi_Policy_AssignToObject(hKeyPolicy, hKey);
 
             if (result != TSS_SUCCESS) {
-                ERROR("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                       result);
                 goto close;
             }
@@ -605,8 +548,7 @@ int main(int argc, char *argv[]) {
                         TSS_POLICY_USAGE,
                         &hKeyPolicy);
             if (result != TSS_SUCCESS) {
-                printf
-                ("ERROR: Tspi_Context_CreateObject failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
                  result);
                 goto close;
             }
@@ -617,8 +559,7 @@ int main(int argc, char *argv[]) {
                         strlen(TPMSIGKEY_SECRET),
                         (BYTE *)TPMSIGKEY_SECRET);
             if (result != TSS_SUCCESS) {
-                printf
-                ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                  result);
                 goto close;
             }
@@ -627,20 +568,17 @@ int main(int argc, char *argv[]) {
                         hKeyPolicy,
                         hKey);
             if (result != TSS_SUCCESS) {
-                printf
-                ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                  result);
                 goto close;
             }
         }
     }
 
-    printf("SM DEBUG call Tspi_Key_CreateKey()\n");
-
     result = Tspi_Key_CreateKey(hKey, hSRK, 0);
 
     if (result != TSS_SUCCESS) {
-        printf("ERROR: Tspi_Key_CreateKey failed rc=0x%04x\n",
+        LOG(LOG_ERR, "Tspi_Key_CreateKey failed rc=0x%04x\n",
               result);
         goto close;
     }
@@ -651,7 +589,6 @@ int main(int argc, char *argv[]) {
         /* save as blob */
         fp = fopen(filename, "w");
 
-        printf("SM DEBUG save to %s\n",filename);
         result = Tspi_GetAttribData(
                      hKey,
                      TSS_TSPATTRIB_KEY_BLOB,
@@ -660,7 +597,7 @@ int main(int argc, char *argv[]) {
                      &keyBlob);
 
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_GetAttribData failed rc=0x%04x\n",
+            LOG(LOG_ERR, "Tspi_GetAttribData failed rc=0x%04x\n",
                   result);
             fclose(fp);
             goto close;
@@ -694,21 +631,21 @@ int main(int argc, char *argv[]) {
                                                    uuid,
                                                    &hKey);
                     if (result != TSS_SUCCESS) {
-                        ERROR("ERROR: Tspi_Context_UnregisterKey failed rc=0x%x\n",
+                        LOG(LOG_ERR, "ERROR: Tspi_Context_UnregisterKey failed rc=0x%x\n",
                               result);
                     } else {
                         /* try again */
                         goto regkey;
                     }
                 } else {
-                    printf("ERROR: Tspi_Context_RegisterKey failed rc=0x%x\n",
+                    LOG(LOG_ERR, "Tspi_Context_RegisterKey failed rc=0x%x\n",
                           result);
-                    printf("       TSS_E_KEY_ALREADY_REGISTERED\n");
+                    ERROR("       TSS_E_KEY_ALREADY_REGISTERED\n");
                     buf = (BYTE *) & uuid;
                     printHex("       uuid=", buf, 16, "\n");
                 }
             } else {
-                printf("ERROR: Tspi_Context_RegisterKey failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_Context_RegisterKey failed rc=0x%x\n",
                       result);
             }
             goto close;

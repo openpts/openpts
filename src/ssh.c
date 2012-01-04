@@ -63,19 +63,19 @@ pid_t ssh_connect(char *host, char *ssh_username, char *ssh_port, char *key_file
 
     /* check */
     if (host == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
 
     /* socket */
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, socket_pair) == -1) {
-        ERROR("socketpair() fail");
+        LOG(LOG_ERR, "socketpair() fail");
         goto err;
     }
 
     if ((pid = fork()) == -1) {
-        ERROR("fork() fail");
+        LOG(LOG_ERR, "fork() fail");
         goto err_close;
     }
 
@@ -130,7 +130,7 @@ pid_t ssh_connect(char *host, char *ssh_username, char *ssh_port, char *key_file
         DEBUG("ptsc_command %s\n", ptsc_command);
 
         execvp("ssh", arguments);
-        ERROR("execvp(ssh)");
+        LOG(LOG_ERR, "execvp(ssh)");
         exit(1);
     }
 

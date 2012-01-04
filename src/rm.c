@@ -57,7 +57,7 @@ OPENPTS_RM_CONTEXT *newRmContext() {
 
     ctx = (OPENPTS_RM_CONTEXT *) xmalloc(sizeof(OPENPTS_RM_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -70,7 +70,7 @@ OPENPTS_RM_CONTEXT *newRmContext() {
 void freeRmContext(OPENPTS_RM_CONTEXT *ctx) {
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -107,15 +107,15 @@ static int writeCoreComponentID(xmlTextWriterPtr writer,
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (id == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -214,7 +214,7 @@ static int writeCoreComponentID(xmlTextWriterPtr writer,
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeCoreComponentID - internal error\n");
+    LOG(LOG_ERR, "writeCoreComponentID - internal error\n");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -236,15 +236,15 @@ int writeCoreValues(xmlTextWriterPtr writer,
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (id == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -298,7 +298,7 @@ int writeCoreValues(xmlTextWriterPtr writer,
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeCoreValues() internal error");
+    LOG(LOG_ERR, "writeCoreValues() internal error");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -326,18 +326,18 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ss == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* Events at PCR[index] & Snapshot */
     eventWrapper = ss->start;
     if (eventWrapper == NULL) {
-        ERROR("writeAllCoreValues() - ERROR: eventWrapper is NULL\n");
+        LOG(LOG_ERR, "writeAllCoreValues() - ERROR: eventWrapper is NULL\n");
         return PTS_FATAL;
     }
     fsm_binary   = ss->fsm_binary;
@@ -347,7 +347,7 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
         DEBUG_FSM("writeAllCoreValues - PCR[%d] event %d/%d\n", ss->pcrIndex, j + 1, ss->event_num);
 
         if (eventWrapper == NULL) {
-            ERROR("writeAllCoreValues() - eventWrapper is NULL, pcr[%d], event_num = %d count = %d\n",
+            LOG(LOG_ERR, "writeAllCoreValues() - eventWrapper is NULL, pcr[%d], event_num = %d count = %d\n",
                 ss->pcrIndex, ss->event_num, j);
             return PTS_FATAL;
         }
@@ -355,7 +355,7 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
         event = eventWrapper->event;
 
         if (event == NULL) {
-            ERROR("writeAllCoreValues() - Event is missing\n");
+            LOG(LOG_ERR, "writeAllCoreValues() - Event is missing\n");
             return PTS_FATAL;
         }
 
@@ -377,11 +377,11 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
         bin_trans = bhv_trans->link;          // BHV keeps the link to BIN
         if (bin_trans == NULL) {  // TODO old
             UINT32 i;
-            ERROR("writeAllCoreValues() - BIN Trans is missing");
-            ERROR("\tat the event: pcrindex=%d, eventype=%d, digest=",
+            LOG(LOG_ERR, "writeAllCoreValues() - BIN Trans is missing");
+            LOG(LOG_ERR, "\tat the event: pcrindex=%d, eventype=%d, digest=",
                   event->ulPcrIndex, event->eventType);
             for (i = 0;i < event->ulPcrValueLength; i++)
-                ERROR("%02x", event->rgbPcrValue[i]);
+                LOG(LOG_ERR, "%02x", event->rgbPcrValue[i]);
             return PTS_FATAL;
         }
 
@@ -423,7 +423,7 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
                         DEBUG_FSM("LOOP, base64->real digest\n");
                         rc = insertFsmNew(fsm_binary, bin_trans, eventWrapper);
                         if (rc != PTS_SUCCESS) {
-                            ERROR("insertFsmNew() fail");
+                            LOG(LOG_ERR, "insertFsmNew() fail");
                             goto error;
                         }
                     } else {
@@ -445,12 +445,12 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
 
                 rc = writeCoreValues(writer, algtype, id, event);
                 if (rc != PTS_SUCCESS) {
-                    ERROR("writeCoreValues() fail");
+                    LOG(LOG_ERR, "writeCoreValues() fail");
                     goto error;
                 }
             }
         } else {  // NULL?
-            ERROR("ERROR no trans\n");
+            LOG(LOG_ERR, "ERROR no trans\n");
             rc = PTS_INTERNAL_ERROR;
             goto error;
         }
@@ -463,7 +463,7 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeCoreValues ERROR\n");
+    LOG(LOG_ERR, "writeCoreValues ERROR\n");
 
     return PTS_INTERNAL_ERROR;
 }
@@ -484,11 +484,11 @@ int writeFsmSubvertex(xmlTextWriterPtr writer,
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -532,7 +532,7 @@ int writeFsmSubvertex(xmlTextWriterPtr writer,
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeFsmSubvertex() internal error");
+    LOG(LOG_ERR, "writeFsmSubvertex() internal error");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -559,11 +559,11 @@ int writeFsmTransition(xmlTextWriterPtr writer,
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (trans == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -659,7 +659,7 @@ int writeFsmTransition(xmlTextWriterPtr writer,
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeFsmTransition() internal error");
+    LOG(LOG_ERR, "writeFsmTransition() internal error");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -691,11 +691,11 @@ int writeFsmModel(xmlTextWriterPtr writer, OPENPTS_FSM_CONTEXT * fsm) {
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (fsm == NULL) {
-        ERROR("writeFsmModel - FSM is NULL");
+        LOG(LOG_ERR, "writeFsmModel - FSM is NULL");
         return PTS_FATAL;
     }
 
@@ -772,7 +772,7 @@ int writeFsmModel(xmlTextWriterPtr writer, OPENPTS_FSM_CONTEXT * fsm) {
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeFsmModel() internal error");
+    LOG(LOG_ERR, "writeFsmModel() internal error");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -799,11 +799,11 @@ int writeValidationModel(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ss == NULL) {
-        ERROR("writeValidationModel - OPENPTS_SNAPSHOT is NULL\n");
+        LOG(LOG_ERR, "writeValidationModel - OPENPTS_SNAPSHOT is NULL\n");
         return PTS_FATAL;
     }
 
@@ -831,7 +831,7 @@ int writeValidationModel(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
     // TODO(munetoh)
     rc = writeFsmModel(writer, ss->fsm_binary);
     if (rc < 0) {
-        ERROR("writeValidationModel() pcr=%d BIN-FSM is NULL\n", ss->pcrIndex);
+        LOG(LOG_ERR, "writeValidationModel() pcr=%d BIN-FSM is NULL\n", ss->pcrIndex);
         goto error;
     }
 
@@ -843,7 +843,7 @@ int writeValidationModel(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeValidationModel() internal error");
+    LOG(LOG_ERR, "writeValidationModel() internal error");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -862,11 +862,11 @@ int writeCoreAssertionInfo(xmlTextWriterPtr writer, OPENPTS_CONTEXT * ctx, int l
 
     /* check */
     if (writer == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -886,7 +886,7 @@ int writeCoreAssertionInfo(xmlTextWriterPtr writer, OPENPTS_CONTEXT * ctx, int l
         if ((ss != NULL) && (ss->event_num > 0)) {
             rc = writeValidationModel(writer, ss);
             if (rc < 0) {
-                ERROR("writeCoreAssertionInfo() - pcr=%d, level=%d\n", i, level);
+                LOG(LOG_ERR, "writeCoreAssertionInfo() - pcr=%d, level=%d\n", i, level);
                 goto error;
             }
         }
@@ -902,7 +902,7 @@ int writeCoreAssertionInfo(xmlTextWriterPtr writer, OPENPTS_CONTEXT * ctx, int l
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeCoreAssertionInfo() internal error");
+    LOG(LOG_ERR, "writeCoreAssertionInfo() internal error");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -932,11 +932,11 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (file == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -944,7 +944,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* Create a new XML buffer */
     buf = xmlBufferCreate();
     if (buf == NULL) {
-        ERROR("Error creating the xml buffer\n");
+        LOG(LOG_ERR, "Error creating the xml buffer\n");
         rc = PTS_INTERNAL_ERROR;
         goto error;
     }
@@ -952,7 +952,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* Create a new XmlWriter for memory */
     writer = xmlNewTextWriterMemory(buf, 0);
     if (writer == NULL) {
-        ERROR("Error creating the xml writer\n");
+        LOG(LOG_ERR, "Error creating the xml writer\n");
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -961,7 +961,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* indent the XML :-) */
     rc = xmlTextWriterSetIndent(writer, 1);  // libxml2
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterSetIndent\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterSetIndent\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -970,7 +970,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* Start the document */
     rc = xmlTextWriterStartDocument(writer, "1.0", XML_ENCODING, "no");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartDocument\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterStartDocument\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -978,7 +978,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* Start an element named "Report", the root element of the document. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "Rimm");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterStartElement\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -986,13 +986,13 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* new UUID */
     ir_uuid = newUuid();
     if (ir_uuid == NULL) {
-        ERROR("UUID gen\n");
+        LOG(LOG_ERR, "UUID gen\n");
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
     str_ir_uuid = getStringOfUuid(ir_uuid);
     if (str_ir_uuid == NULL) {
-        ERROR("UUID gen\n");
+        LOG(LOG_ERR, "UUID gen\n");
         xfree(ir_uuid);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1005,7 +1005,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
             BAD_CAST "xmlns:core",
             BAD_CAST XMLNS_CORE);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1014,7 +1014,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
             BAD_CAST "xmlns:stuff",
             BAD_CAST XMLNS_STUFF);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1023,7 +1023,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
             BAD_CAST "xmlns:xsi",
             BAD_CAST XMLNS_XSI);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1032,7 +1032,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
             BAD_CAST "xmlns",
             BAD_CAST XMLNS_RIMM);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1042,7 +1042,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
 
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Id", BAD_CAST id);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1050,7 +1050,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     // TODO(munetoh) set the level
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "RevLevel", BAD_CAST "0");
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1059,7 +1059,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     rc = xmlTextWriterWriteAttribute(writer,
                                      BAD_CAST "UUID", BAD_CAST str_ir_uuid);
     if (rc < 0) {
-        ERROR("Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1091,7 +1091,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
                 /* copy BHV-FSM to BIN-FSM */
                 ss->fsm_binary = copyFsm(ss->fsm_behavior);
                 if (ss->fsm_binary == NULL) {
-                    ERROR("writeRm() - copy BHV-FSM to BIN-FSM failed at pcr=%d, level=%d\n", i, level);
+                    LOG(LOG_ERR, "writeRm() - copy BHV-FSM to BIN-FSM failed at pcr=%d, level=%d\n", i, level);
                     rc = PTS_INTERNAL_ERROR;
                     goto free;
                 }
@@ -1100,7 +1100,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
                 rc = writeAllCoreValues(writer, ss);
                 if (rc != PTS_SUCCESS) {
                     // WORK NEEDED: Please use NLS for i18n
-                    ERROR("writeAllCoreValues() fail");
+                    LOG(LOG_ERR, "writeAllCoreValues() fail");
                     addReason(ctx, i,
                         "[RM] The manifest generation was failed at pcr=%d, level=%d", i, level);
                     addReason(ctx, i,
@@ -1116,7 +1116,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
                 // single FSM supports various (BIOS) implementations.
                 rc = cleanupFsm(ss->fsm_binary);
                 if (rc != PTS_SUCCESS) {
-                    ERROR("writeRm() - bad IML or FSM at pcr=%d, level=%d\n", i, level);
+                    LOG(LOG_ERR, "writeRm() - bad IML or FSM at pcr=%d, level=%d\n", i, level);
                     rc = PTS_INTERNAL_ERROR;
                     goto free;
                 }
@@ -1131,7 +1131,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* add FSMs */
     rc = writeCoreAssertionInfo(writer, ctx, level);
     if (rc != PTS_SUCCESS) {
-        ERROR("writeRm - ERROR file %s\n", file);
+        LOG(LOG_ERR, "writeRm - ERROR file %s\n", file);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1141,7 +1141,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
 
     rc = writeCoreComponentID(writer, id, ctx, level);
     if (rc != PTS_SUCCESS) {
-        ERROR("writeRm - ERROR file %s\n", file);
+        LOG(LOG_ERR, "writeRm - ERROR file %s\n", file);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1149,14 +1149,14 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     /* Close all elements */
     rc = xmlTextWriterEndDocument(writer);  // libxml2
     if (rc < 0) {
-        ERROR("testXmlwriterMemory: Error at xmlTextWriterEndDocument\n");
+        LOG(LOG_ERR, "testXmlwriterMemory: Error at xmlTextWriterEndDocument\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
 
     rc = xmlTextWriterFlush(writer);  // libxml2
     if (rc < 0) {
-        ERROR("writeRm: Error at xmlTextWriterFlush\n");
+        LOG(LOG_ERR, "writeRm: Error at xmlTextWriterFlush\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1164,13 +1164,13 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
 
     fp = fopen(file, "w");
     if (fp == NULL) {
-        ERROR("writeRm - fopen fail, file, %s\n", file);
+        LOG(LOG_ERR, "writeRm - fopen fail, file, %s\n", file);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
 
     if (fprintf(fp, "%s", (const char *) buf->content) <= 0) {
-        ERROR("Failed to write to file %s\n", file);
+        LOG(LOG_ERR, "Failed to write to file %s\n", file);
         rc = PTS_INTERNAL_ERROR;
     } else {
         rc = PTS_SUCCESS;
@@ -1191,7 +1191,7 @@ int writeRm(OPENPTS_CONTEXT * ctx, const char *file, int level) {
     xmlBufferFree(buf);
 
     if (rc != PTS_SUCCESS) {
-        ERROR("writeRm - fail");
+        LOG(LOG_ERR, "writeRm - fail");
     } else {
         DEBUG_FSM("writeRm - done\n");
     }
@@ -1223,17 +1223,17 @@ void  rmStartDocument(void * ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pctx = (OPENPTS_CONTEXT *)ctx;
     if (pctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     rm_ctx = pctx->rm_ctx;
     if (rm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -1268,11 +1268,11 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -1310,10 +1310,10 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                     if (!strcmp(type, "level")) {
                         int level = atoi(value);
                         if (level != rm_ctx->level) {
-                            TODO("RM level is %d not %d\n", level, rm_ctx->level);
+                            LOG(LOG_TODO, "RM level is %d not %d\n", level, rm_ctx->level);
                             rm_ctx->level = level;
                             if (level < 0 || level >= MAX_RM_NUM) {
-                                ERROR("level found in RM (%d) is greater or equal to MAX_RM_NUM (%d)\n",
+                                LOG(LOG_ERR, "level found in RM (%d) is greater or equal to MAX_RM_NUM (%d)\n",
                                     level, MAX_RM_NUM);
                                 return;
                             }
@@ -1331,7 +1331,7 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         /*new SS */
         rm_ctx->snapshot = getNewSnapshotFromTable(pctx->ss_table, rm_ctx->pcr_index, rm_ctx->level);
         if (rm_ctx->snapshot == NULL) {
-            ERROR("SS is NULL\n");
+            LOG(LOG_ERR, "SS is NULL\n");
             return;
         }
 
@@ -1361,10 +1361,8 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         if (atts != NULL) {
             for (i = 0; (atts[i] != NULL); i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "xmi:type")) {
                         snprintf(rm_ctx->subvertex_xmitype, sizeof(rm_ctx->subvertex_xmitype),
                                  "%s", value);
@@ -1392,10 +1390,8 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         if (atts != NULL) {
             for (i = 0; (atts[i] != NULL); i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "source")) {
                         snprintf(rm_ctx->source_xmiid, sizeof(rm_ctx->source_xmiid), "%s", value);
                     }
@@ -1410,10 +1406,8 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         if (atts != NULL) {
             for (i = 0; (atts[i] != NULL); i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "name")) {
                         snprintf(rm_ctx->doactivity_name, sizeof(rm_ctx->doactivity_name),
                                  "%s", value);
@@ -1422,7 +1416,7 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
             }
         }
         DEBUG_SAX("doActivity %s\n", rm_ctx->doactivity_name);
-        // ERROR("doActivity %s\n", rm_ctx->doactivity_name);
+        // LOG(LOG_ERR, "doActivity %s\n", rm_ctx->doactivity_name);
     } else if (!strcmp((char *)name, "name")) {
         // TODO(munetoh)
     } else if (!strcmp((char *)name, "ownedRule")) {
@@ -1476,7 +1470,7 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
             } else if (strcmp(attributeName, "DiscretePatches") == 0) {
                 attributeValue = &pctx->compIDs[level].DiscretePatches;
             } else {
-                ERROR("unknown attribute for Component ID: '%s'\n", attributeName);
+                LOG(LOG_ERR, "unknown attribute for Component ID: '%s'\n", attributeName);
                 attrIdx++;  // attribute
                 attrIdx++;  // skip
                 continue;
@@ -1525,7 +1519,7 @@ void  rmStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         // VendorID_Value
 
     } else {
-        ERROR("Unknown  ELEMENT [%s] \n", name);
+        LOG(LOG_ERR, "Unknown  ELEMENT [%s] \n", name);
         rm_ctx->sax_state = RM_SAX_STATE_IDLE;
     }
 }
@@ -1540,21 +1534,21 @@ void rmEndElement(void * ctx, const xmlChar * name) {
 
     /* check*/
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pctx = (OPENPTS_CONTEXT *)ctx;
     if (pctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     rm_ctx = pctx->rm_ctx;
     if (rm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -1571,7 +1565,7 @@ void rmEndElement(void * ctx, const xmlChar * name) {
             rm_ctx->subvertex_name,
             rm_ctx->doactivity_name);
         // DEBUG
-        // ERROR("doActivity %s\n", rm_ctx->doactivity_name);
+        // LOG(LOG_ERR, "doActivity %s\n", rm_ctx->doactivity_name);
     } else if (!strcmp((char *)name, "transition")) {
         DEBUG_SAX("add transition %s -> %s\n",
             rm_ctx->source_xmiid, rm_ctx->target_xmiid);
@@ -1606,21 +1600,21 @@ void rmCharacters(void* ctx, const xmlChar * ch, int len) {
 
     /* check*/
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (ch == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pctx = (OPENPTS_CONTEXT *)ctx;
     if (pctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     rm_ctx = pctx->rm_ctx;
     if (rm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -1666,11 +1660,11 @@ int readRmFile(OPENPTS_CONTEXT *ctx, const char *filename, int level) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1681,7 +1675,7 @@ int readRmFile(OPENPTS_CONTEXT *ctx, const char *filename, int level) {
     } else {
         /* use existing table */
         // TODO
-        // ERROR("SS TABLE exist\n");
+        // LOG(LOG_ERR, "SS TABLE exist\n");
     }
 
     /* SAX variables */
@@ -1693,7 +1687,7 @@ int readRmFile(OPENPTS_CONTEXT *ctx, const char *filename, int level) {
     }
 
     if (level < 0 || level >= MAX_RM_NUM) {
-        ERROR("readRmFile - level (%d) is greater or equal to MAX_RM_NUM (%d)\n", level, MAX_RM_NUM);
+        LOG(LOG_ERR, "readRmFile - level (%d) is greater or equal to MAX_RM_NUM (%d)\n", level, MAX_RM_NUM);
         return -1;
     }
     ctx->rm_ctx->level = level;
@@ -1737,7 +1731,7 @@ int getRmSetDir(OPENPTS_CONFIG *conf) {
 
     /* check*/
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1754,8 +1748,8 @@ int getRmSetDir(OPENPTS_CONFIG *conf) {
 
         if (lstat(buf, &st) == -1) {
             /* Missing conf dir => Error */
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_RM_CONF_DIR_MISSING,
-                        "The configuration directory '%s' is missing. Please initialize the collector first\n"), buf);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_RM_CONF_DIR_MISSING,
+                "The configuration directory '%s' is missing. Please initialize the collector first\n"), buf);
             rc = PTS_INTERNAL_ERROR;
             goto end;
         }
@@ -1774,7 +1768,7 @@ int getRmSetDir(OPENPTS_CONFIG *conf) {
             DEBUG("RM File                      : %s\n", conf->rm_filename[i]);
         }
     } else {
-        TODO("getRmSetDir() - conf->rm_basedir == NULL\n");
+        LOG(LOG_TODO, "getRmSetDir() - conf->rm_basedir == NULL\n");
     }
     rc = PTS_SUCCESS;
 
@@ -1796,7 +1790,7 @@ int getNewRmSetDir(OPENPTS_CONFIG *conf) {
 
     /* check*/
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1838,7 +1832,7 @@ int getNewRmSetDir(OPENPTS_CONFIG *conf) {
             DEBUG("NEWRM File                  : %s\n", conf->newrm_filename[i]);
         }
     } else {
-        TODO("getNewRmSetDir() - conf->rm_basedir == NULL\n");
+        LOG(LOG_TODO, "getNewRmSetDir() - conf->rm_basedir == NULL\n");
     }
     rc = PTS_SUCCESS;
 
@@ -1856,7 +1850,7 @@ int makeRmSetDir(OPENPTS_CONFIG *conf) {
 
     /* check*/
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1870,7 +1864,7 @@ int makeRmSetDir(OPENPTS_CONFIG *conf) {
 
         rc = makeDir(buf);
         if (rc != PTS_SUCCESS) {
-            ERROR("create conf directory, %s was failed\n", buf);
+            LOG(LOG_ERR, "create conf directory, %s was failed\n", buf);
             rc = PTS_INTERNAL_ERROR;
             goto end;
         }
@@ -1900,7 +1894,7 @@ int makeNewRmSetDir(OPENPTS_CONFIG *conf) {
 
     /* check*/
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 

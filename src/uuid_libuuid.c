@@ -69,7 +69,7 @@ time_t uuid_time(uuid_t uu, struct timeval *tv) {
     myUUID.clock_seq_hi_and_reserved = uu[8];
 
     if ((myUUID.clock_seq_hi_and_reserved & 0xc0) != 0x80) {
-        ERROR("uuid_time() - bad UUID variant (0x%02x) found, can't extract timestamp\n",
+        LOG(LOG_ERR, "uuid_time() - bad UUID variant (0x%02x) found, can't extract timestamp\n",
             (myUUID.clock_seq_hi_and_reserved & 0xc0) >> 4);
         return (time_t)-1;
     }
@@ -94,7 +94,7 @@ PTS_UUID *newUuid() {
 
     uuid = xmalloc(sizeof(PTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -110,7 +110,7 @@ PTS_UUID *newUuid() {
 void freeUuid(PTS_UUID *uuid) {
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -128,20 +128,20 @@ PTS_UUID *getUuidFromString(char *str) {
 
     /* check */
     if (str == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
     rc = uuid_parse(str, uu);
     if (rc != 0) {
-        ERROR("getUuidFromString() - uuid_parse fail, rc=%d, UUID='%s'",
+        LOG(LOG_ERR, "getUuidFromString() - uuid_parse fail, rc=%d, UUID='%s'",
             rc, str);
         return NULL;
     }
 
     uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memcpy(uuid, uu, 16);
@@ -158,13 +158,13 @@ char * getStringOfUuid(PTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
     str_uuid = xmalloc(37);
     if (str_uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -216,7 +216,7 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return NULL;
     }
 
@@ -228,7 +228,7 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
 
     pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memcpy(pdt, &time, (9*4));
@@ -251,7 +251,7 @@ PTS_DateTime * getDateTime() {
 
     pdt = xmalloc(sizeof(PTS_DateTime));
     if (pdt == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memcpy(pdt, &ttm, (9*4));

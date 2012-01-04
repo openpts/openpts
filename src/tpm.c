@@ -59,7 +59,7 @@ int resetTpm(OPENPTS_TPM_CONTEXT *tctx, int drtm) {
 
     /* check */
     if (tctx == NULL) {
-        ERROR("ERROR TPM_CONTEXT is NULL");
+        LOG(LOG_ERR, "ERROR TPM_CONTEXT is NULL");
         return -1;
     }
 
@@ -91,7 +91,7 @@ int resetTpmPcr(OPENPTS_TPM_CONTEXT *tctx, int index) {
 
     /* check */
     if (tctx == NULL) {
-        ERROR("ERROR TPM_CONTEXT is NULL");
+        LOG(LOG_ERR, "ERROR TPM_CONTEXT is NULL");
         return -1;
     }
 
@@ -112,7 +112,7 @@ int isZero(BYTE * digest) {
 
     /* check */
     if (digest == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -133,7 +133,7 @@ void setFF(BYTE * digest) {
 
     /* check */
     if (digest == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -156,28 +156,28 @@ int extendTpm(OPENPTS_TPM_CONTEXT *tctx, TSS_PCR_EVENT *event) {
 
     /* check */
     if (tctx == NULL) {
-        ERROR("TPM_CONTEXT is NULL\n");
+        LOG(LOG_ERR, "TPM_CONTEXT is NULL\n");
         return PTS_FATAL;
     }
     if (event == NULL) {
-        ERROR("TSS_PCR_EVENT is NULL\n");
+        LOG(LOG_ERR, "TSS_PCR_EVENT is NULL\n");
         return PTS_FATAL;
     }
 
     digest = event->rgbPcrValue;
     if (digest == NULL) {
-        ERROR("event->rgbPcrValue is NULL\n");
+        LOG(LOG_ERR, "event->rgbPcrValue is NULL\n");
         return PTS_FATAL;
     }
 
     index = event->ulPcrIndex;
     if (index >= MAX_PCRNUM) {
-        ERROR("BAD PCR INDEX %d >= %d\n", index, MAX_PCRNUM);
+        LOG(LOG_ERR, "BAD PCR INDEX %d >= %d\n", index, MAX_PCRNUM);
         return PTS_INTERNAL_ERROR;
     }
 
     if (index < 0) {
-        ERROR("ERROR BAD PCR INDEX %d < 0\n", index);
+        LOG(LOG_ERR, "ERROR BAD PCR INDEX %d < 0\n", index);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -216,16 +216,16 @@ int extendTpm2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
 
     /* check */
     if (tctx == NULL) {
-        ERROR("TPM_CONTEXT is NULL\n");
+        LOG(LOG_ERR, "TPM_CONTEXT is NULL\n");
         return PTS_FATAL;
     }
     if (digest == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
     if (index >= MAX_PCRNUM) {
-        ERROR("BAD pcr index, %d >= %d", index, MAX_PCRNUM);
+        LOG(LOG_ERR, "BAD pcr index, %d >= %d", index, MAX_PCRNUM);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -263,7 +263,7 @@ int checkTpmPcr2(OPENPTS_TPM_CONTEXT *tctx, int index, BYTE * digest) {
 
     /* check */
     if (tctx == NULL) {
-        ERROR("TPM_CONTEXT is NULL\n");
+        LOG(LOG_ERR, "TPM_CONTEXT is NULL\n");
         return PTS_FATAL;
     }
 
@@ -283,7 +283,7 @@ int printTpm(OPENPTS_TPM_CONTEXT *tctx) {
 
     /* check */
     if (tctx == NULL) {
-        ERROR("TPM_CONTEXT is NULL\n");
+        LOG(LOG_ERR, "TPM_CONTEXT is NULL\n");
         return PTS_FATAL;
     }
 
@@ -308,19 +308,19 @@ int getTpmPcrValue(OPENPTS_TPM_CONTEXT *tpm, int index, BYTE *digest) {
 
     /* check */
     if (tpm == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (digest == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (index >= MAX_PCRNUM) {
-        ERROR("BAD PCR INDEX %d >= %d\n", index, MAX_PCRNUM);
+        LOG(LOG_ERR, "BAD PCR INDEX %d >= %d\n", index, MAX_PCRNUM);
         return PTS_INTERNAL_ERROR;
     }
     if (index < 0) {
-        ERROR("ERROR BAD PCR INDEX %d < 0\n", index);
+        LOG(LOG_ERR, "ERROR BAD PCR INDEX %d < 0\n", index);
         return PTS_INTERNAL_ERROR;
     }
 

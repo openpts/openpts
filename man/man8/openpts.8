@@ -1,0 +1,79 @@
+.\" Copyright (C) 2011 International Business Machines Corporation
+.\"
+.de Sh \" Subsection
+.br
+.ie \\n(.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+.TH "openpts" 8 "2012-01-04"  "Platform Trust Services(PTS)"
+.ce 1
+Platform Trust Services(PTS) - openpts
+.SH NAME
+openpts \- PTS verifier command
+.SH "SYNOPSIS"
+.ad l
+.hy 0
+.B openpts
+.RB [ OPTION ]
+.RB <target>
+
+.SH "DESCRIPTION"
+.PP
+\fBopenpts\fR is a verifier side application of Platform Trust Services(PTS).
+
+
+.SH "COMMANDS"
+
+.TP
+\fB-i\fR
+Enroll a target node and acquire [overwrite (-f)] the reference measurement.
+
+.TP
+\fB-v\fR
+Verify target (collector) integrity against known measurement.
+
+.TP
+\fB-r\fR
+Remove the target from the set of known reference measurements.
+
+.TP
+\fB\-h\fR
+Display command usage info.
+
+.TP
+\fB-D\fR
+Display the configuration (target/ALL)
+
+.SH "OPTIONS"
+
+.TP
+\fB-u\fR
+Accept a measurement update during attestation, if there are any available.
+
+
+.TP
+\fB-l username\fR
+ssh username [ssh default]
+
+.TP
+\fB-p port\fR
+ssh port number [ssh default]
+
+.TP
+\fB-c configfile\fR
+Set configuration file [~/.openpts/openpts.conf]
+
+.TP
+\fB-V\fR
+Verbose mode. Multiple -V options increase the verbosity.
+
+
+.SH "SEE ALSO"
+.PP
+\fBptsc\fR(8)
+.SH "AUTHOR"
+Seiji Munetoh
+.SH "REPORTING BUGS"
+Report bugs to <openpts-users@lists.sourceforge.jp>
+

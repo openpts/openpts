@@ -78,11 +78,11 @@ unsigned char pcr[MAX_PCRNUM][SHA1_DIGEST_SIZE];
 void debugPrintHex(char *head, BYTE *data, int num, char *tail) {
     int i;
     if (verbose > 0) {
-        printf("%s", head);
+        OUTPUT("%s", head);
         for (i = 0; i < num; i++) {
-            printf("%02X", data[i]);
+            OUTPUT("%02X", data[i]);
         }
-        printf("%s", tail);
+        OUTPUT("%s", tail);
     }
 }
 
@@ -161,7 +161,7 @@ int parseTxtStatFile(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
     if (filename != NULL) {
         /* open */
         if ((fp = fopen(filename, "r")) == NULL) {
-            ERROR("parseTxtStatFile - %s file is missing\n", filename);
+            LOG(LOG_ERR, "parseTxtStatFile - %s file is missing\n", filename);
             return PTS_FATAL;  // TODO
         }
     } else {
@@ -482,7 +482,7 @@ int sinit_acm_hash(char *filename, int size, BYTE *sha1_digest, BYTE *sha256_dig
     /* open */
     fp = fopen(filename, "rb");
     if (fp == NULL) {
-        ERROR("File %s does not exist\n", filename);
+        LOG(LOG_ERR, "File %s does not exist\n", filename);
         rc = PTS_FATAL;
         goto error;
     }
@@ -543,7 +543,7 @@ int sha1sum_unzip(char *filename, int *filesize, BYTE *digest) {
     /* open */
     fp = gzopen(filename, "rb");
     if (fp == NULL) {
-        ERROR("File %s does not exist\n", filename);
+        LOG(LOG_ERR, "File %s does not exist\n", filename);
         return 0;
     }
 
@@ -592,7 +592,7 @@ int parseGrubConfFile(OPENPTS_TBOOT_CONTEXT *ctx, char *filename, char *path) {
 
     /* open */
     if ((fp = fopen(filename, "r")) == NULL) {
-        ERROR("parseTxtStatFile - %s file is missing\n", filename);
+        LOG(LOG_ERR, "parseTxtStatFile - %s file is missing\n", filename);
         return PTS_FATAL;  // TODO
     }
 
@@ -846,7 +846,7 @@ int emulateTboot(OPENPTS_TBOOT_CONTEXT *ctx) {
         extend(17, digest);
         debugPrintHex("  mle v8 PCR17 ", &pcr[17][0], 20, "\n");
     } else {
-        ERROR("mle_version = %d \n", ctx->mle_version);
+        LOG(LOG_ERR, "mle_version = %d \n", ctx->mle_version);
     }
 
     extend(18, ctx->mle_hash);
@@ -879,12 +879,12 @@ int emulateTboot(OPENPTS_TBOOT_CONTEXT *ctx) {
 
     /* check (within TXT-STAT) */
     if (memcmp(&pcr[17][0], ctx->final_pcr17, 20) != 0) {
-        ERROR("bad PCR17\n");
+        LOG(LOG_ERR, "bad PCR17\n");
         printHex("PCR-17", &pcr[17][0], 20, "\n");
         rc = PTS_FATAL;
     }
     if (memcmp(&pcr[18][0], ctx->final_pcr18, 20) != 0) {
-        ERROR("bad PCR18\n");
+        LOG(LOG_ERR, "bad PCR18\n");
         printHex("PCR-18", &pcr[18][0], 20, "\n");
         rc = PTS_FATAL;
     }
@@ -925,7 +925,7 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
     if (filename != NULL) {
         /* open */
         if ((fp = fopen(filename, "wb")) == NULL) {
-            ERROR("generateEventlog - %s file can't open\n", filename);
+            LOG(LOG_ERR, "generateEventlog - %s file can't open\n", filename);
             return PTS_FATAL;  // TODO
         }
     } else {
@@ -1010,9 +1010,9 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
 
 
     } else if (ctx->mle_version == 8) {
-         TODO("TBD mle_version = %d \n", ctx->mle_version);
+         LOG(LOG_TODO, "TBD mle_version = %d \n", ctx->mle_version);
     } else {
-         TODO("TBD mle_version = %d \n", ctx->mle_version);
+         LOG(LOG_TODO, "TBD mle_version = %d \n", ctx->mle_version);
     }
 
 
@@ -1064,7 +1064,7 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
 
         module = ctx->module;
         if (memcmp(module->digest, ctx->vl_pcr18, 20) != 0) {
-            ERROR("Module[0] digest did not match\n");
+            LOG(LOG_ERR, "Module[0] digest did not match\n");
             debugPrintHex("  TXT-STAT : ", ctx->vl_pcr18, 20, "\n");
             debugPrintHex("  Calc     : ", module->digest, 20, "\n");
         }
@@ -1107,7 +1107,7 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
 
         module = ctx->module->next;
         if (memcmp(module->digest, ctx->vl_pcr19, 20) != 0) {
-            ERROR("Module[1] digest did not match\n");
+            LOG(LOG_ERR, "Module[1] digest did not match\n");
             debugPrintHex("  TXT-STAT : ", ctx->vl_pcr19, 20, "\n");
             debugPrintHex("  Calc     : ", module->digest, 20, "\n");
         }
@@ -1158,16 +1158,17 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
 
 
 void usage(void) {
-    fprintf(stderr, "OpenPTS command\n\n");
-    fprintf(stderr, "Usage: tboot2iml [options]\n\n");
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -i filename           txt-stat file to read (default is STDIN)\n");
-    fprintf(stderr, "  -g filename           grub.conf file to read (OPTION)\n");
-    fprintf(stderr, "  -p path               grub path (OPTION)\n");
-    fprintf(stderr, "  -o filename           Output to file (default is STDOUT)\n");
-    fprintf(stderr, "  -v                    Verbose message\n");
-    fprintf(stderr, "  -h                    Help\n");
-    fprintf(stderr, "\n");
+    OUTPUT( // TODO NLS
+        "OpenPTS command\n\n"
+        "Usage: tboot2iml [options]\n\n"
+        "Options:\n"
+        "  -i filename           txt-stat file to read (default is STDIN)\n"
+        "  -g filename           grub.conf file to read (OPTION)\n"
+        "  -p path               grub path (OPTION)\n"
+        "  -o filename           Output to file (default is STDOUT)\n"
+        "  -v                    Verbose message\n"
+        "  -h                    Help\n"
+        "\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -1206,11 +1207,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // printf("tboot to IML (%s)\n", txt_stat_filename);
-
     /* check */
     if ((grub_conf_filename != NULL) && (grub_path == NULL)) {
-        fprintf(stderr, "set the root path used by crub.conf\n");
+        ERROR(  // TODO NLS
+            "set the root path used by crub.conf\n");
         usage();
         goto close;
     }
@@ -1223,7 +1223,7 @@ int main(int argc, char *argv[]) {
     /* parse TXT stat */
     rc = parseTxtStatFile(ctx, txt_stat_filename);
     if (rc != PTS_SUCCESS) {
-        ERROR("parse of %s file was failed\n", txt_stat_filename);
+        LOG(LOG_ERR, "parse of %s file was failed\n", txt_stat_filename);
     }
 
     /* parse grub.conf */

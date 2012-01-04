@@ -77,7 +77,7 @@ PTS_UUID *newUuid() {
 
     uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -85,7 +85,7 @@ PTS_UUID *newUuid() {
     uuid_create((uuid_p_t)uuid, &status);
 
     if (uuid_s_ok != status) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FAILED_GEN_NEW,
+        ERROR(NLS(MS_OPENPTS, OPENPTS_UUID_FAILED_GEN_NEW,
             "Failed to generate an UUID: %s\n"), uuid_s_message[status]);
         xfree(uuid);
         return NULL;
@@ -100,7 +100,7 @@ PTS_UUID *newUuid() {
 void freeUuid(PTS_UUID *uuid) {
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -117,13 +117,13 @@ PTS_UUID *getUuidFromString(char *str) {
 
     /* check */
     if (str == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
     uuid = xmalloc(sizeof(PTS_UUID));
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(uuid, 0, UUIDSIZE);
@@ -131,7 +131,7 @@ PTS_UUID *getUuidFromString(char *str) {
     /* cast is ok since there are only hex digits (<128) */
     uuid_from_string((unsigned char *)str, (uuid_p_t)uuid, &status);
     if (uuid_s_ok != status) {
-        ERROR("getUuidFromString() - uuid_from_string failed UUID='%s': %s\n",
+        LOG(LOG_ERR, "getUuidFromString() - uuid_from_string failed UUID='%s': %s\n",
             str, uuid_s_message[status]);
         xfree(uuid);
         return NULL;
@@ -150,13 +150,13 @@ char * getStringOfUuid(PTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
     str_uuid = xmalloc(UUID_STRLEN + 1);
     if (str_uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -167,7 +167,7 @@ char * getStringOfUuid(PTS_UUID *uuid) {
     uuid_to_string((uuid_p_t)uuid, (unsigned char **)&str_uuid, &status);
 
     if (uuid_s_ok != status) {
-        ERROR("getStringFromUuid() - uuid_to_string failed: %s\n",
+        LOG(LOG_ERR, "getStringFromUuid() - uuid_to_string failed: %s\n",
             uuid_s_message[status]);
         xfree(str_uuid);
         return NULL;
@@ -194,12 +194,12 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return NULL;
     }
 
     if ((uu->clock_seq_hi_and_reserved & 0xc0) != 0x80) {
-        ERROR("getDateTimeOfUuid () - bad UUID variant (0x%02x) found, can't extract timestamp\n",
+        LOG(LOG_ERR, "getDateTimeOfUuid () - bad UUID variant (0x%02x) found, can't extract timestamp\n",
             (uu->clock_seq_hi_and_reserved & 0xc0) >> 4);
         return NULL;
     }

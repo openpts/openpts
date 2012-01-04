@@ -108,7 +108,7 @@ void    uml2sax_endDocument(void * fctx) {
     // TODO(munetoh) ID must be "Start"
     ctx->curr_state = getSubvertex(ctx, "Start");
     if (ctx->curr_state == NULL) {
-        ERROR("Start state is missing\n");
+        LOG(LOG_ERR, "Start state is missing\n");
     }
 
     DEBUG_CAL("endDocument - done\n");
@@ -149,10 +149,8 @@ void    uml2sax_startElement(void* fctx, const xmlChar* name,
         if (atts != NULL) {
             for (i = 0; (atts[i] != NULL); i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "xmi:type")) {
                         snprintf(subvertexXmiType, sizeof(subvertexXmiType),
                                  "%s", value);
@@ -179,10 +177,8 @@ void    uml2sax_startElement(void* fctx, const xmlChar* name,
         if (atts != NULL) {
             for (i = 0; (atts[i] != NULL); i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "source")) {
                         snprintf(sourceXmiId, sizeof(sourceXmiId), "%s", value);
                     }
@@ -200,10 +196,8 @@ void    uml2sax_startElement(void* fctx, const xmlChar* name,
         if (atts != NULL) {
             for (i = 0; (atts[i] != NULL); i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "name")) {
                         snprintf(doActivityName, sizeof(doActivityName),
                                  "%s", value);
@@ -215,8 +209,6 @@ void    uml2sax_startElement(void* fctx, const xmlChar* name,
 
     } else if ((!strcmp((char *)name, "body")) &&
                (ctx->state == UML2SAX_TRANSITION)) {
-        // } else if (!strcmp((char *)name, "body")) {
-        // printf("state %d ",ctx->state);
         ctx->state = UML2SAX_BODY;
     } else if (!strcmp((char *)name, "name")) {
         //
@@ -288,14 +280,10 @@ void  uml2sax_characters(void* fctx, const xmlChar * ch, int len) {
 
     switch (ctx->state) {
     case UML2SAX_SUBVERTEX:
-        // printf("PCR_INDEX  [%s]\n",buf);
-        // sax_pcrIndex = atoi(buf);
         break;
     case UML2SAX_BODY:
         memcpy(charbuf, buf, FSM_BUF_SIZE);
         ctx->state = 0;
-        // DEBUG("Condition  [%s] len=%d\n",charbuf,len);
-        // sax_pcrIndex = atoi(buf);
         break;
     default:
         // DEBUG_SAX("characters[%d]=[%s]\n", len, buf);

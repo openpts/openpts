@@ -103,10 +103,11 @@ void vlogn(unsigned msglevel, char *fmt, va_list ap) {
     vsnprintf(buf, LOGMAX, fmt, ap);
     va_end(ap);
     if (foreground) {
-        fprintf(stderr, "%s\n", buf);
+        ERROR(  // TODO NLS
+            "%s\n", buf);
         fflush(stderr);
     } else {
-        syslog(msglevel ? LOG_INFO : LOG_CRIT, "%s", buf);
+        syslog(msglevel ? LOG_INFO : LOG_CRIT, "%s", buf);  // TODO use LOG?
     }
 }
 
@@ -351,7 +352,7 @@ main(int argc, char **argv) {
 
     if (argc > 0) {
     usage:
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_PTSEVTD_USAGE,
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_PTSEVTD_USAGE,
             "syntax: ptsevtd [-df] [-p port] [-c command]\n"));
         exit(1);
     }

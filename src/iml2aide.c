@@ -95,58 +95,60 @@ void printFsmInfo2(OPENPTS_CONTEXT *ctx) {
     int level0_num = 0;
     int level1_num = 0;
 
-    printf(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_EVENT, "Number of events\n"
-           "PCR Level0 Level1\n"));
-    printf("--------------------------\n");
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_EVENT,
+        "Number of events\n"
+        "PCR Level0 Level1\n"));
+    OUTPUT("--------------------------\n");
 
     for (i = 0; i < MAX_PCRNUM; i++) {
-        printf("%2d ", i);
+        OUTPUT("%2d ", i);
         ss = getSnapshotFromTable(ctx->ss_table, i, 0);
         if (ss == NULL) {
-            printf(" ----- - - ");
+            OUTPUT(" ----- - - ");
         } else {
-            printf(" %p ", ss);
-            if (ss->fsm_behavior != NULL) printf(" O ");
-            else                          printf(" X ");
+            OUTPUT(" %p ", ss);
+            if (ss->fsm_behavior != NULL) OUTPUT(" O ");
+            else                          OUTPUT(" X ");
 
-            if (ss->fsm_binary   != NULL) printf(" O ");
-            else                          printf(" X ");
+            if (ss->fsm_binary   != NULL) OUTPUT(" O ");
+            else                          OUTPUT(" X ");
 
             /* level 1 */
             ss = getSnapshotFromTable(ctx->ss_table, i, 1);
             if (ss != NULL) {
-                printf("  ");
-                printf(" %p ", ss);
-                if (ss->fsm_behavior != NULL) printf(" O ");
-                else                          printf(" X ");
+                OUTPUT("  ");
+                OUTPUT(" %p ", ss);
+                if (ss->fsm_behavior != NULL) OUTPUT(" O ");
+                else                          OUTPUT(" X ");
 
-                if (ss->fsm_binary   != NULL) printf(" O ");
-                else                          printf(" X ");
+                if (ss->fsm_binary   != NULL) OUTPUT(" O ");
+                else                          OUTPUT(" X ");
             }
         }
 
-        printf("\n");
+        OUTPUT("\n");
     }
-    printf("---------------------------\n");
-    printf("level 0 total = %d\n", level0_num);
-    printf("level 1 total = %d\n", level1_num);
-    printf("---------------------------\n");
+    OUTPUT("---------------------------\n");
+    OUTPUT("level 0 total = %d\n", level0_num);
+    OUTPUT("level 1 total = %d\n", level1_num);
+    OUTPUT("---------------------------\n");
 }
 
 /**
  * usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IML2AIDE_USAGE, "OpenPTS command\n\n"
-                    "Usage: iml2aide [options]\n\n"
-                    "Options:\n"
-                    "  -c filename           Set config file\n"
-                    "  -i filename           Set IMA IML file. default, get IML via TSS\n"
-                    "  -r filename           Set AIDE DB file as reference of fullpathname\n"
-                    "  -o filename           Set output file (AIDE DB format, gziped)\n"
-                    "  -w filename           Set output file (Ignore name list, plain text format)\n"
-                    "  -h                    Show this help message\n"
-                    "\n"));
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_USAGE,
+        "OpenPTS command\n\n"
+        "Usage: iml2aide [options]\n\n"
+        "Options:\n"
+        "  -c filename           Set config file\n"
+        "  -i filename           Set IMA IML file. default, get IML via TSS\n"
+        "  -r filename           Set AIDE DB file as reference of fullpathname\n"
+        "  -o filename           Set output file (AIDE DB format, gziped)\n"
+        "  -w filename           Set output file (Ignore name list, plain text format)\n"
+        "  -h                    Show this help message\n"
+        "\n"));
 }
 
 /**
@@ -212,13 +214,13 @@ int main(int argc, char *argv[]) {
     /* ctx */
     conf = newPtsConfig();
     if (conf == NULL) {
-        ERROR("Internal Error\n");
+        LOG(LOG_ERR, "Internal Error\n");
         return -1;
     }
 
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("Internal Error\n");
+        LOG(LOG_ERR, "Internal Error\n");
         return -1;
     }
 
@@ -228,7 +230,7 @@ int main(int argc, char *argv[]) {
     /* FSM */
     rc = readFsmFromPropFile(ctx, config_filename);
     if (rc != PTS_SUCCESS) {
-        ERROR("read FSM failed\n");
+        LOG(LOG_ERR, "read FSM failed\n");
         printFsmInfo2(ctx);
     }
 
@@ -244,10 +246,10 @@ int main(int argc, char *argv[]) {
 
         rc = loadAideDatabaseFile(ctx->aide_ctx, aideref_filename);  // ir.c
         if (rc < 0) {
-            ERROR("Internal Error, load AIDE DB() was failed\n");
+            LOG(LOG_ERR, "Internal Error, load AIDE DB() was failed\n");
             return -1;
         }
-        printf(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_DATABASE,
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_DATABASE,
             "AIDE Database(ref): %d entries (< %s)\n"), rc, aideref_filename);
 
         /* set flags */
@@ -261,7 +263,8 @@ int main(int argc, char *argv[]) {
     if (ima_filename == NULL) {
         /* IML -> TSS -> Struct */
         rc = getIml(ctx, 0);
-        printf(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_EVENTS, "IML: %d events (< TSS)\n"), rc);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_EVENTS,
+            "IML: %d events (< TSS)\n"), rc);
     } else {
         int count;
         /* IML(file) -> Struct */
@@ -271,13 +274,14 @@ int main(int argc, char *argv[]) {
                 ima_type, 0, &count);
 
         if (rc != PTS_SUCCESS) {
-            ERROR("Internal Error, raild atr ead IMA's IML\n");
+            LOG(LOG_ERR, "Internal Error, raild atr ead IMA's IML\n");
             return -1;
         }
-        printf(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_EVENTS_2, "IML: %d events (< %s)\n"), rc, ima_filename);
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_EVENTS_2,
+            "IML: %d events (< %s)\n"), rc, ima_filename);
     }
     if (rc < 0) {
-        ERROR("Internal Error\n");
+        LOG(LOG_ERR, "Internal Error\n");
         return -1;
     }
 
@@ -290,16 +294,16 @@ int main(int argc, char *argv[]) {
         rc = writeReducedAidbDatabase(ctx->aide_ctx, aide_filename);
     }
     if (rc < 0) {
-        ERROR("Internal Error\n");
+        LOG(LOG_ERR, "Internal Error\n");
         return -1;
     }
 
-    printf(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_DATABASE_2,
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_DATABASE_2,
         "AIDE Database      : %d entries (> %s) \n"), rc, aide_filename);
 
     if (ignorelist_filename != NULL) {
         rc = writeAideIgnoreList(ctx, ignorelist_filename);
-        printf(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_IGN_LIST,
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2AIDE_IGN_LIST,
             "Ignore list  : %d entries (> %s) \n"), rc, ignorelist_filename);
     }
 

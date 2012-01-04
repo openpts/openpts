@@ -82,7 +82,7 @@ AIDE_METADATA * newAideMetadata() {
     AIDE_METADATA *metadata;
     metadata = (AIDE_METADATA *) xmalloc(sizeof(AIDE_METADATA));
     if (metadata == NULL) {
-        // ERROR("no memory\n");
+        // LOG(LOG_ERR, "no memory\n");
         return NULL;
     }
     memset(metadata, 0, sizeof(AIDE_METADATA));
@@ -173,7 +173,7 @@ AIDE_CONTEXT * newAideContext() {
     memset(ctx->aide_md_table, 0, sizeof(struct hsearch_data));
     rc = hcreate_r(AIDE_HASH_TABLE_SIZE, ctx->aide_md_table);  // hash table for metadata
     if (rc == 0) {
-        ERROR("hcreate faild, errno=%x\n", errno);
+        LOG(LOG_ERR, "hcreate faild, errno=%x\n", errno);
         goto error;
     }
     ctx->aide_md_table_size = 0;
@@ -184,7 +184,7 @@ AIDE_CONTEXT * newAideContext() {
     //  4096 full
     rc = hcreate_r(AIDE_HASH_TABLE_SIZE, ctx->aide_in_table);  // hash table for ignore name
     if (rc == 0) {
-        ERROR("hcreate faild\n");
+        LOG(LOG_ERR, "hcreate faild\n");
         goto error;
     }
     ctx->aide_in_table_size = 0;
@@ -226,7 +226,7 @@ void freeAideIgnoreList(AIDE_LIST *list) {
 void freeAideContext(AIDE_CONTEXT *ctx) {
     /* check */
     if (ctx == NULL) {
-        ERROR("ctx is NULL\n");
+        LOG(LOG_ERR, "ctx is NULL\n");
         return;
     }
     DEBUG("freeAideContext %p \n", ctx);
@@ -315,7 +315,7 @@ int getAideItemIndex(char *buf) {
     } else if (!strncmp(buf, "xattrs", 6)) {
         return AIDE_ITEM_XATTRS;
     } else {
-        ERROR("Unknown AIDE item [%s]\n", buf);
+        LOG(LOG_ERR, "Unknown AIDE item [%s]\n", buf);
         return -1;
     }
 }
@@ -352,7 +352,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
 
     fp = gzopen(filename, "r");
     if (fp == NULL) {
-        ERROR("%s missing\n", filename);
+        LOG(LOG_ERR, "%s missing\n", filename);
         return -1;
     }
 
@@ -372,14 +372,14 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
             while (ptr < end) {
                 /* skip space */
                 while ((ptr < end) && (*ptr == 0x20)) {
-                    printf("skip %d ", *ptr);
+                    // skip
                     ptr++;
                 }
 
                 /* find sep */
                 sep = strstr(ptr, " ");
                 if (sep == NULL) {
-                    ERROR("bad data, %s\n", buf);
+                    LOG(LOG_ERR, "bad data, %s\n", buf);
                     return -1;
                 } else {
                     // terminate at " "
@@ -389,7 +389,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                 items[item_num] = getAideItemIndex(ptr);
 
                 if (items[item_num] < 0) {
-                    ERROR("Bad spec\n");
+                    LOG(LOG_ERR, "Bad spec\n");
                     return -1;
                 }
                 item_num++;
@@ -400,7 +400,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
             body = 2;
 
             if (item_num > AIDE_MAX_ITEM_NUM) {
-                ERROR("loadAideDatabaseFile - %d items > %d \n", item_num, AIDE_MAX_ITEM_NUM);
+                LOG(LOG_ERR, "loadAideDatabaseFile - %d items > %d \n", item_num, AIDE_MAX_ITEM_NUM);
                 return -1;
             }
             DEBUG("loadAideDatabaseFile - has %d items\n", item_num);
@@ -421,10 +421,9 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
             for (i = 0; i < item_num; i++) {
                 /* space -> \0 */
                 if (i != item_num - 1) {
-                    // printf("SEP %d %d\n",i, item_num);
                     sep = strstr(ptr, " ");
                     if (sep == NULL) {
-                        ERROR("bad data, %s\n", buf);
+                        LOG(LOG_ERR, "bad data, %s\n", buf);
                         freeAideMetadata(md);
                         return -1;
                     } else {
@@ -463,14 +462,12 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                                 SHA1_BASE64_DIGEST_SIZE,
                                 &len);
                             if (md->sha1 == NULL) {
-                                ERROR("decodeBase64 fail");
+                                LOG(LOG_ERR, "decodeBase64 fail");
                                 goto close;
                             }
                             if (len != SHA1_DIGEST_SIZE) {
-                                ERROR("bad SHA1 size %d  %s\n", len, ptr);
-                                // printf("base64 [%s] => [", ptr);
+                                LOG(LOG_ERR, "bad SHA1 size %d  %s\n", len, ptr);
                                 printHex("digest", md->sha1, len, "\n");
-                                // printf("]\n");
                             }
                         }
                         break;
@@ -481,16 +478,16 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                                 SHA256_BASE64_DIGEST_SIZE,
                                 &len);
                             if (md->sha256 == NULL) {
-                                ERROR("decodeBase64 fail");
+                                LOG(LOG_ERR, "decodeBase64 fail");
                                 goto close;
                             }
                             if (len != SHA256_DIGEST_SIZE) {
-                                ERROR("bad SHA256 size %d\n", len);
-                                printf("base64 [%s] => [", ptr);
+                                LOG(LOG_ERR, "bad SHA256 size %d\n", len);
+                                OUTPUT("base64 [%s] => [", ptr);
                                 printHex("", (BYTE *)ptr, 2, " ");
-                                printf("][\n");
+                                OUTPUT("][\n");
                                 printHex("", md->sha256, len, " ");
-                                printf("]\n");
+                                OUTPUT("]\n");
                             }
                         }
                         break;
@@ -501,16 +498,16 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
                                 SHA512_BASE64_DIGEST_SIZE,
                                 &len);
                             if (md->sha512 == NULL) {
-                                ERROR("decodeBase64 fail");
+                                LOG(LOG_ERR, "decodeBase64 fail");
                                 goto close;
                             }
                             if (len != SHA512_DIGEST_SIZE) {
-                                ERROR("bad SHA512 size %d\n", len);
-                                printf("base64 [%s] => [", ptr);
+                                LOG(LOG_ERR, "bad SHA512 size %d\n", len);
+                                OUTPUT("base64 [%s] => [", ptr);
                                 printHex("", (BYTE *)ptr, 2, "");
-                                printf("][\n");
+                                OUTPUT("][\n");
                                 printHex("", md->sha512, len, "");
-                                printf("]\n");
+                                OUTPUT("]\n");
                             }
                         }
                         break;
@@ -543,17 +540,15 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
 
                 if (rc == 0) {
                     if (errno == ENOMEM) {
-                        ERROR("  hsearch_r failed, table is full, errno=%x\n", errno);
+                        LOG(LOG_ERR, "  hsearch_r failed, table is full, errno=%x\n", errno);
                     } else {
-                        ERROR("  hsearch_r failed, errno=%x\n", errno);
+                        LOG(LOG_ERR, "  hsearch_r failed, errno=%x\n", errno);
                     }
                 }
                 // CAUTION too many messages, use for debugging the unit test
                 // DEBUG("Hash Table <-  %4d [%s] %s\n", ctx->aide_md_table_size, md->hash_key, md->name);
                 ctx->aide_md_table_size++;
             }
-
-
 #if 0
             if (ctx->start == NULL) {
                 ctx->start = md;
@@ -566,7 +561,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
             ctx->metadata_num++;
 #endif
         } else {
-            // ignore printf("??? [%s]\n", buf);
+            // ignore
         }  // if
     }  // while
  close:
@@ -623,7 +618,7 @@ int readAideIgnoreNameFile(AIDE_CONTEXT *ctx, char *filename) {
             /* new  */
             list = xmalloc(sizeof(AIDE_LIST));
             if (list == NULL) {
-                ERROR("no mem\n");
+                LOG(LOG_ERR, "no mem\n");
                 rc = PTS_OS_ERROR;
                 goto error;  // return -1;
             }
@@ -649,9 +644,9 @@ int readAideIgnoreNameFile(AIDE_CONTEXT *ctx, char *filename) {
             rc = hsearch_r(e, ENTER, &ep, ctx->aide_in_table);
             if (rc == 0) {
                 if (errno == ENOMEM) {
-                    ERROR("  hsearch_r failed, ignore name table is full, errno=%x\n", errno);
+                    LOG(LOG_ERR, "  hsearch_r failed, ignore name table is full, errno=%x\n", errno);
                 } else {
-                    ERROR("  hsearch_r failed, errno=%x\n", errno);
+                    LOG(LOG_ERR, "  hsearch_r failed, errno=%x\n", errno);
                 }
             }
             ctx->aide_in_table_size++;
@@ -682,21 +677,21 @@ int printAideData(AIDE_CONTEXT *ctx) {
     md = ctx->start;
 
     for (i = 0; i < ctx->metadata_num; i++) {
-        printf("%4d ", i);
-        if ( md->name  != NULL) printf("%30s ", md->name);
-        if ( md->lname != NULL) printf("%20s ", md->lname);
-        if ( md->attr  != 0)    printf("%08X ", md->attr);
+        OUTPUT("%4d ", i);
+        if ( md->name  != NULL) OUTPUT("%30s ", md->name);
+        if ( md->lname != NULL) OUTPUT("%20s ", md->lname);
+        if ( md->attr  != 0)    OUTPUT("%08X ", md->attr);
         if (md->sha1   != NULL)
             printHex("", md->sha1, 20, " ");
         else
-            printf("                                        -");
+            OUTPUT("                                        -");
 
         if (md->sha256 != NULL)
             printHex("", md->sha256, 32, " ");
         else
-            printf("                                                                -");
+            OUTPUT("                                                                -");
 
-        printf(" <<\n");
+        OUTPUT(" <<\n");
         md = md->next;
     }
 
@@ -779,7 +774,7 @@ int checkIgnoreList(AIDE_CONTEXT *ctx, char *name) {
 
     /* check */
     if (name == NULL) {
-        ERROR("checkIgnoreList() - name is null\n");
+        LOG(LOG_ERR, "checkIgnoreList() - name is null\n");
         return -2;
     }
 
@@ -794,7 +789,7 @@ int checkIgnoreList(AIDE_CONTEXT *ctx, char *name) {
                 return 0;
             }
         } else {
-            ERROR("checkIgnoreList() - list->name is null\n");
+            LOG(LOG_ERR, "checkIgnoreList() - list->name is null\n");
             return -2;
         }
 
@@ -840,12 +835,12 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     // DEBUG("checkEventByAide - start\n");
 
     if (ctx == NULL) {
-        ERROR("checkEventByAide - AIDE_CONTEXT is NULL\n");
+        LOG(LOG_ERR, "checkEventByAide - AIDE_CONTEXT is NULL\n");
         return -1;
     }
 
     if (eventWrapper == NULL) {
-        ERROR("OcheckEventByAide - PENPTS_PCR_EVENT_WRAPPER is NULL\n");
+        LOG(LOG_ERR, "OcheckEventByAide - PENPTS_PCR_EVENT_WRAPPER is NULL\n");
         return -1;
     }
 
@@ -853,7 +848,7 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
 
     // 20100627 ignore pseudo event
     if (event->eventType == OPENPTS_PSEUDO_EVENT_TYPE) {
-        ERROR("validateImaMeasurement - event->eventType == OPENPTS_PSEUDO_EVENT_TYPE\n");
+        LOG(LOG_ERR, "validateImaMeasurement - event->eventType == OPENPTS_PSEUDO_EVENT_TYPE\n");
         return 1;
     }
 
@@ -875,7 +870,7 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
             20
             &buf_len);
     if (buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return -1;
     }
     rc = verifyBySQLite(ctx, (char*)buf);
@@ -923,7 +918,7 @@ int checkEventByAide(AIDE_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
             20,
             &buf_len);
     if (buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return -1;
     }
     e.key = (char *) buf;  // size?
@@ -1140,7 +1135,7 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
     /* file open for write */
     fp = gzopen(filename, "wb");
     if (fp == NULL) {
-        ERROR("%s fail to open\n", filename);
+        LOG(LOG_ERR, "%s fail to open\n", filename);
         return -1;
     }
 
@@ -1152,12 +1147,12 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
     /* IMLs */
     ss = getSnapshotFromTable(ctx->ss_table, 10, 1);  // TODO def or conf
     if (ss == NULL) {
-        ERROR("events is missing\n");
+        LOG(LOG_ERR, "events is missing\n");
         goto close;
     }
     eventWrapper = ss->start;
     if (eventWrapper == NULL) {
-        ERROR("events is missing\n");
+        LOG(LOG_ERR, "events is missing\n");
         goto close;
     }
 
@@ -1171,12 +1166,12 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
         // DEBUG("SM DEBUG event %p\n",event);
 
         if (event == NULL) {
-            ERROR("event is NULL\n");
+            LOG(LOG_ERR, "event is NULL\n");
             goto close;
         }
 
         if (event->rgbEvent == NULL) {
-            ERROR("event->rgbEvent is NULL\n");
+            LOG(LOG_ERR, "event->rgbEvent is NULL\n");
             goto close;
         }
 
@@ -1197,7 +1192,7 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
         /* filename (allocated) */
         len = escapeFilename(&aide_filename, (char *) &eventWrapper->event->rgbEvent[20]);
         if (len < 0) {
-            ERROR("convertImlToAideDbFile - no mem?\n");
+            LOG(LOG_ERR, "convertImlToAideDbFile - no mem?\n");
             gzprintf(fp, "bad_filename ");
         } else {
             gzprintf(fp, "%s ", aide_filename);
@@ -1211,13 +1206,11 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
             SHA1_DIGEST_SIZE,
             &buf_len);
         if (buf == NULL) {
-            ERROR("encodeBase64 fail");
+            LOG(LOG_ERR, "encodeBase64 fail");
             goto close;
         }
         gzprintf(fp, "%s \n", buf);
         xfree(buf);
-
-        // printf("%d %s\n", i, buf);
 
         eventWrapper = eventWrapper->next_pcr;
         if (eventWrapper == NULL) break;
@@ -1271,7 +1264,7 @@ int writeReducedAidbDatabase(AIDE_CONTEXT *ctx, char *filename) {
     /* file open for write */
     fp = gzopen(filename, "wb");
     if (fp == NULL) {
-        ERROR("%s fail to open\n", filename);
+        LOG(LOG_ERR, "%s fail to open\n", filename);
         return -1;
     }
 
@@ -1289,13 +1282,12 @@ int writeReducedAidbDatabase(AIDE_CONTEXT *ctx, char *filename) {
         }
 
         if (md->status == OPENPTS_AIDE_MD_STATUS_HIT) {
-            // printf("+");
             buf = encodeBase64(
                 (unsigned char *)md->sha1,
                 SHA1_DIGEST_SIZE,
                 &buf_len);
             if (buf == NULL) {
-                ERROR("encodeBase64 fail");
+                LOG(LOG_ERR, "encodeBase64 fail");
                 return -1;
             }
             gzprintf(fp, "%s ", md->name);
@@ -1340,11 +1332,11 @@ int convertAideDbfileToSQLiteDbFile(char * aide_filename, char * sqlite_filename
 
     /* check */
     if (aide_filename == NULL) {
-        ERROR("AIDE file is null\n");
+        LOG(LOG_ERR, "AIDE file is null\n");
         return PTS_INTERNAL_ERROR;
     }
     if (sqlite_filename == NULL) {
-        ERROR("sqlite file is null\n");
+        LOG(LOG_ERR, "sqlite file is null\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1355,7 +1347,7 @@ int convertAideDbfileToSQLiteDbFile(char * aide_filename, char * sqlite_filename
     /* read AIDE DB file -> ctx */
     rc = loadAideDatabaseFile(ctx, aide_filename);
     if (rc < 0) {
-        ERROR("read AIDE DB %s fail, rc = %d", aide_filename, rc);
+        LOG(LOG_ERR, "read AIDE DB %s fail, rc = %d", aide_filename, rc);
         return -1;
     }
 
@@ -1368,7 +1360,7 @@ int convertAideDbfileToSQLiteDbFile(char * aide_filename, char * sqlite_filename
     /* open */
     sqlite3_open(sqlite_filename, &db);
     if (db == NULL) {
-        ERROR("open AIDE DB fail\n");
+        LOG(LOG_ERR, "open AIDE DB fail\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1424,18 +1416,18 @@ int convertAideDbfileToSQLiteDbFile(char * aide_filename, char * sqlite_filename
 int loadSQLiteDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
     /* check */
     if (ctx == NULL) {
-        ERROR("ctx == NULL\n");
+        LOG(LOG_ERR, "ctx == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
     if (filename == NULL) {
-        ERROR("filename == NULL\n");
+        LOG(LOG_ERR, "filename == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
     /* open */
     sqlite3_open(filename, &ctx->sqlite_db);
     if (ctx->sqlite_db == NULL) {
-        ERROR("open AIDE SQLite DB %s fail\n", filename);
+        LOG(LOG_ERR, "open AIDE SQLite DB %s fail\n", filename);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1453,11 +1445,11 @@ int verifyBySQLite(AIDE_CONTEXT *ctx, char * key) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("ctx == NULL\n");
+        LOG(LOG_ERR, "ctx == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
     if (ctx->sqlite_db == NULL) {
-        ERROR("ctx->sqlite_db == NULL\n");
+        LOG(LOG_ERR, "ctx->sqlite_db == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1469,7 +1461,7 @@ int verifyBySQLite(AIDE_CONTEXT *ctx, char * key) {
         return OPENPTS_RESULT_VALID;
     }
 
-    // ERROR("row = %d\n",row);
+    // LOG(LOG_ERR, "row = %d\n",row);
 
     /* free */
     sqlite3_free(sql);

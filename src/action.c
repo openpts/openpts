@@ -90,7 +90,7 @@ int resetPCR(OPENPTS_CONTEXT *ctx, char *value) {
     DEBUG_FSM("resetPCR(%d)\n", pcr_index);
     rc = resetTpmPcr(&ctx->tpm, pcr_index);
     if (rc != PTS_SUCCESS) {
-        ERROR("reset PCR[%d] was failed, check the model");
+        LOG(LOG_ERR, "reset PCR[%d] was failed, check the model");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -126,7 +126,7 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
 
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -175,13 +175,13 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
 
     /* event */
     if (eventWrapper == NULL) {
-        ERROR("addBIOSSpecificProperty- eventWrapper is NULL\n");
+        LOG(LOG_ERR, "addBIOSSpecificProperty- eventWrapper is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1
     }
     event = eventWrapper->event;
 
     if (event->eventType != 0x06) {
-        ERROR("addBIOSSpecificProperty - bad event type 0x%x !- 0x06\n", event->eventType);
+        LOG(LOG_ERR, "addBIOSSpecificProperty - bad event type 0x%x !- 0x06\n", event->eventType);
         return PTS_INTERNAL_ERROR;  // -1
     }
 
@@ -190,11 +190,11 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
 
     /* check EventData */
     if (event->ulEventLength == 0) {
-        ERROR("addBIOSSpecificProperty - Bad IML, ulEventLength is 0.");
+        LOG(LOG_ERR, "addBIOSSpecificProperty - Bad IML, ulEventLength is 0.");
         return PTS_FATAL;
     }
     if (&event->rgbEvent[0] == NULL) {
-        ERROR("addBIOSSpecificProperty - Bad IML, rgbEvent is NULL.");
+        LOG(LOG_ERR, "addBIOSSpecificProperty - Bad IML, rgbEvent is NULL.");
         return PTS_FATAL;
     }
 
@@ -220,11 +220,11 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
                         ctx->conf->smbios_length,
                         &buf_len);
                 if (buf == NULL) {
-                    ERROR("encodeBase64 fail");
+                    LOG(LOG_ERR, "encodeBase64 fail");
                     return PTS_FATAL;
                 }
                 if (buf_len > BUF_SIZE) {
-                    ERROR("SMBIOS size = %d\n", buf_len);  // Thinkpad X200 => 3324
+                    LOG(LOG_ERR, "SMBIOS size = %d\n", buf_len);  // Thinkpad X200 => 3324
                     setProperty(ctx, "bios.smbios", "too big");
                 } else {
                     setProperty(ctx, "bios.smbios", buf);
@@ -254,14 +254,14 @@ int validateMBR(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     TSS_PCR_EVENT *event;
 
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
     event = eventWrapper->event;
 
     if (event == NULL) {
-        ERROR("event is NULL\n");
+        LOG(LOG_ERR, "event is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -290,13 +290,13 @@ int validateEltoritoBootImage(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *e
     // DEBUG("validateEltoritoBootImage - NA\n");
 
     if (eventWrapper == NULL) {
-        ERROR("eventWrapper is NULL\n");
+        LOG(LOG_ERR, "eventWrapper is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("event is NULL\n");
+        LOG(LOG_ERR, "event is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -324,14 +324,14 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("eventWrapper is NULL\n");
+        LOG(LOG_ERR, "eventWrapper is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
     event = eventWrapper->event;
 
     if (event == NULL) {
-        ERROR("event is NULL\n");
+        LOG(LOG_ERR, "event is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -341,7 +341,7 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
         SHA1_DIGEST_SIZE,
         &buf_len);
     if (buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return PTS_INTERNAL_ERROR;
     }
     setProperty(ctx, "kernel.initrd.digest", buf);
@@ -393,23 +393,23 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
 
     /* input check */
     if (eventWrapper == NULL) {
-        ERROR("eventWrapper is NULL\n");
+        LOG(LOG_ERR, "eventWrapper is NULL\n");
         return PTS_FATAL;
     }
 
     event = eventWrapper->event;
 
     if (event == NULL) {
-        ERROR("event is NULL\n");
+        LOG(LOG_ERR, "event is NULL\n");
         return PTS_FATAL;
     }
 
     if (event->rgbEvent == NULL) {
-        ERROR("event->rgbEvent is NULL, BAD IML?\n");
+        LOG(LOG_ERR, "event->rgbEvent is NULL, BAD IML?\n");
         return PTS_FATAL;
     }
     if (event->ulEventLength == 0) {
-        ERROR("event->ulEventLength is 0, BAD IML?\n");
+        LOG(LOG_ERR, "event->ulEventLength is 0, BAD IML?\n");
         return PTS_FATAL;
     }
 
@@ -455,7 +455,7 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
  * deprecated
  */
 int validateKernelCmdline(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
-    TODO("validateKernelCmdline - NA\n");
+    LOG(LOG_TODO, "validateKernelCmdline - NA\n");
     setProperty(ctx, "kernel.commandline", "TBD");
     return PTS_SUCCESS;
 }
@@ -482,14 +482,14 @@ int validateImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventW
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
     event = eventWrapper->event;
 
     if (event == NULL) {
-        ERROR("event is NULL\n");
+        LOG(LOG_ERR, "event is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -517,7 +517,7 @@ int validateImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventW
         if (isDebugFlagSet(DEBUG_FLAG)) {
             int j;
             BYTE pcr[SHA1_DIGEST_SIZE];
-            TODO("validateImaAggregate - "
+            LOG(LOG_TODO, "validateImaAggregate - "
                  "Wrong IMA aggregete - check FSM, "
                  "maybe it should use validateOldImaAggregate()\n");
             OUTPUT("PCR   =  ");
@@ -571,13 +571,13 @@ int validateOldImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("eventWrapper is NULL\n");
+        LOG(LOG_ERR, "eventWrapper is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("event is NULL\n");
+        LOG(LOG_ERR, "event is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1;
     }
 
@@ -694,7 +694,7 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
                 SHA1_DIGEST_SIZE,
                 &buf_len);
             if (buf == NULL) {
-                ERROR("encodeBase64 fail");
+                LOG(LOG_ERR, "encodeBase64 fail");
                 return PTS_INTERNAL_ERROR;
             }
             updateImaProperty(ctx, md->name, buf, "valid");
@@ -718,7 +718,7 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
                 SHA1_DIGEST_SIZE,
                 &buf_len);
             if (buf == NULL) {
-                ERROR("encodeBase64 fail");
+                LOG(LOG_ERR, "encodeBase64 fail");
                 return PTS_INTERNAL_ERROR;
             }
             updateImaProperty(ctx, name, buf, "unknown");  // action.c
@@ -736,7 +736,7 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
             return PTS_SUCCESS;
         } else {
             // ERROR
-            ERROR("validateImaMeasurement - checkEventByAide fail, rc - %d\n", rc);
+            LOG(LOG_ERR, "validateImaMeasurement - checkEventByAide fail, rc - %d\n", rc);
             eventWrapper->status = PTS_INTERNAL_ERROR;  // OPENPTS_RESULT_INT_ERROR;
             xfree(name);
             return PTS_INTERNAL_ERROR;  // -1;
@@ -745,25 +745,25 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
         // freeAideMetadata(md);
         // xfree(name);
     } else if (ctx->conf->ima_validation_mode == OPENPTS_VALIDATION_MODE_IIDB) {
-        ERROR("validateImaMeasurementNG w/ IIDB - NA\n");
+        LOG(LOG_ERR, "validateImaMeasurementNG w/ IIDB - NA\n");
     }
 #else  // !CONFIG_AIDE
     if (ctx->conf->ima_validation_mode == OPENPTS_VALIDATION_MODE_IIDB) {
-        ERROR("validateImaMeasurementNG w/ IIDB - NA\n");
+        LOG(LOG_ERR, "validateImaMeasurementNG w/ IIDB - NA\n");
     }
 #endif
     else {
         return PTS_SUCCESS;
     }
 
-    ERROR("validateImaMeasurement - ERROR\n");
+    LOG(LOG_ERR, "validateImaMeasurement - ERROR\n");
     return PTS_INTERNAL_ERROR;  // -1;
 }
 
 /* IMA NG */
 
 int validateImaAggregateNG(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
-    ERROR("validateImaAggregateNG - NA\n");
+    LOG(LOG_ERR, "validateImaAggregateNG - NA\n");
     setProperty(ctx, "ima.aggregate", "TBD");
     return PTS_INTERNAL_ERROR;  // -1;
 }
@@ -810,7 +810,7 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
 
     /* check ctx */
     if (ctx == NULL) {
-        ERROR("startCollector() - ctx is null");
+        LOG(LOG_ERR, "startCollector() - ctx is null");
         return PTS_FATAL;
     }
     if (ctx->target_conf == NULL) {
@@ -820,22 +820,22 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
     }
     if (ctx->target_conf->uuid == NULL) {
         /* collector */
-        ERROR("startCollector() - uuid is NULL\n");
+        LOG(LOG_ERR, "startCollector() - uuid is NULL\n");
         return PTS_FATAL;
     }
 
     /* check eventWrapper */
     if (eventWrapper == NULL) {
-        ERROR("startCollector() - eventWrapper is NULL\n");
+        LOG(LOG_ERR, "startCollector() - eventWrapper is NULL\n");
         return PTS_FATAL;
     }
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("startCollector() - event is NULL\n");
+        LOG(LOG_ERR, "startCollector() - event is NULL\n");
         return PTS_FATAL;
     }
     if (event->ulEventLength != sizeof(OPENPTS_EVENT_COLLECTOR_START)) {
-        ERROR("startCollector() - Bad eventData size %d != %d\n",
+        LOG(LOG_ERR, "startCollector() - Bad eventData size %d != %d\n",
             event->ulEventLength,
             sizeof(OPENPTS_EVENT_COLLECTOR_START));
         return PTS_FATAL;
@@ -850,20 +850,20 @@ int startCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
 
     /* validation - TSS version */
     if (memcmp(&start->pts_version, &ctx->target_conf->pts_version, 4) != 0) {
-        ERROR("startCollector() - Bad PTS version\n");
+        LOG(LOG_ERR, "startCollector() - Bad PTS version\n");
         rc = PTS_INVALID_COLLECTOR;
     }
 
     /* validation - Collector UUID */
     if (memcmp(&start->collector_uuid, ctx->target_conf->uuid->uuid, 16) != 0) {
-        ERROR("startCollector() - Bad Collector UUID (Unit Testing?)\n");
+        LOG(LOG_ERR, "startCollector() - Bad Collector UUID (Unit Testing?)\n");
         rc = PTS_INVALID_COLLECTOR;
     }
 
     /* validation - Manifest UUID */
     if (memcmp(&start->manifest_uuid, ctx->target_conf->rm_uuid->uuid, 16) != 0) {
         // TODO in the test ptsc generate new RM UUID
-        ERROR("startCollector() - Bad Manifest UUID (Unit Testing?)\n");
+        LOG(LOG_ERR, "startCollector() - Bad Manifest UUID (Unit Testing?)\n");
         rc = PTS_INVALID_COLLECTOR;
     }
 
@@ -879,7 +879,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
 
     /* event */
     if (eventWrapper == NULL) {
-        ERROR("addBIOSSpecificProperty- eventWrapper is NULL\n");
+        LOG(LOG_ERR, "addBIOSSpecificProperty- eventWrapper is NULL\n");
         return -1;
     }
     event = eventWrapper->event;
@@ -951,7 +951,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
 
                 if (event->ulEventLength < 48) {
                     // Bad EventData
-                    TODO("addIntelTxtTbootProperty() bad eventdata, size = %d\n",
+                    LOG(LOG_TODO, "addIntelTxtTbootProperty() bad eventdata, size = %d\n",
                         event->ulEventLength);
                 } else {
                     // EventData
@@ -999,7 +999,7 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
             break;
 
         default:
-            ERROR("Unknown event tupe 0x%x\n", event->eventType);
+            LOG(LOG_ERR, "Unknown event tupe 0x%x\n", event->eventType);
             break;
     }
 
@@ -1215,11 +1215,11 @@ int doActivity(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("doActivity - ctx is NULL");
+        LOG(LOG_ERR, "doActivity - ctx is NULL");
         return PTS_FATAL;
     }
     if (action == NULL) {
-        ERROR("doActivity - action is NULL");
+        LOG(LOG_ERR, "doActivity - action is NULL");
         return PTS_FATAL;
     }
     if (eventWrapper == NULL) {
@@ -1295,14 +1295,14 @@ int doActivity(
                 rc = action_table[i].func_7(ctx, value, eventWrapper);
                 goto end;
             default:
-                ERROR("unknown OPENPTS_ACTION_TABLE func tyoe\n");
+                LOG(LOG_ERR, "unknown OPENPTS_ACTION_TABLE func tyoe\n");
                 break;
             }
         }
     }
 
     /* error */
-    ERROR("unknown action '%s'\n", action);
+    LOG(LOG_ERR, "unknown action '%s'\n", action);
     addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_ACTION_UNKNOWN, "[FSM] Unknown action='%s'"), action);
     rc = OPENPTS_FSM_ERROR;
 

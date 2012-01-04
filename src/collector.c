@@ -175,15 +175,15 @@ int init(
 
     /* check */
     if (conf == NULL) {
-        ERROR("FATAL");
+        LOG(LOG_ERR, "FATAL");
         return PTS_FATAL;
     }
     if (conf->uuid == NULL) {
-        ERROR("FATAL");
+        LOG(LOG_ERR, "FATAL");
         return PTS_FATAL;
     }
     if (conf->uuid->filename == NULL) {
-        ERROR("FATAL");
+        LOG(LOG_ERR, "FATAL");
         return PTS_FATAL;
     }
 
@@ -234,7 +234,7 @@ int init(
     /* ctx for init */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory?");
+        LOG(LOG_ERR, "no memory?");
         return PTS_FATAL;
     }
 
@@ -431,7 +431,7 @@ int init(
     /* UUID for RM */
     if (conf->rm_uuid == NULL) {
         // init/set by readPtsConf
-        // ERROR("conf->rm_uuid == NULL\n");
+        // LOG(LOG_ERR, "conf->rm_uuid == NULL\n");
         addReason(ctx, -1,
             "[PTSC-INIT] RM_UUID file is not defined (rm.uuid.file) in the ptsc configulation, %s",
             conf->config_file);
@@ -472,7 +472,7 @@ int init(
         if (conf->rm_filename[i] != NULL) {
             rc = writeRm(ctx, conf->rm_filename[i], i);
             if (rc != PTS_SUCCESS) {
-                ERROR("ERROR, initialization was failed\n");
+                LOG(LOG_ERR, "ERROR, initialization was failed\n");
                 // WORK NEEDED: Reason need putting in NLS
                 addReason(ctx, -1,
                     "[PTSC-INIT] Couldn't create the manifest file, %s",
@@ -517,7 +517,7 @@ int init(
 
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_SUCCESS,
         "\nptsc has successfully initialized!\n\n"));
-    INFO("ptsc has successfully initialized!\n");
+    LOG(LOG_INFO, "ptsc has successfully initialized!\n");
     goto free;
 
  error:
@@ -525,7 +525,7 @@ int init(
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_INIT_FAIL,
         "ptsc initialization was failed\n\n"));
     printReason(ctx, 0);
-    INFO("ptsc initialization was failed\n");
+    LOG(LOG_INFO, "ptsc initialization was failed\n");
 
  free:
     /* free */
@@ -581,7 +581,7 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     prop = prop_start;
     for (i = 0; i < prop_count; i++) {
         if (prop == NULL) {
-            ERROR("prop == NULL\n");
+            LOG(LOG_ERR, "prop == NULL\n");
             return PTS_INTERNAL_ERROR;  // TODO free
         }
         addProperty(ctx, prop->name, prop->value);
@@ -601,7 +601,7 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     /* gen IR */
     rc = genIr(ctx, NULL);
     if (rc != PTS_SUCCESS) {
-        ERROR("selftest() - genIR failed\n");
+        LOG(LOG_ERR, "selftest() - genIR failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -634,9 +634,9 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     /* setup RMs */
     rc = getRmSetDir(conf);
     if (rc != PTS_SUCCESS) {
-        ERROR("selftest() - getRmSetDir() failed\n");
-        TODO("conf->rm_uuid->filename %s\n", conf->rm_uuid->filename);
-        TODO("conf->rm_uuid->str      %s\n", conf->rm_uuid->str);
+        LOG(LOG_ERR, "selftest() - getRmSetDir() failed\n");
+        LOG(LOG_TODO, "conf->rm_uuid->filename %s\n", conf->rm_uuid->filename);
+        LOG(LOG_TODO, "conf->rm_uuid->str      %s\n", conf->rm_uuid->str);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -645,7 +645,7 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
     for (i = 0; i <  conf->rm_num; i++) {
         rc = readRmFile(ctx, conf->rm_filename[i], i);
         if (rc < 0) {
-            ERROR("readRmFile fail\n");
+            LOG(LOG_ERR, "readRmFile fail\n");
             rc = PTS_INTERNAL_ERROR;
             goto free;
         }
@@ -704,7 +704,7 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
                 /* update rm_uuid */
                 rc = writeOpenptsUuidFile(conf->rm_uuid, 1);
                 if (rc != PTS_SUCCESS) {
-                    ERROR("writeOpenptsUuidFile fail\n");
+                    LOG(LOG_ERR, "writeOpenptsUuidFile fail\n");
                 }
 
                 // TODO check rc
@@ -714,7 +714,7 @@ int selftest(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start,
                 rc = OPENPTS_SELFTEST_RENEWED;
             } else {
                 /* fail */
-                TODO("\n");
+                LOG(LOG_ERR, "sleftest fail\n");
                 addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_SELFTEST_FAILED_2,
                                "[SELFTEST] The self test using both current and new UUIDs has failed"));
                 printReason(ctx, 0);
@@ -775,7 +775,7 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     prop = prop_start;
     for (i = 0; i < prop_count; i++) {
         if (prop == NULL) {
-            ERROR("prop == NULL\n");
+            LOG(LOG_ERR, "prop == NULL\n");
             return PTS_INTERNAL_ERROR;  // TODO free
         }
         addProperty(ctx, prop->name, prop->value);
@@ -795,14 +795,15 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     /* read FSM */
     rc = readFsmFromPropFile(ctx, conf->config_file);
     if (rc != PTS_SUCCESS) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_FSM, "Failed to read the FSM file\n"));
+        ERROR(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_FSM,
+            "Failed to read the FSM file.\n"));
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
 
     /* UUID for RM */
     if (conf->rm_uuid == NULL) {
-        ERROR("conf->rm_uuid == NULL");
+        LOG(LOG_ERR, "conf->rm_uuid == NULL");
     } else if (conf->rm_uuid->status == OPENPTS_UUID_FILENAME_ONLY) {
         rc = genOpenptsUuid(conf->rm_uuid);
         // TODO
@@ -813,13 +814,13 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     /* save/update rm_uuid file */
     rc = writeOpenptsUuidFile(conf->rm_uuid, 1);  // TODO overwite?
     if (rc != PTS_SUCCESS) {
-        ERROR("writeOpenptsUuidFile fail\n");
+        LOG(LOG_ERR, "writeOpenptsUuidFile fail\n");
     }
 
     /* RM set DIR */
     rc = makeRmSetDir(conf);
     if (rc != PTS_SUCCESS) {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_MKDIR_RM_SET_FAILED,
+        ERROR(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_MKDIR_RM_SET_FAILED,
             "Failed to create the reference manifest set directory\n"));
         goto free;
     }
@@ -832,7 +833,7 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
     /* load current IML using FSMs */
     if (conf->iml_mode == 0) {  // TODO use def
 #ifdef CONFIG_NO_TSS
-        ERROR("Build with --without-tss. iml.mode=tss is not supported\n");
+        LOG(LOG_ERR, "Build with --without-tss. iml.mode=tss is not supported\n");
 #else
         rc = getIml(ctx, 0);
         rc = getPcr(ctx);
@@ -846,7 +847,7 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
                 conf->bios_iml_filename, conf->iml_endian);
         if (rc != PTS_SUCCESS) {
             DEBUG("getBiosImlFile() was failed\n");
-            ERROR("Oops! Something is wrong. Please see the reason below\n");
+            LOG(LOG_ERR, "Oops! Something is wrong. Please see the reason below\n");
             printReason(ctx, 0);
             goto free;
         }
@@ -859,13 +860,13 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
                     conf->runtime_iml_filename,
                     conf->runtime_iml_type, 0, &count);  // TODO endian?
             if (rc != PTS_SUCCESS) {
-                ERROR("read IMA IML, %s was failed\n", conf->runtime_iml_filename);
+                LOG(LOG_ERR, "read IMA IML, %s was failed\n", conf->runtime_iml_filename);
                 rc = PTS_INTERNAL_ERROR;
                 goto free;
             }
         }
     } else {
-        ERROR("unknown IML mode, %d\n", conf->iml_mode);
+        LOG(LOG_ERR, "unknown IML mode, %d\n", conf->iml_mode);
     }
 
     /* get SMBIOS data */
@@ -876,13 +877,13 @@ int newrm(OPENPTS_CONFIG *conf, int prop_count, OPENPTS_PROPERTY *prop_start, OP
         if (conf->rm_filename[i] != NULL) {
             rc = writeRm(ctx, conf->rm_filename[i], i);
             if (rc != PTS_SUCCESS) {
-                ERROR("write RM, %s was failed\n", conf->rm_filename[i]);
+                LOG(LOG_ERR, "write RM, %s was failed\n", conf->rm_filename[i]);
                 rc = PTS_INTERNAL_ERROR;
                 goto free;
             }
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_NEW_RM_RM, "level %d Reference Manifest: %s\n"), i, conf->rm_filename[i]);
         } else {
-            ERROR("missing RM file for level %d\n", i);
+            LOG(LOG_ERR, "missing RM file for level %d\n", i);
         }
     }
     // OUTPUT("\nptsc is successfully initialized!\n");
@@ -928,7 +929,7 @@ int printCollectorStatus(OPENPTS_CONFIG *conf) {
                "  Runtime IML file: %s\n"
                "  PCR file: %s\n"), conf->bios_iml_filename, conf->runtime_iml_filename, conf->pcrs_filename);
     } else {
-        ERROR("unknown IML mode, %d\n", conf->iml_mode);
+        LOG(LOG_ERR, "unknown IML mode, %d\n", conf->iml_mode);
     }
 
     /* Linux IMA mode */
@@ -980,7 +981,7 @@ int printCollectorStatus(OPENPTS_CONFIG *conf) {
     /* Models */
     rc = readFsmFromPropFile(ctx, conf->config_file);
     if (rc != PTS_SUCCESS) {
-        ERROR("read FSM failed\n");
+        LOG(LOG_ERR, "read FSM failed\n");
         goto free;
     }
 
@@ -1014,11 +1015,11 @@ int clear(
 
     /* check */
     if (conf == NULL) {
-        ERROR("conf == NULL");
+        LOG(LOG_ERR, "conf == NULL");
         return PTS_FATAL;
     }
     if (conf->config_dir == NULL) {
-        ERROR("conf->config_dir == NULL");
+        LOG(LOG_ERR, "conf->config_dir == NULL");
         return PTS_FATAL;
     }
 
@@ -1028,7 +1029,7 @@ int clear(
     /* clear */
     if (isatty(STDIN_FILENO) && (force == 0) ) {
         char *lineFeed;
-        printf(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR,
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR,
             "Clear the PTS collector [y/N]:"));
         if ( NULL != fgets(ans, 32, stdin) ) {
             // strip the ending line-feed
@@ -1052,7 +1053,7 @@ int clear(
 
         rc = unlinkDir(conf->config_dir);
         if (rc != PTS_SUCCESS) {
-            ERROR("unlinkDir(%s) fail", conf->config_dir);
+            LOG(LOG_ERR, "unlinkDir(%s) fail", conf->config_dir);
         }
         OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CLEAR_YES_DONE,
             "%s has been cleared\n\n") , conf->config_dir);

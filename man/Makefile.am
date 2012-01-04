@@ -23,4 +23,4 @@
 # http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-SUBDIRS = man1 man3 man8
+SUBDIRS = man1 man3 man5 man8

@@ -35,7 +35,7 @@ ACLOCAL_AMFLAGS = -I m4
 #
 #EXTRA_DIST = LICENSE
 
-SUBDIRS = m4 po src doc models
+SUBDIRS = m4 po include src doc models man
 
 #
 # Symlink to openpts-version dir

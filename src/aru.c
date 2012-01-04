@@ -75,7 +75,7 @@ OPENPTS_UPDATE_CONTEXT *newUpdateCtx() {
 
     ctx = xmalloc(sizeof(OPENPTS_UPDATE_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_UPDATE_CONTEXT));
@@ -97,7 +97,7 @@ OPENPTS_UPDATE_SNAPSHOT *newUpdateSnapshot() {
 
     uss = xmalloc(sizeof(OPENPTS_UPDATE_SNAPSHOT));
     if (uss == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(uss, 0, sizeof(OPENPTS_UPDATE_SNAPSHOT));
@@ -131,7 +131,7 @@ void freeUpdateCtx(OPENPTS_UPDATE_CONTEXT* ctx) {
 int resetFsm(OPENPTS_SNAPSHOT *ss) {
     /* check */
     if (ss == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -194,12 +194,12 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check input */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     /* check conf */
@@ -212,25 +212,25 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     if (event->ulEventLength <= 20) {  // TODO sizeof
-        ERROR("startUpdate() - bad eventdata\n");
+        LOG(LOG_ERR, "startUpdate() - bad eventdata\n");
         return PTS_FATAL;
     }
     if (event->rgbEvent == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (conf->update == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -262,12 +262,12 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         ctx->conf->iml_endian);
 
     if (target_pcr_index >= MAX_PCRNUM) {
-        ERROR("startUpdate() - Bad PCR index %d 0x%08x\n",
+        LOG(LOG_ERR, "startUpdate() - Bad PCR index %d 0x%08x\n",
             target_pcr_index, target_pcr_index);
         return PTS_INTERNAL_ERROR;
     }
     if (target_snapshot_level >= MAX_SSLEVEL) {
-        ERROR("startUpdate() - Bad SS Level %d 0x%08x\n",
+        LOG(LOG_ERR, "startUpdate() - Bad SS Level %d 0x%08x\n",
             target_snapshot_level, target_snapshot_level);
         return PTS_INTERNAL_ERROR;
     }
@@ -329,12 +329,12 @@ int deputyEvent(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check input */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -346,17 +346,17 @@ int deputyEvent(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     update = conf->update;
     if (update == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -365,7 +365,7 @@ int deputyEvent(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
             [update->target_pcr_index]
             [update->target_snapshot_level];
     if (uss == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -398,12 +398,12 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check input */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -421,17 +421,17 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     update = conf->update;
     if (update == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -439,14 +439,14 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
             [update->target_pcr_index]
             [update->target_snapshot_level];
     if (uss == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* start structure */
     start = uss->start;
     if (start == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -462,7 +462,7 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     /* check the event num */
     if (uss->event_count != event_num) {
         /* actual event number is different with the number in start event */
-        ERROR("number of events (%08x) are not same with definition at start (%08x), BAD eventlog?\n",
+        LOG(LOG_ERR, "number of events (%08x) are not same with definition at start (%08x), BAD eventlog?\n",
             uss->event_count, event_num);
         return PTS_INVALID_SNAPSHOT;
     }
@@ -483,28 +483,28 @@ int updateCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrappe
 
     /* check input */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     if (event->ulEventLength != sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE)) {
-        ERROR("updateCollector() - Bad eventData size %d != %d\n",
+        LOG(LOG_ERR, "updateCollector() - Bad eventData size %d != %d\n",
             event->ulEventLength,
             sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE));
         return PTS_INVALID_SNAPSHOT;
@@ -517,7 +517,7 @@ int updateCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrappe
     if (conf->target_newrm_uuid == NULL) {
         conf->target_newrm_uuid = xmalloc(sizeof(PTS_UUID));
         if (NULL == conf->target_newrm_uuid) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             return PTS_FATAL;
         }
     }
@@ -591,11 +591,11 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
 
     /* check input */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (uss == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -620,7 +620,7 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
     /* update target snaposhot */
     ss =  getSnapshotFromTable(ctx->ss_table, i, j);
     if (NULL == ss) {
-        ERROR("null snapshot\n");
+        LOG(LOG_ERR, "null snapshot\n");
         return PTS_FATAL;
     }
 
@@ -655,7 +655,7 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
         /* WORK NEEDED: I guess that bosrenew should really pass in all IPL events including the final one */
         num++;
 #endif
-        INFO("UPDATE_IPL_IMAGE  iml.ipl.maxcount=%d (0x%x)\n", num, num);
+        LOG(LOG_INFO, "UPDATE_IPL_IMAGE  iml.ipl.maxcount=%d (0x%x)\n", num, num);
         snprintf(buf, BUF_SIZE, "%d", num);
         setProperty(ctx, "iml.ipl.maxcount", buf);
     }
@@ -708,7 +708,7 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
             // goto end;
             break;
         } else {
-            ERROR("updateFsm rc=%d\n", rc);
+            LOG(LOG_ERR, "updateFsm rc=%d\n", rc);
         }
 
         /* update SS chain */
@@ -761,15 +761,15 @@ int extendEvCollectorUpdate(OPENPTS_CONFIG *conf) {
 
     /*check */
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (conf->newrm_uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (conf->newrm_uuid->uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -831,24 +831,24 @@ int updateSnapshots(OPENPTS_CONTEXT *ctx) {
 
     /* check input */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
 
     if (conf->update_exist == 0) {
-        TODO("updateSnapshots() - done, no update\n");
+        LOG(LOG_TODO, "updateSnapshots() - done, no update\n");
         return PTS_SUCCESS;
     }
 
     update = (OPENPTS_UPDATE_CONTEXT *)conf->update;
     if (update == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -901,14 +901,14 @@ int update(
 
     /* check */
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
     /* ctx for init */
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
@@ -916,11 +916,11 @@ int update(
     if (prop_count > 0) {
         /* check */
         if (prop_start == NULL) {
-            ERROR("null input\n");
+            LOG(LOG_ERR, "null input\n");
             return PTS_FATAL;
         }
         if (prop_end == NULL) {
-            ERROR("null input\n");
+            LOG(LOG_ERR, "null input\n");
             return PTS_FATAL;
         }
         ctx->prop_start = prop_start;
@@ -955,7 +955,7 @@ int update(
     /* read FSM */
     rc = readFsmFromPropFile(ctx, conf->config_file);
     if (rc != PTS_SUCCESS) {
-        ERROR("update() - read FSM failed\n");
+        LOG(LOG_ERR, "update() - read FSM failed\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -976,7 +976,7 @@ int update(
     /* load current IML using FSMs */
     if (conf->iml_mode == 0) {  // TODO use def
 #ifdef CONFIG_NO_TSS
-        ERROR("update() - Build with --without-tss. iml.mode=tss is not supported\n");
+        LOG(LOG_ERR, "update() - Build with --without-tss. iml.mode=tss is not supported\n");
 #else
         rc = getIml(ctx, 0);
         rc = getPcr(ctx);
@@ -1012,13 +1012,13 @@ int update(
                     conf->runtime_iml_filename,
                     conf->runtime_iml_type, 0, &count);  // TODO endian?
             if (rc < 0) {
-                ERROR("read IMA IML, %s has failed\n", conf->runtime_iml_filename);
+                LOG(LOG_ERR, "read IMA IML, %s has failed\n", conf->runtime_iml_filename);
                 rc = PTS_INTERNAL_ERROR;
                 goto free;
             }
         }
     } else {
-        ERROR("unknown IML mode, %d\n", conf->iml_mode);
+        LOG(LOG_ERR, "unknown IML mode, %d\n", conf->iml_mode);
     }
 
     /* get SMBIOS data */
@@ -1031,13 +1031,13 @@ int update(
         /* Update the Manifests */
         rc = updateSnapshots(ctx);
         if (rc != PTS_SUCCESS) {
-            ERROR("update() - updateSnapshots fail\n");
+            LOG(LOG_ERR, "update() - updateSnapshots fail\n");
             goto free;
         }
 
         /* new UUID for this RM set */
         if (conf->newrm_uuid == NULL) {
-            INFO("conf->newrm_uuid == NULL, generate new reference manifest UUID\n");
+            LOG(LOG_INFO, "conf->newrm_uuid == NULL, generate new reference manifest UUID\n");
             conf->newrm_uuid = newOpenptsUuid();  // empty
             conf->newrm_uuid->filename =  getFullpathName(conf->config_dir, "newrm_uuid");
             DEBUG("conf->newrm_uuid->filename %s\n", conf->newrm_uuid->filename);
@@ -1059,8 +1059,8 @@ int update(
             rc = genOpenptsUuid(conf->newrm_uuid);
             // TODO
         } else {
-            ERROR("update() - conf->newrm_uuid->status %d\n", conf->newrm_uuid->status);
-            ERROR("update() - use given reference manifest UUID %s (for test)\n", conf->rm_uuid->str);
+            LOG(LOG_ERR, "update() - conf->newrm_uuid->status %d\n", conf->newrm_uuid->status);
+            LOG(LOG_ERR, "update() - use given reference manifest UUID %s (for test)\n", conf->rm_uuid->str);
             rc = PTS_FATAL;
             goto free;
         }
@@ -1078,7 +1078,7 @@ int update(
         /* RM set DIR */
         rc = makeNewRmSetDir(conf);
         if (rc != PTS_SUCCESS) {
-            ERROR("mkdir of RM set dir was failed\n");
+            LOG(LOG_ERR, "mkdir of RM set dir was failed\n");
             goto free;
         }
 
@@ -1110,7 +1110,7 @@ int update(
                 DEBUG("update() - writeRm %s\n", conf->newrm_filename[i]);
                 rc = writeRm(ctx, conf->newrm_filename[i], i);
                 if (rc < 0) {
-                    ERROR("write RM, %s was failed\n", conf->newrm_filename[i]);
+                    LOG(LOG_ERR, "write RM, %s was failed\n", conf->newrm_filename[i]);
                     rc = PTS_INTERNAL_ERROR;
                     goto free;
                 }
@@ -1120,7 +1120,7 @@ int update(
                 DEBUG("update() - dowriteRm %s\n", conf->newrm_filename[i]);
                 rc = writeRm(ctx, conf->newrm_filename[i], i);
                 if (rc < 0) {
-                    ERROR("write RM, %s was failed\n", conf->newrm_filename[i]);
+                    LOG(LOG_ERR, "write RM, %s was failed\n", conf->newrm_filename[i]);
                     rc = PTS_INTERNAL_ERROR;
                     goto free;
                 }
@@ -1130,17 +1130,20 @@ int update(
         /* Extend Collector Update event */
         rc = extendEvCollectorUpdate(conf);
         if (rc != PTS_SUCCESS) {
-            ERROR("updateSnapshots() - extendEvCollectorUpdate fail\n");
+            LOG(LOG_ERR, "updateSnapshots() - extendEvCollectorUpdate fail\n");
             goto free;
         }
-        printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_SUCCESS, "Successfully updated the reference manifests\n\n"));
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_UPDATE_SUCCESS,
+            "Successfully updated the reference manifests\n\n"));
     } else {
-        printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_NONE, "There is no update.\n\n"));
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_UPDATE_NONE,
+            "There is no update.\n\n"));
     }
 
   free:
     if ( rc != PTS_SUCCESS ) {
-        printf(NLS(MS_OPENPTS, OPENPTS_UPDATE_FAILED, "Failed to update the reference manifests\n"));
+        ERROR(NLS(MS_OPENPTS, OPENPTS_UPDATE_FAILED,
+            "Failed to update the reference manifests\n"));
     }
 
     if ( NULL != ctx ) {
@@ -1165,9 +1168,9 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
     int fd = open(fileName, O_RDONLY);
 
     if (fd == -1) {
-        ERROR("Failed to open '%s', errno %d\n", fileName, errno);
+        LOG(LOG_ERR, "Failed to open '%s', errno %d\n", fileName, errno);
     } else if (fstat(fd, &statBuf) == -1) {
-        ERROR("Failed to stat '%s' (fd %d), errno %d\n", fileName, fd, errno);
+        LOG(LOG_ERR, "Failed to stat '%s' (fd %d), errno %d\n", fileName, fd, errno);
     } else if ( len != statBuf.st_size ) {
         DEBUG("File length for pending RM '%s' (%d) does not match cached length (%d) from collector.\n",
               fileName, (int)statBuf.st_size, len);
@@ -1177,11 +1180,11 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
             char page[4096];
             ssize_t bytesRead = read(fd, page, 4096);
             if ( -1 == bytesRead ) {
-                ERROR("Failed to read from fd %d, errno %d\n", fd, errno);
+                LOG(LOG_ERR, "Failed to read from fd %d, errno %d\n", fd, errno);
                 break;
             } else if ( bytesRead == 0) {
                 if (totalBytesRead != len) {
-                    ERROR("Finished reading from file prematurely, still expecting data.");
+                    LOG(LOG_ERR, "Finished reading from file prematurely, still expecting data.");
                     return PTS_FATAL;
                 }
                 rc = PTS_SUCCESS;
@@ -1189,7 +1192,7 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
             } else {
                 totalBytesRead += bytesRead;
                 if (totalBytesRead > len) {
-                    ERROR("Read more data from RM file than expected.");
+                    LOG(LOG_ERR, "Read more data from RM file than expected.");
                     return PTS_FATAL;
                 }
                 DEBUG("Read %ld bytes, total = %d out of %d\n", bytesRead, totalBytesRead, len);
@@ -1234,12 +1237,12 @@ int isNewRmStillValid(OPENPTS_CONTEXT *ctx, char *conf_dir) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -1249,20 +1252,20 @@ int isNewRmStillValid(OPENPTS_CONTEXT *ctx, char *conf_dir) {
 
     newRmSet = conf->newRmSet;
     if (newRmSet == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     target_conf = ctx->target_conf;
     if (target_conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (target_conf->uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (target_conf->rm_uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -1303,7 +1306,7 @@ int isNewRmStillValid(OPENPTS_CONTEXT *ctx, char *conf_dir) {
         rc = checkDir(collector_dir);
         if (rc != PTS_SUCCESS) {
             /* unknwon collector */
-            ERROR("isNewRmStillValid() - Unknown collector, UUID= %s dir=%s\n",
+            LOG(LOG_ERR, "isNewRmStillValid() - Unknown collector, UUID= %s dir=%s\n",
                 str_collector_uuid, collector_dir);
             addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_ARU_MISSING_COLLECTOR_CONFIG,
                 "Missing collector configuration"));
@@ -1328,7 +1331,7 @@ int isNewRmStillValid(OPENPTS_CONTEXT *ctx, char *conf_dir) {
         newRmSet += 4;
 
         if (num > MAX_RM_NUM) {
-            ERROR("Bad NUM %d\n", num);
+            LOG(LOG_ERR, "Bad NUM %d\n", num);
             goto out;
         }
 
@@ -1401,12 +1404,12 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     conf = ctx->conf;
     if (conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -1415,19 +1418,19 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
 
     newRmSet = conf->newRmSet;
     if (newRmSet == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (ctx->target_conf == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (ctx->target_conf->uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if (ctx->target_conf->rm_uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
 
@@ -1458,7 +1461,7 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
     // TODO check
     rc = readTargetConf(target_conf, target_conf_filename);
     if (rc != PTS_SUCCESS) {
-        ERROR("updateNewRm() - readTargetConf failed\n");
+        LOG(LOG_ERR, "updateNewRm() - readTargetConf failed\n");
         // TODO so?
     }
 
@@ -1479,7 +1482,7 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
         rc = checkDir(collector_dir);
         if (rc != PTS_SUCCESS) {
             /* unknwon collector */
-            ERROR("updateNewRm() - Unknown collector, UUID= %s dir=%s\n",
+            LOG(LOG_ERR, "updateNewRm() - Unknown collector, UUID= %s dir=%s\n",
                 str_collector_uuid, collector_dir);
             addReason(ctx, -1, NLS(MS_OPENPTS, OPENPTS_ARU_MISSING_COLLECTOR_CONFIG,
                 "Missing collector configuration"));
@@ -1506,7 +1509,7 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
             rc = makeDir(rm_dir);
             if (rc != PTS_SUCCESS) {
                 /* unknwon collector */
-                ERROR("updateNewRm() - Create New RM dir failed, %s\n", rm_dir);
+                LOG(LOG_ERR, "updateNewRm() - Create New RM dir failed, %s\n", rm_dir);
                 rc = PTS_INTERNAL_ERROR;
                 goto out;
             }
@@ -1528,7 +1531,7 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
         newRmSet += 4;
 
         if (num >  MAX_RM_NUM) {
-            ERROR("Bad NUM %d\n", num);
+            LOG(LOG_ERR, "Bad NUM %d\n", num);
             rc = PTS_INTERNAL_ERROR;
             goto out;
         }
@@ -1552,7 +1555,7 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
 
             rc = saveToFile(rm_filename[i], len, newRmSet);
             if (rc != PTS_SUCCESS) {
-                ERROR("updateNewRm() - save RM[%d], %s failed\n", i, rm_filename[i]);
+                LOG(LOG_ERR, "updateNewRm() - save RM[%d], %s failed\n", i, rm_filename[i]);
                 goto out;
             }
             target_conf->rm_filename[i] = smalloc_assert(rm_filename[i]);

@@ -164,19 +164,19 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
 
     /* */
     if (initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_ALREADY_INITIALIZED;
     }
 
     /* Only support version 1 */
     if ((minVersion < TNC_IFIMV_VERSION_1 ) ||
         (maxVersion > TNC_IFIMV_VERSION_1)) {
-        ERROR("TNC_RESULT_NO_COMMON_VERSION\n");
+        LOG(LOG_ERR, "TNC_RESULT_NO_COMMON_VERSION\n");
         return TNC_RESULT_NO_COMMON_VERSION;
     }
 
     if (!pOutActualVersion) {
-        ERROR("TNC_RESULT_INVALID_PARAMETER\n");
+        LOG(LOG_ERR, "TNC_RESULT_INVALID_PARAMETER\n");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -186,14 +186,14 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
     /* initialize PTS */
     conf =  newPtsConfig();
     if (conf == NULL) {
-        ERROR("Can not allocate OPENPTS_CONFIG\n");
+        LOG(LOG_ERR, "Can not allocate OPENPTS_CONFIG\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
 
     ctx =  newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("Can not allocate OPENPTS_CONTEXT\n");
+        LOG(LOG_ERR, "Can not allocate OPENPTS_CONTEXT\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -201,7 +201,7 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
     /* configure PTS Verifier (System wide) */
     rc = readPtsConfig(conf, PTSV_CONFIG_FILE);
     if (rc != PTS_SUCCESS) {
-        ERROR("read config file, '%s' was failed - abort\n",
+        LOG(LOG_ERR, "read config file, '%s' was failed - abort\n",
             PTSV_CONFIG_FILE);
         rc = TNC_RESULT_FATAL;
         goto error;
@@ -214,14 +214,14 @@ TNC_IMV_API TNC_Result TNC_IMV_Initialize(
         /* 1st use?,  create new UUID */
         rc = genOpenptsUuid(conf->uuid);
         if (rc != PTS_SUCCESS) {
-            ERROR("generation of UUID was failed\n");
+            LOG(LOG_ERR, "generation of UUID was failed\n");
             rc = TNC_RESULT_FATAL;
             goto error;
         }
         /* save to the file */
         rc = writeOpenptsUuidFile(conf->uuid, 1);
         if (rc != PTS_SUCCESS) {
-            ERROR("Creation of UUID file, %s was failed\n",
+            LOG(LOG_ERR, "Creation of UUID file, %s was failed\n",
                 conf->uuid->filename);
             rc = TNC_RESULT_FATAL;
             goto error;
@@ -269,12 +269,12 @@ TNC_IMV_API TNC_Result TNC_IMV_NotifyConnectionChange(
     DEBUG("TNC_IMV_NotifyConnectionChange\n");
 
     if (!initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     if (imvID != imv_id)
-        ERROR("imvID != imv_id");
+        LOG(LOG_ERR, "imvID != imv_id");
         return TNC_RESULT_INVALID_PARAMETER;
 
     DEBUG_IFM("V    imvID=%d, connectionID=%d - TNC_IMV_NotifyConnectionChange\n",
@@ -375,7 +375,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
         messageLength, (int)messageType);
 
     if (!initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
@@ -390,7 +390,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
         read_tlv = (PTS_IF_M_Attribute*)messageBuffer;  // NBO
 
         if (read_tlv == NULL) {
-            ERROR("null input");
+            LOG(LOG_ERR, "null input");
             return TNC_RESULT_FATAL;
         }
 
@@ -399,7 +399,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
         vid += read_tlv->vid[1] << 8;
         vid += read_tlv->vid[2];
         if (vid != TNC_VENDORID_OPENPTS) {
-            ERROR("read_tlv->vid = 0x%X (!= 0x%X)",
+            LOG(LOG_ERR, "read_tlv->vid = 0x%X (!= 0x%X)",
                 vid, TNC_VENDORID_OPENPTS);
             return TNC_RESULT_FATAL;
         }
@@ -411,7 +411,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
 
         /* check length */
         if (messageLength != (TNC_UInt32) (12 + length)) {
-            ERROR("Bad message %d != %d\n",
+            LOG(LOG_ERR, "Bad message %d != %d\n",
                 messageLength, 12 + length);
             return TNC_RESULT_FATAL;
         }
@@ -425,7 +425,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             DEBUG_IFM("[C->V] OPENPTS_CAPABILITIES[%d]\n", 12 + length);
             if (ctx->tnc_state != TNC_STATE_START) {
                 /* Bad message order */
-                ERROR("Bad message order state=%d != %d, type=%08x",
+                LOG(LOG_ERR, "Bad message order state=%d != %d, type=%08x",
                     ctx->tnc_state, TNC_STATE_START, type);
                 return TNC_RESULT_FATAL;
             }
@@ -496,10 +496,10 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                     /* then allow the 1st connection */
                     enrollment = 1;
                 } else if (conf->enrollment == IMV_ENROLLMENT_CREDENTIAL) {
-                    TODO("TBD\n");
+                    LOG(LOG_TODO, "TBD\n");
                     return rc;
                 } else {
-                    ERROR("Collector is not initialized yet\n");
+                    LOG(LOG_ERR, "Collector is not initialized yet\n");
                     return rc;
                 }
             } else if (rc != PTS_SUCCESS) {
@@ -541,7 +541,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                 ctx->nonce->nonce = xmalloc_assert(20);
                 rc = getRandom(ctx->nonce->nonce, 20);
                 if (rc != PTS_SUCCESS) {
-                    ERROR("getRandom() fail\n");
+                    LOG(LOG_ERR, "getRandom() fail\n");
                 }
 
                 ctx->tnc_state = TNC_STATE_NONCE;
@@ -574,7 +574,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             // TODO check the state
 
             if (ctx->target_conf == NULL) {
-                ERROR("Bad sequence\n");
+                LOG(LOG_ERR, "Bad sequence\n");
             } else {
                 /* PUBKEY -> target_conf */
                 ctx->target_conf->pubkey_length = length;
@@ -610,7 +610,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             /* save to the file, UUID/UUID/rmN.xml*/
             rc = verifierHandleRimmSet(ctx, value);
             if (rc != PTS_SUCCESS) {
-                ERROR("verifierHandleRimmSet() fail\n");
+                LOG(LOG_ERR, "verifierHandleRimmSet() fail\n");
                 return TNC_RESULT_FATAL;
             }
 
@@ -625,7 +625,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             ctx->nonce->nonce = xmalloc_assert(20);
             rc = getRandom(ctx->nonce->nonce, 20);
             if (rc != PTS_SUCCESS) {
-                ERROR("getRandom() fail\n");
+                LOG(LOG_ERR, "getRandom() fail\n");
             }
 
             ctx->tnc_state = TNC_STATE_NONCE_ENROLL;
@@ -664,14 +664,14 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
                 mode = OPENPTS_VERIFY_MODE;
             } else {
                 /* BAD STATE */
-                ERROR("bad state");
+                LOG(LOG_ERR, "bad state");
             }
 
 
             /* verify */
             rc = verifierHandleIR(ctx, length, value, mode, &result);
             if (rc != PTS_SUCCESS) {
-                ERROR("verifierHandleIR() fail rc = %d\n", rc);
+                LOG(LOG_ERR, "verifierHandleIR() fail rc = %d\n", rc);
                 // 25 PTS_INVALID_SNAPSHOT?
                 // return TNC_RESULT_FATAL;
             }
@@ -679,23 +679,23 @@ TNC_IMV_API TNC_Result TNC_IMV_ReceiveMessage(
             // TODO create
             break;
         case OPENPTS_ERROR:
-            ERROR("The corrector returns ERROR message");
+            LOG(LOG_ERR, "The corrector returns ERROR message");
             // TODO invalid
             result = OPENPTS_RESULT_UNKNOWN;
             // break;
             return TNC_RESULT_FATAL;
         default:
-            ERROR("Unknown type %08X", type);
+            LOG(LOG_ERR, "Unknown type %08X", type);
             result = OPENPTS_RESULT_UNKNOWN;
             break;
         }
         return rc;
     } else if (messageType == ((TNC_VENDORID_TCG_PEN << 8) | TNC_SUBTYPE_TCG_PTS)) {
         /* TCG */
-        ERROR("TBD\n");
+        LOG(LOG_ERR, "TBD\n");
         return TNC_RESULT_FATAL;
     } else {
-        ERROR("bad msg from collector");
+        LOG(LOG_ERR, "bad msg from collector");
         return TNC_RESULT_FATAL;
     }
 
@@ -750,12 +750,12 @@ TNC_IMV_API TNC_Result TNC_IMV_SolicitRecommendation(
     DEBUG("TNC_IMV_SolicitRecommendation\n");
 
     if (!initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     if (imvID != imv_id) {
-        ERROR("Bad ID");
+        LOG(LOG_ERR, "Bad ID");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -771,7 +771,7 @@ TNC_IMV_API TNC_Result TNC_IMV_SolicitRecommendation(
         recommendation = TNC_IMV_ACTION_RECOMMENDATION_ISOLATE;
         evaluation     = TNC_IMV_EVALUATION_RESULT_NONCOMPLIANT_MAJOR;
     } else if (result == OPENPTS_RESULT_INVALID) {
-        TODO("verifier() result      : INVALID");
+        LOG(LOG_TODO, "verifier() result      : INVALID");
         str            = (TNC_BufferReference)"invalid";
         recommendation = TNC_IMV_ACTION_RECOMMENDATION_ISOLATE;
         evaluation     = TNC_IMV_EVALUATION_RESULT_NONCOMPLIANT_MAJOR;
@@ -853,12 +853,12 @@ TNC_IMV_API TNC_Result TNC_IMV_BatchEnding(
     DEBUG("TNC_IMV_BatchEnding\n");
 
     if (!initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     if (imvID != imv_id) {
-        ERROR("imvID != imv_id");
+        LOG(LOG_ERR, "imvID != imv_id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -877,12 +877,12 @@ TNC_IMV_API TNC_Result TNC_IMV_Terminate(
     DEBUG("TNC_IMV_Terminate\n");
 
     if (!initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     if (imvID != imv_id) {
-        ERROR("Bad id");
+        LOG(LOG_ERR, "Bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -911,7 +911,7 @@ static TNC_Result reportMessageTypes(
     DEBUG("reportMessageTypes %d\n", (int)imvID);
 
     if (!reportMessageTypesPtr) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TNC_RESULT_FATAL;
     }
 
@@ -935,7 +935,7 @@ static TNC_Result sendMessage(
     DEBUG("sendMessage\n");
 
     if (!sendMessagePtr) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TNC_RESULT_FATAL;
     }
 
@@ -984,7 +984,7 @@ static TNC_Result provideRecommendation(
     DEBUG("provideRecommendation\n");
 
     if (!provideRecommendationPtr) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TNC_RESULT_FATAL;
     }
 
@@ -1038,7 +1038,7 @@ static TNC_Result setAttribute(
     DEBUG("setAttribute\n");
 
     if (!setAttributePtr) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TNC_RESULT_FATAL;
     }
 
@@ -1065,12 +1065,12 @@ TNC_IMV_API TNC_Result TNC_IMV_ProvideBindFunction(
     DEBUG("TNC_IMV_ProvideBindFunction\n");
 
     if (!initialized) {
-        ERROR("Not initialized");
+        LOG(LOG_ERR, "Not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     if (imvID != imv_id) {
-        ERROR("Bad id");
+        LOG(LOG_ERR, "Bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -1079,39 +1079,39 @@ TNC_IMV_API TNC_Result TNC_IMV_ProvideBindFunction(
         if ((*bindFunction)(imvID, "TNC_TNCS_ReportMessageTypes",
                             (void**)&reportMessageTypesPtr) !=
                 TNC_RESULT_SUCCESS) {
-            ERROR("TBD");
+            LOG(LOG_ERR, "TBD");
             return TNC_RESULT_FATAL;
         }
         if ((*bindFunction)(imvID, "TNC_TNCS_RequestHandshakeRetry",
                             (void**)&requestHandshakeRetryPtr) !=
                 TNC_RESULT_SUCCESS) {
-            ERROR("TBD");
+            LOG(LOG_ERR, "TBD");
             return TNC_RESULT_FATAL;
         }
         if ((*bindFunction)(imvID, "TNC_TNCS_ProvideRecommendation",
                             (void**)&provideRecommendationPtr) !=
                 TNC_RESULT_SUCCESS) {
-            ERROR("TBD");
+            LOG(LOG_ERR, "TBD");
             return TNC_RESULT_FATAL;
         }
         if ((*bindFunction)(imvID, "TNC_TNCS_SendMessage",
                             (void**)&sendMessagePtr) !=
                 TNC_RESULT_SUCCESS) {
-            ERROR("TBD");
+            LOG(LOG_ERR, "TBD");
             return TNC_RESULT_FATAL;
         }
         if ((*bindFunction)(imvID, "TNC_TNCS_GetAttribute",
                             (void**)&getAttributePtr) !=
                 TNC_RESULT_SUCCESS) {
             // TODO(munetoh) optional
-            ERROR("TBD");
+            LOG(LOG_ERR, "TBD");
             return TNC_RESULT_FATAL;
         }
         if ((*bindFunction)(imvID, "TNC_TNCS_SetAttribute",
                             (void**)&setAttributePtr) !=
                 TNC_RESULT_SUCCESS) {
             // TODO(munetoh) optional
-            ERROR("TBD");
+            LOG(LOG_ERR, "TBD");
             return TNC_RESULT_FATAL;
         }
     }
@@ -1122,7 +1122,7 @@ TNC_IMV_API TNC_Result TNC_IMV_ProvideBindFunction(
             TNC_RESULT_SUCCESS) {
         return TNC_RESULT_SUCCESS;
     } else {
-        ERROR("TBD");
+        LOG(LOG_ERR, "TBD");
         return TNC_RESULT_FATAL;
     }
 }

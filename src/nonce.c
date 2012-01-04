@@ -119,7 +119,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc */
     ctx = xmalloc(sizeof(OPENPTS_NONCE));
     if (ctx == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_NONCE));
@@ -127,7 +127,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc req */
     ctx->req = (PTS_IF_M_DH_Nonce_Parameters_Request *)xmalloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Request));
     if (ctx->req == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         xfree(ctx);
         return NULL;
     }
@@ -136,7 +136,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc res */
     ctx->res = xmalloc(sizeof(PTS_IF_M_DH_Nonce_Parameters_Responce));
     if (ctx->res == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         xfree(ctx->req);
         xfree(ctx);
         return NULL;
@@ -146,7 +146,7 @@ OPENPTS_NONCE *newNonceContext() {
     /* malloc fin */
     ctx->fin = xmalloc(sizeof(PTS_IF_M_DH_Nonce_Finish));
     if (ctx->fin == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         xfree(ctx->req);
         xfree(ctx->res);
         xfree(ctx);
@@ -176,7 +176,7 @@ int freeNonceContext(OPENPTS_NONCE *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -236,14 +236,14 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
     // DEBUG("calcExternalDataValue\n");
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     ctx->nonce_length = SHA1_DIGEST_SIZE;
     ctx->nonce = xmalloc_assert(SHA1_DIGEST_SIZE);
     if (ctx->nonce == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
@@ -255,7 +255,7 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
     SHA1_Final(ctx->nonce, &sha_ctx);
 
     if (isDebugFlagSet(DEBUG_FLAG)) {
-        TODO("calcExternalDataValue - nonce\n");
+        LOG(LOG_TODO, "calcExternalDataValue - nonce\n");
         debugHex("\t\tinitiator_nonce:", ctx->initiator_nonce, ctx->initiator_nonce_length, "\n");
         debugHex("\t\trespondor_nonce:", ctx->respondor_nonce, ctx->respondor_nonce_length, "\n");
         debugHex("\t\tsecret         :", ctx->secret, ctx->secret_length, "\n");
@@ -283,21 +283,21 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     req = ctx->req;
     if (req == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     res = ctx->res;
     if (res == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (req->reserved != 0) {
-        ERROR("reserved must be 0\n");
+        LOG(LOG_ERR, "reserved must be 0\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -336,7 +336,7 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
         BN_hex2bn(&p, group14);
     } else {
         res->selected_dh_group = 0;
-        ERROR("Unknown DH group set 0x%x", req->dh_group_set);
+        LOG(LOG_ERR, "Unknown DH group set 0x%x", req->dh_group_set);
         return PTS_DENIED;
     }
 
@@ -353,14 +353,14 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     /* malloc */
     res->dh_respondor_nonce = xmalloc(res->nonce_length);
     if (res->dh_respondor_nonce == NULL) {
-        ERROR("dh_respondor_nonce is null");
+        LOG(LOG_ERR, "dh_respondor_nonce is null");
         return PTS_INTERNAL_ERROR;
     }
 
     /* set random */
     rc = getRandom(res->dh_respondor_nonce, res->nonce_length);
     if (rc != TSS_SUCCESS) {
-        ERROR("get random fail\n");
+        LOG(LOG_ERR, "get random fail\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -373,7 +373,7 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     /* malloc */
     res->dh_respondor_public = xmalloc(DH_size(ctx->dh));
     if (res->dh_respondor_public == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
@@ -402,7 +402,7 @@ int setDhPubkeylength(OPENPTS_NONCE *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -414,7 +414,7 @@ int setDhPubkeylength(OPENPTS_NONCE *ctx) {
     } else if (res->selected_dh_group == DH_GROUP_14) {
         ctx->pubkey_length = DH_GROUP_14_SIZE;
     } else {
-        ERROR("Bad DH group 0x%x\n", res->selected_dh_group);
+        LOG(LOG_ERR, "Bad DH group 0x%x\n", res->selected_dh_group);
         return PTS_DENIED;  // TODO
     }
 
@@ -439,23 +439,23 @@ int calcDh(OPENPTS_NONCE *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     res = ctx->res;
     if (res == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     fin = ctx->fin;
     if (fin == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     if (res->reserved[0] != 0) {
         // TODO check 1,2 too
-        ERROR("reserved must be 0\n");
+        LOG(LOG_ERR, "reserved must be 0\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -465,7 +465,7 @@ int calcDh(OPENPTS_NONCE *ctx) {
         fin->selected_hash_alg = DH_HASH_SHA1;
         ctx->selected_hash_alg = DH_HASH_SHA1;
     } else {
-        ERROR("Bad DH hash set 0x%x\n", res->hash_alg_set);
+        LOG(LOG_ERR, "Bad DH hash set 0x%x\n", res->hash_alg_set);
         return PTS_DENIED;
     }
 
@@ -493,7 +493,7 @@ int calcDh(OPENPTS_NONCE *ctx) {
         BN_hex2bn(&p, group14);
         ctx->pubkey_length = DH_GROUP_14_SIZE;
     } else {
-        ERROR("Bad DH group 0x%x\n", res->selected_dh_group);
+        LOG(LOG_ERR, "Bad DH group 0x%x\n", res->selected_dh_group);
         return  PTS_DENIED;
     }
 
@@ -514,7 +514,7 @@ int calcDh(OPENPTS_NONCE *ctx) {
     /* malloc */
     ctx->secret = xmalloc(ctx->secret_length);
     if (ctx->secret == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
@@ -524,14 +524,14 @@ int calcDh(OPENPTS_NONCE *ctx) {
     /* initiator nonce */
     fin->dh_initiator_nonce = xmalloc(fin->nonce_length);
     if (fin->dh_initiator_nonce == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
     /* set random */
     rc = getRandom(fin->dh_initiator_nonce, fin->nonce_length);
     if (rc != TSS_SUCCESS) {
-        ERROR("get random fail\n");
+        LOG(LOG_ERR, "get random fail\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -572,12 +572,12 @@ int calcDhFin(OPENPTS_NONCE *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     fin = ctx->fin;
     if (fin == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 

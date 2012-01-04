@@ -87,12 +87,12 @@ void displayXmlError(int errorIndex, int rc) {
 
     /* check */
     if (errorIndex >= XML_FUNC_END) {
-        ERROR("errorIndex(%d) > XML_FUNC_END(%d)",errorIndex, XML_FUNC_END);
+        LOG(LOG_ERR, "errorIndex(%d) > XML_FUNC_END(%d)",errorIndex, XML_FUNC_END);
         return;
     }
 
     /* log */
-    ERROR("XML function '%s' returned '%d'\n", xmlFuncStrings[errorIndex], rc);
+    LOG(LOG_ERR, "XML function '%s' returned '%d'\n", xmlFuncStrings[errorIndex], rc);
 }
 
 /**
@@ -109,7 +109,7 @@ int freeAllFsm(OPENPTS_CONTEXT *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -168,14 +168,14 @@ OPENPTS_IR_CONTEXT *newIrContext() {
 
     ctx = (OPENPTS_IR_CONTEXT *) xmalloc(sizeof(OPENPTS_IR_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_IR_CONTEXT));
 
     ctx->buf = xmalloc(EVENTDATA_BUF_SIZE);
     if (ctx->buf == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         xfree(ctx);
         return NULL;
     }
@@ -193,7 +193,7 @@ OPENPTS_IR_CONTEXT *newIrContext() {
 void freeIrContext(OPENPTS_IR_CONTEXT *ctx) {
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -227,7 +227,7 @@ int writeComponentID(
 
     /* check */
     if (cid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -449,7 +449,7 @@ int writeStuffObjects(
 
     /* check */
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -564,7 +564,7 @@ int writeStuffObjects(
             goto error;
         }
     } else {
-        // printf("SM DEBUG no eventdata\n");
+        // no eventdata
     }
 
     /* Close the element named "stuff:Objects". */
@@ -577,7 +577,7 @@ int writeStuffObjects(
     return PTS_SUCCESS;
 
   error:
-    ERROR("writeStuffObjects() XML ERROR\n");
+    LOG(LOG_ERR, "writeStuffObjects() XML ERROR\n");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -612,11 +612,11 @@ int writePcrHash(
 
     /* check */
     if (startHash == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (hash == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -680,7 +680,6 @@ int writePcrHash(
     /* Write a text */
     rc = xmlTextWriterWriteBase64(writer, (const char *) hash, 0, 20);
     if (rc < 0) {
-        // printf("SM DEBUG ERROR  digest len %d \n", 20);
         displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
         goto error;
     }
@@ -720,15 +719,15 @@ int writeSnapshot(
 
     /* check */
     if (tpm == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (cid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ss == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     level = ss->level;
@@ -737,7 +736,7 @@ int writeSnapshot(
     /* reset PCR */
     // FSM resetPCR(n) exist
     if (ss->reset_pcr == 1) {
-        TODO("reset PCR[%d]\n", index);
+        LOG(LOG_TODO, "reset PCR[%d]\n", index);
         resetTpmPcr(tpm, index);
     }
 
@@ -759,13 +758,13 @@ int writeSnapshot(
     /* new UUID */
     ir_uuid = newUuid();
     if (ir_uuid == NULL) {
-        ERROR("UUID \n");
+        LOG(LOG_ERR, "UUID \n");
         rc = PTS_INTERNAL_ERROR;
         goto error;
     }
     str_ir_uuid = getStringOfUuid(ir_uuid);
     if (str_ir_uuid == NULL) {
-        ERROR("UUID \n");
+        LOG(LOG_ERR, "UUID \n");
         rc = PTS_INTERNAL_ERROR;
         xfree(ir_uuid);
         goto error;
@@ -823,7 +822,7 @@ int writeSnapshot(
     eventWrapper = ss->start;
 
     if (eventWrapper == NULL) {
-        ERROR("writeSnapshot- eventWrapper is NULL\n");
+        LOG(LOG_ERR, "writeSnapshot- eventWrapper is NULL\n");
         rc = PTS_FATAL;
         goto free;
     }
@@ -857,7 +856,7 @@ int writeSnapshot(
     /* set curr PCR value */
     rc = getTpmPcrValue(tpm, index, ss->curr_pcr);
     if (rc != PTS_SUCCESS) {
-        ERROR("getTpmPcrValue() fail");
+        LOG(LOG_ERR, "getTpmPcrValue() fail");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -868,7 +867,7 @@ int writeSnapshot(
     /* add PcrHash element */
     rc = writePcrHash(writer, index, level, ss->start_pcr, ss->curr_pcr, ALGTYPE_SHA1);
     if (rc != PTS_SUCCESS) {
-        ERROR("writePcrHash() fail");
+        LOG(LOG_ERR, "writePcrHash() fail");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -939,15 +938,15 @@ int writeQuote(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ctx->pcrs == NULL) {
-        TODO("writeQuote - OPENPTS_PCRS is NULL, SKIP QuoteData\n");
+        LOG(LOG_TODO, "writeQuote - OPENPTS_PCRS is NULL, SKIP QuoteData\n");
         return PTS_FATAL;
     }
     if (ctx->validation_data == NULL) {
-        TODO("writeQuote - TSS_VALIDATION is NULL, SKIP QuoteData\n");
+        LOG(LOG_TODO, "writeQuote - TSS_VALIDATION is NULL, SKIP QuoteData\n");
         return PTS_FATAL;
     }
 
@@ -1001,7 +1000,7 @@ int writeQuote(
         select_byte[2] = select_int & 0xFF;
     } else {
         // TODO
-        ERROR(" PCR NUM != 24\n");
+        LOG(LOG_ERR, " PCR NUM != 24\n");
     }
 
     /* Start an element named "PcrSelection" as child of PcrComposit. */
@@ -1025,12 +1024,12 @@ int writeQuote(
         size_of_select,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64 fail");  // TODO ERROR => displayXmlError
+        LOG(LOG_ERR, "encodeBase64 fail");  // TODO ERROR => displayXmlError
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1040,7 +1039,7 @@ int writeQuote(
     /* Close the element named "PcrSelection". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterEndElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterEndElement\n");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1112,7 +1111,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bMajor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionMajor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1120,7 +1119,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bMinor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionMinor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1128,7 +1127,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bRevMajor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionRevMajor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1137,7 +1136,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bRevMinor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionRevMinor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1145,7 +1144,7 @@ int writeQuote(
     /* Add an attribute with name "Fixed", int */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Fixed", BAD_CAST "QUOT");
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return -1;
     }
@@ -1156,7 +1155,7 @@ int writeQuote(
         20,
         &b64buf_len);  // ctx->validation_data->ulDataLength);
     if (b64buf == NULL) {
-        ERROR("encodeBase64() fail");
+        LOG(LOG_ERR, "encodeBase64() fail");
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "DigestValue", BAD_CAST b64buf);
@@ -1175,12 +1174,12 @@ int writeQuote(
         ctx->validation_data->ulExternalDataLength,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64() fail");
+        LOG(LOG_ERR, "encodeBase64() fail");
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ExternalData", BAD_CAST b64buf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1190,7 +1189,7 @@ int writeQuote(
     /* Close the element named "QuoteInfo". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterEndElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterEndElement\n");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1198,7 +1197,7 @@ int writeQuote(
     /* Close the element named "Quote". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterEndElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterEndElement\n");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1310,15 +1309,15 @@ int writeQuote2(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ctx->pcrs == NULL) {
-        TODO("writeQuote2 - OPENPTS_PCRS is NULL, SKIP QuoteData\n");
+        LOG(LOG_TODO, "writeQuote2 - OPENPTS_PCRS is NULL, SKIP QuoteData\n");
         return PTS_FATAL;
     }
     if (ctx->validation_data == NULL) {
-        TODO("writeQuote2 - TSS_VALIDATION is NULL, SKIP QuoteData\n");
+        LOG(LOG_TODO, "writeQuote2 - TSS_VALIDATION is NULL, SKIP QuoteData\n");
         return PTS_FATAL;
     }
 
@@ -1398,13 +1397,13 @@ int writeQuote2(
         ctx->validation_data->ulExternalDataLength,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ExternalData", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1412,7 +1411,7 @@ int writeQuote2(
     /* PcrInfoShort - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrInfoShort");
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterStartElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1420,7 +1419,7 @@ int writeQuote2(
     /* PcrSelection - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterStartElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1428,7 +1427,7 @@ int writeQuote2(
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1438,7 +1437,7 @@ int writeQuote2(
         size_of_select,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
@@ -1468,7 +1467,7 @@ int writeQuote2(
         20,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "CompositeHash", "%s", b64buf);
@@ -1482,7 +1481,7 @@ int writeQuote2(
     /* PcrComposite - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrComposit");
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterStartElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1490,7 +1489,7 @@ int writeQuote2(
     /* PcrSelection - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterStartElement\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1498,7 +1497,7 @@ int writeQuote2(
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        // ERROR("Error at xmlTextWriterWriteAttribute\n");
+        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1508,7 +1507,7 @@ int writeQuote2(
         size_of_select,
         &b64buf_len);
     if (b64buf == NULL) {
-        ERROR("encodeBase64 fail");
+        LOG(LOG_ERR, "encodeBase64 fail");
         return PTS_INTERNAL_ERROR;
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
@@ -1535,7 +1534,7 @@ int writeQuote2(
             /* PcrValue - start */
             rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrValue");
             if (rc < 0) {
-                // ERROR("Error at xmlTextWriterStartElement\n");
+                // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
                 displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1543,7 +1542,7 @@ int writeQuote2(
             snprintf(tagbuf, sizeof(tagbuf), "%d", i);
             rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST tagbuf);
             if (rc < 0) {
-                // ERROR("Error at xmlTextWriterWriteAttribute\n");
+                // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
                 displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1715,7 +1714,7 @@ int writeIr(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1763,7 +1762,7 @@ int writeIr(
     /* Create a new XML buffer */
     xmlbuf = xmlBufferCreate();
     if (xmlbuf == NULL) {
-        ERROR("creating the xml buffer fail\n");
+        LOG(LOG_ERR, "creating the xml buffer fail\n");
         rc = PTS_INTERNAL_ERROR;
         goto error;
     }
@@ -1771,7 +1770,7 @@ int writeIr(
     /* Create a new XmlWriter for memory */
     writer = xmlNewTextWriterMemory(xmlbuf, 0);
     if (writer == NULL) {
-        ERROR("creating the xml writer fail\n");
+        LOG(LOG_ERR, "creating the xml writer fail\n");
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
@@ -1839,14 +1838,14 @@ int writeIr(
     /* generate UUID */
     ir_uuid = newUuid();
     if (ir_uuid == NULL) {
-        ERROR("fail UUID generation\n");
+        LOG(LOG_ERR, "fail UUID generation\n");
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
     }
 
     str_ir_uuid = getStringOfUuid(ir_uuid);
     if (str_ir_uuid == NULL) {
-        ERROR("fail UUID generation\n");
+        LOG(LOG_ERR, "fail UUID generation\n");
         rc = PTS_INTERNAL_ERROR;
         xfree(ir_uuid);
         goto freexml;
@@ -1875,13 +1874,13 @@ int writeIr(
     /* Quote*/
     if (ctx->conf->iml_mode == 0) {
         if (ctx->conf->ir_without_quote == 1) {
-            TODO("skip TPM_Quote\n");
+            LOG(LOG_TODO, "skip TPM_Quote\n");
         } else {
             if (ctx->conf->tpm_quote_type == 1) {
                 /* Quote */
                 rc = writeQuote(writer, ctx);
                 if (rc < 0) {
-                    ERROR("writeIr - writeQuote() rc = %d\n", rc);
+                    LOG(LOG_ERR, "writeIr - writeQuote() rc = %d\n", rc);
                     rc = PTS_INTERNAL_ERROR;
                     goto free;
                 }
@@ -1889,7 +1888,7 @@ int writeIr(
                 /* Quote2 */
                 rc = writeQuote2(writer, ctx);
                 if (rc < 0) {
-                    ERROR("writeIr - writeQuote2() rc = %d\n", rc);
+                    LOG(LOG_ERR, "writeIr - writeQuote2() rc = %d\n", rc);
                     rc = PTS_INTERNAL_ERROR;
                     goto free;
                 }
@@ -1908,8 +1907,7 @@ int writeIr(
         if (ss != NULL) {
             if (ss->event_num > 0) {
                 // level 0
-                // printf("DEBUG add level %d snapshot for PCR%d\n",ss->level, i);
-                // ERROR("writeIr PCR[%d] LV0 num=%d\n", i,ss->event_num);
+                // LOG(LOG_ERR, "writeIr PCR[%d] LV0 num=%d\n", i,ss->event_num);
                 writeSnapshot(writer, &tpm, &cid, i, ss);
             }
         }
@@ -1918,7 +1916,7 @@ int writeIr(
         ss = getSnapshotFromTable(ctx->ss_table, i, 1);
         if (ss != NULL) {
             if (ss->event_num > 0) {
-                // ERROR("writeIr PCR[%d] LV1 num=%d\n", i,ss->event_num);
+                // LOG(LOG_ERR, "writeIr PCR[%d] LV1 num=%d\n", i,ss->event_num);
                 // writeSnapshot(writer, &tpm, &cid, i, ss);
                 if (i == OPENPTS_PCR_INDEX) {
                     DEBUG("genIr - Not writing snapshot for OPENPTS_PCR_INDEX (%d)\n",
@@ -1940,7 +1938,7 @@ int writeIr(
 
     rc = xmlTextWriterFlush(writer);
     if (rc < 0) {
-        // ERROR("writeRm: Error at xmlTextWriterFlush\n");
+        // LOG(LOG_ERR, "writeRm: Error at xmlTextWriterFlush\n");
         displayXmlError(TEXT_WRITER_FLUSH, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
@@ -1949,7 +1947,7 @@ int writeIr(
     /* Close all elements */
     rc = xmlTextWriterEndDocument(writer);
     if (rc < 0) {
-        ERROR("testXmlwriterMemory: Error at xmlTextWriterEndDocument\n");
+        LOG(LOG_ERR, "testXmlwriterMemory: Error at xmlTextWriterEndDocument\n");
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1964,7 +1962,7 @@ int writeIr(
         char buf[1024];
         /* use default filename */
         if (ctx->conf->ir_dir == NULL) {
-            ERROR("Set ir.dir in %s.\n", ctx->conf->config_file);
+            LOG(LOG_ERR, "Set ir.dir in %s.\n", ctx->conf->config_file);
             ctx->conf->ir_dir = smalloc("/tmp/.ptsc");
         }
         snprintf(buf, sizeof(buf), "%s_%s.xml",
@@ -1983,7 +1981,7 @@ int writeIr(
 
     irFd = open(filenameDP, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
     if (-1 == irFd) {
-        ERROR("Failed to open ir file '%s' for writing, errno = %d\n", filename, errno);
+        LOG(LOG_ERR, "Failed to open ir file '%s' for writing, errno = %d\n", filename, errno);
         rc = PTS_INTERNAL_ERROR;
         goto free;
     }
@@ -1994,14 +1992,14 @@ int writeIr(
        serious hackers probably wouldn't be deterred by this ... */
     if (NULL != savedFd &&
         -1 == unlink(filenameDP)) {
-        ERROR("Failed to unlink file '%s', errno = %d\n", filename, errno);
+        LOG(LOG_ERR, "Failed to unlink file '%s', errno = %d\n", filename, errno);
     }
 
     lengthOfIrFile = xmlbuf->use;
     {
         int writeRc = write(irFd, xmlbuf->content, lengthOfIrFile);
         if ( lengthOfIrFile != writeRc ) {
-            ERROR("Failed to write contents to IR file - rc %d, errno %d\n", writeRc, errno);
+            LOG(LOG_ERR, "Failed to write contents to IR file - rc %d, errno %d\n", writeRc, errno);
             rc = PTS_INTERNAL_ERROR;
             close(irFd);
         } else {
@@ -2067,7 +2065,7 @@ void  irStartDocument(void * ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -2084,11 +2082,9 @@ void  irStartDocument(void * ctx) {
 void  irEndDocument(void * ctx) {
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
-
-    // printf("END DOC \n");
 }
 
 /* This prevents real world buffer over-run attacks using malformed IRs
@@ -2100,7 +2096,7 @@ static int getPcrIndexFromIR(char *value) {
 
     /* check */
     if (value == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -2128,22 +2124,22 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pctx = (OPENPTS_CONTEXT *)ctx;
     ir_ctx = pctx->ir_ctx;
     if (ir_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pcrs = pctx->pcrs;
     if (pcrs == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     validation_data = pctx->validation_data;  // ckeck later
@@ -2171,33 +2167,31 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         //
     } else if (!strcmp((char *)name, "pcrindex")) {
         /* stuff:Hash -> PCR value (base64) */
-        // printf("START ELEMENT [%s]  <<<< HASH HASH \n",name);
+        // DEBUG("START ELEMENT [%s]  <<<< HASH HASH \n",name);
         // ir_ctx->sax_state = IR_SAX_STATE_PCR_INDEX;
 
     } else if (!strcmp((char *)name, "eventtype")) {
-        // printf("START ELEMENT [%s]  <<<< HASH HASH \n",name);
+        // DEBUG("START ELEMENT [%s]  <<<< HASH HASH \n",name);
         // ir_ctx->sax_state = IR_SAX_STATE_EVENT_TYPE;
 
     } else if (!strcmp((char *)name, "stuff:Hash")) {
-        // printf("START ELEMENT [%s]  <<<< DIGEST \n",name);
+        // DEBUG("START ELEMENT [%s]  <<<< DIGEST \n",name);
         // ir_ctx->sax_state = IR_SAX_STATE_DIGEST;
 
     } else if (!strcmp((char *)name, "eventdata")) {
-        // printf("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
+        // DEBUG("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
         // ir_ctx->sax_state = IR_SAX_STATE_EVENT_DATA;
 
     } else if (!strcmp((char *)name, "PcrHash")) {
-        // printf("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
+        // DEBUG("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
         // ir_ctx->sax_state = IR_SAX_STATE_PCR;
 
         /* get Number =pcrindex) attribute ( */
         if (atts != NULL) {
             for (i = 0;(atts[i] != NULL);i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "Number")) {
                         ir_ctx->pcr_index = getPcrIndexFromIR(value);
                     }
@@ -2246,10 +2240,8 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         if (atts != NULL) {
             for (i = 0;(atts[i] != NULL);i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "SizeOfSelect")) {
                         /* TPM1.2 - 24 PCRS -> 3 */
                         pcrs->pcr_select_size = atoi(value);
@@ -2259,7 +2251,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                     if (!strcmp(type, "PcrSelect")) {
                         /* used later */
                         if (b64buf != NULL) {
-                            ERROR("bad memory management");
+                            LOG(LOG_ERR, "bad memory management");
                             free(b64buf);
                         }
                         b64buf = (BYTE *) decodeBase64(
@@ -2269,7 +2261,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                         // attr_cnt++;
                         // DEBUG("PcrSelect = 0x%02x %02x %02x \n", buf[0],buf[1],buf[2]);
                         if (b64buf == NULL) {
-                            ERROR("Failed to decode base64 string\n");
+                            LOG(LOG_ERR, "Failed to decode base64 string\n");
                             ir_ctx->sax_error++;
                             pcrs->pcr_select_size = 0;
                         } else {
@@ -2291,14 +2283,14 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                 if (b64buf != NULL) {
                     memcpy(pcrs->pcr_select_byte, b64buf, pcrs->pcr_select_size);
                 } else {
-                    ERROR("pcr_select_byte is missing");
+                    LOG(LOG_ERR, "pcr_select_byte is missing");
                 }
             } else {
-                ERROR("no memory\n");
+                LOG(LOG_ERR, "no memory\n");
             }
         } else {
             /* BAD IR */
-            ERROR("BAD IR SizeOfSelect or PcrSelect are missing\n");
+            LOG(LOG_ERR, "BAD IR SizeOfSelect or PcrSelect are missing\n");
         }
         /* free Base64 buffer */
         if (b64buf != NULL) {
@@ -2315,10 +2307,8 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
         if (atts != NULL) {
             for (i = 0;(atts[i] != NULL);i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "PcrNumber")) {
                         ir_ctx->pcr_index = getPcrIndexFromIR(value);
                     }
@@ -2338,7 +2328,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                 type = (char *)atts[i++];
 
                 if (validation_data == NULL) {
-                    ERROR("validation_data == NULL");
+                    LOG(LOG_ERR, "validation_data == NULL");
                     return;
                 }
                 if (validation_data->rgbData == NULL) {
@@ -2347,10 +2337,8 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                     validation_data->rgbData = xmalloc_assert(48);
                 }
 
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "VersionMajor")) {
                         validation_data->versionInfo.bMajor = atoi(value);
                         validation_data->rgbData[0] = atoi(value);
@@ -2381,14 +2369,14 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             strlen(value),
                             &b64buf_len);
                         if (b64buf == NULL) {
-                            ERROR("decodeBase64 fail");
+                            LOG(LOG_ERR, "decodeBase64 fail");
                             ir_ctx->sax_error++;
                             return;  // TODO  return?
                         }
                         if (b64buf_len == 20) {
                             memcpy(&validation_data->rgbData[8], b64buf, 20);
                         } else {
-                            ERROR("size of decodeBase64 out is not 20 but %d", b64buf_len);
+                            LOG(LOG_ERR, "size of decodeBase64 out is not 20 but %d", b64buf_len);
                             ir_ctx->sax_error++;
                             return;  // TODO
                         }
@@ -2401,7 +2389,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             strlen(value),
                             &b64buf_len);
                         if (b64buf == NULL) {
-                            ERROR("decodeBase64 fail");
+                            LOG(LOG_ERR, "decodeBase64 fail");
                             ir_ctx->sax_error++;
                             return;  // TODO
                         }
@@ -2415,7 +2403,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             // memcpy(validation_data->rgbExternalData, buf, rc);
                             memcpy(&validation_data->rgbData[28], b64buf, 20);
                         } else {
-                            ERROR("Failed to decode base64 string, len = %d not 20\n", b64buf_len);
+                            LOG(LOG_ERR, "Failed to decode base64 string, len = %d not 20\n", b64buf_len);
                             ir_ctx->sax_error++;
                             return;  // TODO
                         }
@@ -2430,7 +2418,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                 type = (char *)atts[i++];
 
                 if (validation_data == NULL) {
-                    ERROR("validation_data == NULL");
+                    LOG(LOG_ERR, "validation_data == NULL");
                     return;
                 }
                 if (validation_data->rgbData == NULL) {
@@ -2439,10 +2427,8 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                     validation_data->rgbData = xmalloc_assert(52);
                 }
 
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "Tag")) {
                         int tag = atoi(value);
                         validation_data->rgbData[0] = (tag >> 8) & 0xFF;
@@ -2461,7 +2447,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             strlen(value),
                             &b64buf_len);
                         if (b64buf == NULL) {
-                            ERROR("decodeBase64 fail");
+                            LOG(LOG_ERR, "decodeBase64 fail");
                             ir_ctx->sax_error++;
                             return;
                         }
@@ -2471,7 +2457,7 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
                             // memcpy(validation_data->rgbExternalData, b64buf, rc);
                             memcpy(&validation_data->rgbData[6], b64buf, 20);
                         } else {
-                            ERROR("Failed to decode base64 string, len = %d not 20\n", b64buf_len);
+                            LOG(LOG_ERR, "Failed to decode base64 string, len = %d not 20\n", b64buf_len);
                             ir_ctx->sax_error++;
                             return;  // TODO
                         }
@@ -2490,13 +2476,13 @@ void  irStartElement(void* ctx, const xmlChar* name, const xmlChar** atts) {
     } else if (!strcmp((char *)name, "SignatureMethod")) {
         // TODO check alg
     } else if (!strcmp((char *)name, "SignatureValue")) {
-        // DONE TODO("get value(base64)\n");
+        // DONE LOG(LOG_TODO, "get value(base64)\n");
     } else if (!strcmp((char *)name, "KeyInfo")) {
         // TODO
     } else if (!strcmp((char *)name, "KeyValue")) {
-        // DONE TODO("get value(base64)\n");
+        // DONE LOG(LOG_TODO, "get value(base64)\n");
     } else { /* Else? */
-        ERROR("START ELEMENT [%s] \n", name);
+        LOG(LOG_ERR, "START ELEMENT [%s] \n", name);
         ir_ctx->sax_state = IR_SAX_STATE_IDOL;
     }
 }
@@ -2515,22 +2501,22 @@ void irEndElement(void * ctx, const xmlChar * name) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pctx = (OPENPTS_CONTEXT *)ctx;
     ir_ctx = pctx->ir_ctx;
     if (ir_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pcrs = pctx->pcrs;
     if (pcrs == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     validation_data = pctx->validation_data;  // ckeck later
@@ -2557,7 +2543,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
 
         /* set the event structure */
         if (ir_ctx->event == NULL) {
-            ERROR("internal error\n");
+            LOG(LOG_ERR, "internal error\n");
             ir_ctx->ew_new->event = NULL;
             ir_ctx->sax_error++;
         } else {
@@ -2574,7 +2560,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
         /* map to the snapshot, push FSM  */
         rc = addEventToSnapshotBin(pctx, ir_ctx->ew_new);  // iml.c
         if (rc != PTS_SUCCESS) {
-            // ERROR("validateIr:irStartElement - addEventToSnapshotBin rc = %d\n", rc);
+            // LOG(LOG_ERR, "validateIr:irStartElement - addEventToSnapshotBin rc = %d\n", rc);
             ir_ctx->integrity = OPENPTS_RESULT_INVALID;
             return;
         }
@@ -2596,7 +2582,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
             DEBUG_FSM("irEndElement() -- SS has validation error\n");
             ir_ctx->fsm_error_count++;
         } else if (rc != PTS_SUCCESS) {
-            ERROR("SnapshotCollection -> FSM flash was fail\n");
+            LOG(LOG_ERR, "SnapshotCollection -> FSM flash was fail\n");
             ir_ctx->sax_error++;
             return;
         }
@@ -2612,7 +2598,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ir_ctx->char_size,
             &b64buf_len);
         if (ir_ctx->event->rgbPcrValue == NULL) {
-            ERROR("decodeBase64 fail");
+            LOG(LOG_ERR, "decodeBase64 fail");
             ir_ctx->sax_error++;
             return;  // TODO
         } else {
@@ -2629,7 +2615,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ir_ctx->char_size,
             &b64buf_len);
         if (ir_ctx->event->rgbEvent == NULL) {
-            ERROR("decodeBase64 fail");
+            LOG(LOG_ERR, "decodeBase64 fail");
             ir_ctx->sax_error++;
             return;  // TODO
         } else {
@@ -2644,12 +2630,12 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ir_ctx->char_size,
             &b64buf_len);
         if (b64buf == NULL) {
-            ERROR("decodeBase64 fail");
+            LOG(LOG_ERR, "decodeBase64 fail");
             ir_ctx->sax_error++;
             return;  // TODO
         }
         if (b64buf_len > MAX_DIGEST_SIZE) {
-            ERROR("decodeBase64 out is too latge, %d > %d",
+            LOG(LOG_ERR, "decodeBase64 out is too latge, %d > %d",
                 b64buf_len, MAX_DIGEST_SIZE);
             ir_ctx->sax_error++;
             return;  // TODO
@@ -2660,7 +2646,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
         /* Check with PCR in TPM */
         rc = checkTpmPcr2(&pctx->tpm, ir_ctx->pcr_index, ir_ctx->pcr);
         if (rc != PTS_SUCCESS) {
-            ERROR("ERROR PCR[%d] != IML\n", ir_ctx->pcr_index);
+            LOG(LOG_ERR, "ERROR PCR[%d] != IML\n", ir_ctx->pcr_index);
             ir_ctx->sax_error = 1;
             // verbose = DEBUG_FLAG | DEBUG_TPM_FLAG;  // switch DEBUG MODE
             if (isDebugFlagSet(DEBUG_FLAG)) {
@@ -2679,10 +2665,10 @@ void irEndElement(void * ctx, const xmlChar * name) {
             if (pctx->conf->iml_mode == 0) {
                 if (pcrs == NULL) {
                     /* malloc OPENPTS_PCRS */
-                    // ERROR("PCR is not intialized - No QuoteData element\n");
+                    // LOG(LOG_ERR, "PCR is not intialized - No QuoteData element\n");
                     pcrs = xmalloc(sizeof(OPENPTS_PCRS));
                     if (pcrs == NULL) {
-                        ERROR("no memory\n");
+                        LOG(LOG_ERR, "no memory\n");
                         return;
                     }
                     memset(pcrs, 0, sizeof(OPENPTS_PCRS));
@@ -2699,14 +2685,14 @@ void irEndElement(void * ctx, const xmlChar * name) {
     } else if (!strcmp((char *)name, "LocalityAtRelease")) {
         // TODO
         if (validation_data == NULL) {
-            ERROR("validation_data == NULL");
+            LOG(LOG_ERR, "validation_data == NULL");
             return;
         }
         validation_data->rgbData[31] = atoi(ir_ctx->buf);
     } else if (!strcmp((char *)name, "CompositeHash")) {
         // DEBUG("CompositeHash %s", ir_ctx->buf);
         if (validation_data == NULL) {
-            ERROR("validation_data == NULL");
+            LOG(LOG_ERR, "validation_data == NULL");
             return;
         }
         b64buf = decodeBase64(
@@ -2714,7 +2700,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ir_ctx->char_size,
             &b64buf_len);
         if (b64buf == NULL) {
-            ERROR("decodeBase64 fail");
+            LOG(LOG_ERR, "decodeBase64 fail");
             ir_ctx->sax_error++;
             return;
         }
@@ -2734,17 +2720,17 @@ void irEndElement(void * ctx, const xmlChar * name) {
             ir_ctx->char_size,
             &b64buf_len);
         if (b64buf == NULL) {
-            ERROR("decodeBase64 fail");
+            LOG(LOG_ERR, "decodeBase64 fail");
             ir_ctx->sax_error++;
             return;
         }
         if (b64buf_len < SHA1_DIGEST_SIZE) {
-            ERROR("decodeBase64 outout is too small, %d < %d", b64buf_len, SHA1_DIGEST_SIZE);
+            LOG(LOG_ERR, "decodeBase64 outout is too small, %d < %d", b64buf_len, SHA1_DIGEST_SIZE);
             ir_ctx->sax_error++;
             return;
         }
         if (b64buf_len > MAX_DIGEST_SIZE) {
-            ERROR("decodeBase64 outout is too large, %d < %d", b64buf_len, MAX_DIGEST_SIZE);
+            LOG(LOG_ERR, "decodeBase64 outout is too large, %d < %d", b64buf_len, MAX_DIGEST_SIZE);
             ir_ctx->sax_error++;
             return;
         }
@@ -2778,10 +2764,10 @@ void irEndElement(void * ctx, const xmlChar * name) {
     } else if (!strcmp((char *)name, "QuoteInfo2")) {
         /* pcr select => validation_data */
         if (pcrs->pcr_select_byte == NULL) {
-            ERROR("pcrs->pcr_select_byte is null");
+            LOG(LOG_ERR, "pcrs->pcr_select_byte is null");
         } else {
             if (validation_data == NULL) {
-                ERROR("validation_data == NULL");
+                LOG(LOG_ERR, "validation_data == NULL");
                 return;
             }
             validation_data->rgbData[26] = 0;
@@ -2793,11 +2779,11 @@ void irEndElement(void * ctx, const xmlChar * name) {
     } else if (!strcmp((char *)name, "SignatureValue")) {
         ir_ctx->buf[ir_ctx->char_size] = 0;
         if (ir_ctx->char_size > IR_SAX_BUFFER_SIZE) {  // TODO check buf size
-            ERROR("buf is small %d \n", ir_ctx->char_size);
+            LOG(LOG_ERR, "buf is small %d \n", ir_ctx->char_size);
             ir_ctx->sax_error++;
         } else {
             if (validation_data == NULL) {
-                ERROR("validation_data == NULL");
+                LOG(LOG_ERR, "validation_data == NULL");
                 return;
             }
             if (validation_data->rgbValidationData != NULL) {
@@ -2809,7 +2795,7 @@ void irEndElement(void * ctx, const xmlChar * name) {
                 ir_ctx->char_size,
                 &b64buf_len);
             if (validation_data->rgbValidationData == NULL) {
-                ERROR("decodeBase64 fail");
+                LOG(LOG_ERR, "decodeBase64 fail");
                 ir_ctx->sax_error++;
                 return;  // TODO
             }
@@ -2818,14 +2804,14 @@ void irEndElement(void * ctx, const xmlChar * name) {
     } else if (!strcmp((char *)name, "KeyValue")) {
         ir_ctx->buf[ir_ctx->char_size] = 0;
         if (ir_ctx->char_size > IR_SAX_BUFFER_SIZE) {  // TODO check buf size
-            ERROR("buf is small %d \n", ir_ctx->char_size);
+            LOG(LOG_ERR, "buf is small %d \n", ir_ctx->char_size);
         } else {
             pcrs->pubkey = decodeBase64(
                 (char *)ir_ctx->buf,
                 ir_ctx->char_size,
                 &b64buf_len);
             if (pcrs->pubkey == NULL) {
-                ERROR("decodeBase64 fail");
+                LOG(LOG_ERR, "decodeBase64 fail");
                 ir_ctx->sax_error++;
                 return;
             }
@@ -2836,22 +2822,22 @@ void irEndElement(void * ctx, const xmlChar * name) {
         /* Validate QuoteData */
 
         if ( ir_ctx->sax_error > 0 ) {
-            ERROR("Unable to validate quote data due to %d SAX parse errors\n", ir_ctx->sax_error);
+            LOG(LOG_ERR, "Unable to validate quote data due to %d SAX parse errors\n", ir_ctx->sax_error);
         } else {
             rc = validateQuoteData(pcrs, validation_data);
             // DEBUG("validateQuoteData = %d\n", rc);
             if (rc != PTS_SUCCESS) {
-                ERROR("---------------------------------------------------------------------------\n");
-                ERROR("BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!\n");
-                ERROR("---------------------------------------------------------------------------\n");
+                LOG(LOG_ERR, "---------------------------------------------------------------------------\n");
+                LOG(LOG_ERR, "BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!  BAD QUOTE DATA!!!\n");
+                LOG(LOG_ERR, "---------------------------------------------------------------------------\n");
                 addProperty(pctx, "tpm.quote.signature", "invalid");
                 // TODO set error
                 ir_ctx->bad_quote = 1;
             } else {
 #if 0
-                TODO("---------------------------------------------------------------------------\n");
-                TODO("GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!!\n");
-                TODO("---------------------------------------------------------------------------\n");
+                LOG(LOG_TODO, "---------------------------------------------------------------------------\n");
+                LOG(LOG_TODO, "GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!! GOOD QUOTE DATA!!!\n");
+                LOG(LOG_TODO, "---------------------------------------------------------------------------\n");
 #endif
                 addProperty(pctx, "tpm.quote.signature", "valid");
             }
@@ -2860,7 +2846,6 @@ void irEndElement(void * ctx, const xmlChar * name) {
         pctx->conf->ir_without_quote = 0;
     } else {
         /* Else? */
-        // printf("END ELEMENT [%s] ",name);
     }
 
     ir_ctx->sax_state = IR_SAX_STATE_IDOL;
@@ -2878,17 +2863,17 @@ void irCharacters(void* ctx, const xmlChar * ch, int len) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     pctx = (OPENPTS_CONTEXT *)ctx;
     ir_ctx = pctx->ir_ctx;
     if (ir_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     //if (ch == NULL) {
-    //    ERROR("null input");
+    //    LOG(LOG_ERR, "null input");
     //    return;
     //}
 
@@ -2896,7 +2881,7 @@ void irCharacters(void* ctx, const xmlChar * ch, int len) {
     /* copy to buf at ir_ctx, but check length first, ensuring additional space
        for NULL terminator */
     if ((ir_ctx->char_size + len + 1) > EVENTDATA_BUF_SIZE) {
-        ERROR("Buffer for EVENTDATA is too small, %d + %d > %d\n", ir_ctx->char_size, len, EVENTDATA_BUF_SIZE);
+        LOG(LOG_ERR, "Buffer for EVENTDATA is too small, %d + %d > %d\n", ir_ctx->char_size, len, EVENTDATA_BUF_SIZE);
         return;
     }
     memcpy(&ir_ctx->buf[ir_ctx->char_size], ch, len);
@@ -2945,20 +2930,20 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ctx->target_conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (ctx->ir_filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     conf = ctx->target_conf;
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -3005,7 +2990,7 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
             // DEBUG("loadSQLiteDatabaseFile %s\n", ctx->conf->aide_sqlite_filename);
             rc = loadSQLiteDatabaseFile(ctx->aide_ctx, conf->aide_sqlite_filename);
             if (rc != PTS_SUCCESS) {
-                ERROR("loadSQLiteDatabaseFile fail\n");
+                LOG(LOG_ERR, "loadSQLiteDatabaseFile fail\n");
                 rc = PTS_FATAL;
                 goto free;
             }
@@ -3015,7 +3000,7 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
 #endif
         } else {
             // pre loaded (see iml2aide.c)
-            TODO("AIDE DB pre loaded\n");
+            LOG(LOG_TODO, "AIDE DB pre loaded\n");
         }
 
         if (ctx->conf->aide_ignorelist_filename != NULL) {
@@ -3048,7 +3033,7 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
     }
 
     // DEBUG("validatePcrComposite, ctx->conf->ir_without_quote %d\n", ctx->conf->ir_without_quote);
-    // ERROR("conf->pubkey_length %d\n",conf->pubkey_length);
+    // LOG(LOG_ERR, "conf->pubkey_length %d\n",conf->pubkey_length);
 
     /* validate PCR values by QuoteData */
     if ((conf->iml_mode == 0) && (conf->ir_without_quote == 0)) {
@@ -3087,7 +3072,7 @@ int validateIr(OPENPTS_CONTEXT *ctx) {
                 addProperty(ctx, "tpm.quote.pcrs", "invalid");
             }
         } else {
-            ERROR("PUBKEY is missing\n");
+            LOG(LOG_ERR, "PUBKEY is missing\n");
             addProperty(ctx, "tpm.quote.pcrs", "unknown");
         }
     } else {
@@ -3182,7 +3167,7 @@ int genIrFromSecurityfs(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -3195,14 +3180,14 @@ int genIrFromSecurityfs(
     /* setup FSM */
     rc = readFsmFromPropFile(ctx, ctx->conf->config_file);
     if (rc != PTS_SUCCESS) {
-        ERROR("readFsmFromPropFile %s failed\n", ctx->conf->config_file);
+        LOG(LOG_ERR, "readFsmFromPropFile %s failed\n", ctx->conf->config_file);
         return PTS_INTERNAL_ERROR;
     }
 
     /* read BIOS IML */
     rc = readBiosImlFile(ctx, ctx->conf->bios_iml_filename, ctx->conf->iml_endian);
     if (rc != PTS_SUCCESS) {
-        ERROR("fail to load BIOS IML, rc = %d\n", rc);
+        LOG(LOG_ERR, "fail to load BIOS IML, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -3212,7 +3197,7 @@ int genIrFromSecurityfs(
         rc = readImaImlFile(ctx, ctx->conf->runtime_iml_filename,
                 ctx->conf->runtime_iml_type, 0, &count);  // TODO endian?
         if (rc != PTS_SUCCESS) {
-            ERROR("fail to load IMA IML, rc = %d\n", rc);
+            LOG(LOG_ERR, "fail to load IMA IML, rc = %d\n", rc);
             return PTS_INTERNAL_ERROR;
         }
     }
@@ -3220,14 +3205,14 @@ int genIrFromSecurityfs(
     /* read PCRS */
     rc = getPcrBySysfsFile(ctx, ctx->conf->pcrs_filename);
     if (rc < 0) {
-        ERROR("fail to load PCR, rc = %d -- (pcr file is missing)\n", rc);
-        TODO("Get or Create PCR file for this testcase\n");
+        LOG(LOG_ERR, "fail to load PCR, rc = %d -- (pcr file is missing)\n", rc);
+        LOG(LOG_TODO, "Get or Create PCR file for this testcase\n");
         // return -1;
     }
 
     // do not use tempnum,
     // if (ctx->conf->ir_filename != NULL) {
-    //    ERROR("Redefining the IR file location %s", ctx->conf->ir_filename);
+    //    LOG(LOG_ERR, "Redefining the IR file location %s", ctx->conf->ir_filename);
     // }
     // ctx->conf->ir_filename = tempnam(NULL, "ir_");
 
@@ -3235,7 +3220,7 @@ int genIrFromSecurityfs(
     rc = writeIr(ctx, NULL, savedFd);
     // rc = writeIr(ctx, ctx->ir_filename, savedFd);
     if (rc != 0) {
-        ERROR("fail to write IR, rc = %d\n", rc);
+        LOG(LOG_ERR, "fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -3256,7 +3241,7 @@ int genIrFromTss(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -3279,7 +3264,7 @@ int genIrFromTss(
     // pcrSelect is set at PCR with FSM
     rc = readFsmFromPropFile(ctx, ctx->conf->config_file);  // fsm.c
     if (rc != PTS_SUCCESS) {
-        ERROR("read FSM failed\n");
+        LOG(LOG_ERR, "read FSM failed\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -3295,7 +3280,7 @@ int genIrFromTss(
         /* copy */
         ctx->validation_data->rgbExternalData = malloc(ctx->nonce->nonce_length);
         if (ctx->validation_data->rgbExternalData == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             return PTS_FATAL;
         }
         memcpy(
@@ -3303,7 +3288,7 @@ int genIrFromTss(
             ctx->nonce->nonce,
             ctx->nonce->nonce_length);
     } else {
-        ERROR("genIrFromTss - nonce is missing, DH-nonce? \n");
+        LOG(LOG_ERR, "genIrFromTss - nonce is missing, DH-nonce? \n");
         ctx->validation_data->ulExternalDataLength = 0;
         ctx->validation_data->rgbExternalData = NULL;
     }
@@ -3316,7 +3301,7 @@ int genIrFromTss(
 
 
     if (ctx->conf->ir_without_quote == 1) {
-        TODO("skip TPM_Quote\n");
+        LOG(LOG_TODO, "skip TPM_Quote\n");
     } else {
         /* TPM Quote or TPM Quote2 */
         if (ctx->conf->tpm_quote_type == 1) {
@@ -3341,7 +3326,7 @@ int genIrFromTss(
                     ctx->validation_data);  // tss.c
         }
         if (rc != 0) {
-            ERROR("quoteTss fail, rc = 0x%04d\n", rc);
+            LOG(LOG_ERR, "quoteTss fail, rc = 0x%04d\n", rc);
             return PTS_INTERNAL_ERROR;
         }
     }
@@ -3349,19 +3334,19 @@ int genIrFromTss(
     /* set PCR to snapshot */
     rc = setPcrsToSnapshot(ctx, ctx->pcrs);  // TODO
     if (rc < 0) {
-        ERROR("fail to load PCR, rc = %d\n", rc);
+        LOG(LOG_ERR, "fail to load PCR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
     }
 
     /* get BIOS/IMA IML */
     rc = getIml(ctx, 0);
     if (rc < 0) {
-        ERROR("fail to load BIOS IML, rc = %d\n", rc);
+        LOG(LOG_ERR, "fail to load BIOS IML, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
     }
 
     if (ctx->conf->ir_filename != NULL) {
-        ERROR("Redefining the IR file location %s", ctx->conf->ir_filename);
+        LOG(LOG_ERR, "Redefining the IR file location %s", ctx->conf->ir_filename);
     }
     //ctx->conf->ir_filename = tempnam(NULL, "ir_");
     //DEBUG("ctx->conf->ir_filename : %s\n", ctx->conf->ir_filename);
@@ -3370,7 +3355,7 @@ int genIrFromTss(
     rc = writeIr(ctx, NULL, savedFd);
     // rc = writeIr(ctx, ctx->ir_filename, savedFd);  // ir.c
     if (rc != 0) {
-        ERROR("fail to write IR, rc = %d\n", rc);
+        LOG(LOG_ERR, "fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -3391,7 +3376,7 @@ int genIr(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -3400,17 +3385,17 @@ int genIr(
     if (ctx->conf->iml_mode == 1) {
         rc = genIrFromSecurityfs(ctx, savedFd);
         if (rc != PTS_SUCCESS) {
-            ERROR("writePtsTlvToSock - gen IR failed\n");
+            LOG(LOG_ERR, "writePtsTlvToSock - gen IR failed\n");
             return rc;
         }
     } else {
 #ifdef CONFIG_NO_TSS
-        TODO("OpenPTS was build with --without-tss and config option iml.mode=tssand, skip IR gen.\n");
+        LOG(LOG_TODO, "OpenPTS was build with --without-tss and config option iml.mode=tssand, skip IR gen.\n");
 #else
         // DEBUG("get IML/PCR via TSS is not ready\n");
         rc = genIrFromTss(ctx, savedFd);
         if (rc != PTS_SUCCESS) {
-            ERROR("gen IR failed\n");
+            LOG(LOG_ERR, "gen IR failed\n");
             return rc;
         }
 #endif

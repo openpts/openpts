@@ -128,7 +128,7 @@ void freeTargetList(OPENPTS_TARGET_LIST *list) {
     for (i = 0; i < num; i++) {
         target = &list->target[i];
         if (target == NULL) {
-            ERROR("no memory cnt=%d\n", i);
+            LOG(LOG_ERR, "no memory cnt=%d\n", i);
         } else {
             if (target->uuid != NULL) freeUuid(target->uuid);
             if (target->str_uuid != NULL) xfree(target->str_uuid);
@@ -190,7 +190,7 @@ int freePtsConfig(OPENPTS_CONFIG * conf) {
 
     /* check */
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -419,12 +419,12 @@ static int readPtsConfig_CompID(
     level = strtoul(levelStr, &attributeName, 10);
 
     if (levelStr == attributeName) {
-        ERROR("readPtsConfig_CompID()- invalid level number ('%s')\n", name);
+        LOG(LOG_ERR, "readPtsConfig_CompID()- invalid level number ('%s')\n", name);
         return PTS_FATAL;
     }
 
     if (*attributeName != '.') {
-        ERROR("readPtsConfig_CompID()- missing '.' after level ('%s')\n", name);
+        LOG(LOG_ERR, "readPtsConfig_CompID()- missing '.' after level ('%s')\n", name);
         return PTS_FATAL;
     }
 
@@ -435,7 +435,7 @@ static int readPtsConfig_CompID(
     /******************/
 
     if (level >= MAX_RM_NUM) {
-        ERROR("readPtsConfig_CompID()- trying to affect a CompID(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
+        LOG(LOG_ERR, "readPtsConfig_CompID()- trying to affect a CompID(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
             attributeName, level, MAX_RM_NUM);
         return PTS_FATAL;
     }
@@ -476,7 +476,7 @@ static int readPtsConfig_CompID(
         conf->compIDs[level].VendorID_type = VENDORID_TYPE_GUID;
         attributeValue = &conf->compIDs[level].VendorID_Value;
     } else {
-        ERROR("unknown Component ID attribute: '%s'\n", attributeName);
+        LOG(LOG_ERR, "unknown Component ID attribute: '%s'\n", attributeName);
         return PTS_FATAL;
     }
 
@@ -526,7 +526,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
     DEBUG("readPtsConfig()            : %s\n", filename);
 
     if (filename == NULL) {
-        ERROR("readPtsConfig - filename is NULL\n");
+        LOG(LOG_ERR, "readPtsConfig - filename is NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -535,7 +535,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
         /* => get fullpath */
         path = getenv("PWD");
         if (path[0] != '/') {
-            ERROR("readPtsConfig() - path, '%s' is not a full path", path);
+            LOG(LOG_ERR, "readPtsConfig() - path, '%s' is not a full path", path);
         }
         filename2 = getFullpathName(path, filename);
     } else {
@@ -577,7 +577,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
         /* check for line length */
         if (line_len == LINE_BUF_SIZE) {
-            ERROR("Line too long in %s at line %d\n", filename2, cnt);
+            LOG(LOG_ERR, "Line too long in %s at line %d\n", filename2, cnt);
             isFileIncorrect = 1;
             goto free;
         }
@@ -629,7 +629,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "tss", 3)) {
                     conf->iml_mode = 0;
                 } else {
-                    ERROR("iml.mode is neither 'securityfs' or 'tss'\n");
+                    LOG(LOG_ERR, "iml.mode is neither 'securityfs' or 'tss'\n");
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -644,7 +644,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->srk_password_mode = 1;
                     DEBUG("conf->srk_password_mode    : known\n");
                 } else {
-                    ERROR("Bad srk.password.mode flag '%s' in %s\n",
+                    LOG(LOG_ERR, "Bad srk.password.mode flag '%s' in %s\n",
                         value, filename);
                     isFileIncorrect = 1;
                     goto free;
@@ -660,7 +660,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->tpm_resetdalock = 0;  // default
                     DEBUG("conf->tpm_resetdalock      : off (default)\n");
                 } else {
-                    ERROR("Bad tpm.resetdalock flag '%s' in %s\n",
+                    LOG(LOG_ERR, "Bad tpm.resetdalock flag '%s' in %s\n",
                         value, filename);
                     isFileIncorrect = 1;
                     goto free;
@@ -676,7 +676,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->tpm_quote_type = 1;
                     DEBUG("conf->tpm_quote_type       : quote\n");
                 } else {
-                    ERROR("Bad tpm.quote.type flag %s\n", value);
+                    LOG(LOG_ERR, "Bad tpm.quote.type flag %s\n", value);
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -700,7 +700,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     DEBUG("endian mode            : convert\n");
 #endif
                 } else {
-                    ERROR("iml.endian is neither 'big' or 'little'\n");
+                    LOG(LOG_ERR, "iml.endian is neither 'big' or 'little'\n");
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -730,7 +730,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "IMA", 3)) {
                     conf->runtime_iml_type = BINARY_IML_TYPE_IMA_ORIGINAL;
                 } else {
-                    ERROR("unknown runtime.iml.type %s\n", value);
+                    LOG(LOG_ERR, "unknown runtime.iml.type %s\n", value);
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -752,7 +752,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "rm.num", 6)) {
                 conf->rm_num = atoi(value);
                 if (conf->rm_num > MAX_RM_NUM) {
-                    ERROR("RM number rm.num=%d is larger than MAX_RM_NUM=%d - truncking\n", conf->rm_num, MAX_RM_NUM);
+                    LOG(LOG_ERR, "RM number rm.num=%d is larger than MAX_RM_NUM=%d - truncking\n", conf->rm_num, MAX_RM_NUM);
                     conf->rm_num = MAX_RM_NUM;
                 }
                 DEBUG("conf->rm_num               : %d\n", conf->rm_num);
@@ -767,7 +767,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 conf->ir_filename = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->ir_filename          : %s\n", conf->ir_filename);
-                // ERROR("ir.file is obsolute, please use ir.dir");  /// Collectror TODO 
+                // LOG(LOG_ERR, "ir.file is obsolute, please use ir.dir");  /// Collectror TODO 
             }
             /* IR dir (collector side) */
             if (!strncmp(name, "ir.dir", 6)) {
@@ -794,7 +794,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "ir.quote", 8)) {
                 if (!strncmp(value, "WITHOUT_QUOTE", 13)) {
                     conf->ir_without_quote = 1;
-                    TODO("Generate IR without TPM_Quote signature\n");
+                    LOG(LOG_TODO, "Generate IR without TPM_Quote signature\n");
                 }
             }
 
@@ -828,7 +828,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 #if 0
             if (!strncmp(name, "config.dir", 10)) {
                 if (conf->config_dir != NULL) {
-                    TODO("conf dir %s ->%s\n", conf->config_dir, value);
+                    LOG(LOG_TODO, "conf dir %s ->%s\n", conf->config_dir, value);
                     //
                 } else {
                     conf->config_dir = getFullpathName(config_path, value);
@@ -843,7 +843,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "none", 4)) {
                     conf->ima_validation_mode = OPENPTS_VALIDATION_MODE_NONE;
                 } else {
-                    ERROR("unknown ima.validation.mode [%s]\n", value);
+                    LOG(LOG_ERR, "unknown ima.validation.mode [%s]\n", value);
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -888,22 +888,22 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     DEBUG("conf->uuid->str            : %s\n", conf->uuid->str);
                 }
             } else if (!strncmp(name, "uuid", 4)) {
-                ERROR("uuid=XXX is deprecated, in %s\n", filename);
+                LOG(LOG_ERR, "uuid=XXX is deprecated, in %s\n", filename);
                 if (conf->uuid == NULL) {
                     conf->uuid = newOpenptsUuid();
                 }
                 if (conf->uuid->uuid != NULL) {
-                    TODO("free conf->uuid \n");
+                    LOG(LOG_TODO, "free conf->uuid \n");
                     xfree(conf->uuid->uuid);
                 }
                 /* set */
                 conf->uuid->uuid = getUuidFromString(value);
                 if (conf->uuid->uuid == NULL) {
-                    ERROR("read UUID fail\n");
+                    LOG(LOG_ERR, "read UUID fail\n");
                 }
                 conf->uuid->str = getStringOfUuid(conf->uuid->uuid);
                 if (conf->uuid->str == NULL) {
-                    ERROR("read UUID fail\n");
+                    LOG(LOG_ERR, "read UUID fail\n");
                 }
             }
 
@@ -986,7 +986,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 conf->target_uuid = getUuidFromString(value);
                 if (conf->target_uuid == NULL) {
-                    ERROR("bad UUID ? %s\n", value);
+                    LOG(LOG_ERR, "bad UUID ? %s\n", value);
                 } else {
                     // add string too
                     if (conf->str_target_uuid != NULL) {
@@ -995,7 +995,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     }
                     conf->str_target_uuid = getStringOfUuid(conf->target_uuid);
                     if (conf->str_target_uuid == NULL) {
-                        ERROR("bad UUID ? %s\n", value);
+                        LOG(LOG_ERR, "bad UUID ? %s\n", value);
                     }
                 }
             }
@@ -1010,7 +1010,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     strlen(value),
                     &buf_len);
                 if (conf->pubkey == NULL) {
-                    ERROR("decodeBase64");
+                    LOG(LOG_ERR, "decodeBase64");
                     conf->pubkey_length = 0;
                 } else {
                     conf->pubkey_length = buf_len;
@@ -1049,7 +1049,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else if (!strncmp(value, "off", 3)) {
                     conf->selftest = 0;  // default
                 } else {
-                    ERROR("unknown selftest %s\n", value);
+                    LOG(LOG_ERR, "unknown selftest %s\n", value);
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -1063,7 +1063,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->autoupdate = 0;  // default
                     DEBUG("conf->autoupdate           : off\n");
                 } else {
-                    ERROR("unknown autoupdate %s\n", value);  // TODO
+                    LOG(LOG_ERR, "unknown autoupdate %s\n", value);  // TODO
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -1087,7 +1087,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->enrollment = IMV_ENROLLMENT_AUTO;
                     DEBUG("conf->enrollment           : auto\n");
                 } else {
-                    ERROR("unknown enrollment %s\n", value);  // TODO
+                    LOG(LOG_ERR, "unknown enrollment %s\n", value);  // TODO
                     conf->enrollment = 0;
                 }
             }
@@ -1101,7 +1101,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->aik_storage_type = OPENPTS_AIK_STORAGE_TYPE_BLOB;
                     DEBUG("conf->aik_storage_type     : blob\n");
                 } else {
-                    ERROR("unknown aik.storage.type %s\n", value);  // TODO
+                    LOG(LOG_ERR, "unknown aik.storage.type %s\n", value);  // TODO
                     conf->aik_storage_type = 0;
                 }
             }
@@ -1120,7 +1120,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->aik_auth_type = OPENPTS_AIK_AUTH_TYPE_COMMON;
                     DEBUG("conf->aik_auth_type        : common\n");
                 } else {
-                    ERROR("unknown aik.auth.type %s\n", value);  // TODO
+                    LOG(LOG_ERR, "unknown aik.auth.type %s\n", value);  // TODO
                     conf->aik_auth_type = 0;
                 }
             }
@@ -1136,9 +1136,9 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     DEBUG("Logging location           : syslog\n");
                 } else if (!strncmp(value, "console", 6)) {
                     setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
-                    DEBUG("Logging location           : syslog\n");
+                    DEBUG("Logging location           : console\n");
                 } else {
-                    ERROR("unknown aik.storage.type %s\n", value);  // TODO
+                    LOG(LOG_ERR, "unknown aik.storage.type %s\n", value);  // TODO
                     conf->aik_storage_type = 0;
                 }
             }
@@ -1149,6 +1149,10 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 DEBUG("Logging location           : file (%s)\n", log_filename);
                 xfree(log_filename);
             }
+            if (!strncmp(name, "debug.mode", 11)) {
+                debugBits = (int) strtol(value, NULL, 16);
+                DEBUG("DEBUG mode                 : 0x%x\n", debugBits);
+            }
 
             cnt++;
         } else {
@@ -1158,7 +1162,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             ptr = line;
             while (*ptr != '\0') {
                 if (!isspace(*ptr)) {
-                    ERROR("Syntax error in %s at line %d\n", filename2, cnt);
+                    LOG(LOG_ERR, "Syntax error in %s at line %d\n", filename2, cnt);
                     isFileIncorrect = 1;
                     goto free;
                 }
@@ -1282,7 +1286,7 @@ int writeTargetConf(OPENPTS_CONFIG *conf, PTS_UUID *uuid, char *filename) {
 
     /* open */
     if ((fp = fopen(filename, "w")) == NULL) {
-        ERROR("writeTargetConf - Conf File %s open was failed\n", filename);
+        LOG(LOG_ERR, "writeTargetConf - Conf File %s open was failed\n", filename);
         return -1;
     }
 
@@ -1369,7 +1373,7 @@ int readTargetConf(OPENPTS_CONFIG *conf, char *filename) {
 
     rc = readPtsConfig(conf, filename);
     if (rc != PTS_SUCCESS) {
-        ERROR("readTargetConf - fail, rc = %d\n", rc);
+        LOG(LOG_ERR, "readTargetConf - fail, rc = %d\n", rc);
     }
 
     return rc;
@@ -1393,7 +1397,7 @@ int writeOpenptsConf(OPENPTS_CONFIG *conf, char *filename) {
 
     /* open */
     if ((fp = fopen(filename, "w")) == NULL) {
-        ERROR("writeOpenptsConf - Conf File %s open was failed\n", filename);
+        LOG(LOG_ERR, "writeOpenptsConf - Conf File %s open was failed\n", filename);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1420,17 +1424,17 @@ int readOpenptsConf(OPENPTS_CONFIG *conf, char *filename) {
 
     /* check */
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     rc = readPtsConfig(conf, filename);
     if (rc < 0) {
-        ERROR("readOpenptsConf - fail, rc = %d\n", rc);
+        LOG(LOG_ERR, "readOpenptsConf - fail, rc = %d\n", rc);
     }
 
     return rc;
@@ -1444,12 +1448,13 @@ int readOpenptsConf(OPENPTS_CONFIG *conf, char *filename) {
 int setModelFile(OPENPTS_CONFIG *conf, int index, int level, char *filename) {
     /* check */
     if (conf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     if (level >= MAX_RM_NUM) {
-        ERROR("setModelFile()- PCR[%d] trying to affect a model file(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
+        LOG(LOG_ERR,
+            "setModelFile()- PCR[%d] trying to affect a model file(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
         index, filename, level, MAX_RM_NUM);
         return PTS_FATAL;
     }

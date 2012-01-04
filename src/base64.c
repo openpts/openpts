@@ -62,7 +62,7 @@ int getDecodedBase64Size(unsigned char *in, int inLen) {
 
     /* check */
     if (in == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;
     }
 
@@ -128,7 +128,7 @@ int _encodeBase64(char *out, unsigned char * in, int len) {
 
     /* check */
     if (out == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return -1;
     }
     if (len == 0) {
@@ -136,7 +136,7 @@ int _encodeBase64(char *out, unsigned char * in, int len) {
         return 0;
     }
     if (in == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;
     }
 
@@ -192,14 +192,14 @@ char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
 
     /* check */
     if (in == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return NULL;
     }
 
     *outlen = _sizeofBase64Encode(inlen);
     out = (char *) xmalloc_assert(*outlen);
     if (out == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         *outlen = 0;
         return NULL;
     }
@@ -207,7 +207,7 @@ char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
 
     len2 = _encodeBase64(out, in, inlen);
     if (len2 > *outlen) {
-        ERROR("fatal error");
+        LOG(LOG_ERR, "fatal error");
         xfree(out);
         *outlen = 0;
         return NULL;
@@ -240,7 +240,7 @@ int _strippedlength(char * in, int len) {
 
     /* check */
     if (in == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return -1;
     }
 
@@ -281,12 +281,12 @@ int _decodeBase64(unsigned char *out, char * in, int len) {
 
     /* check */
     if (out == NULL) {
-        ERROR("decodeBase64core - out is NULL\n");
+        LOG(LOG_ERR, "decodeBase64core - out is NULL\n");
         return -1;
     }
     /* null input? */
     if (in == NULL) {
-        ERROR("decodeBase64core - in is NULL\n");
+        LOG(LOG_ERR, "decodeBase64core - in is NULL\n");
         return -1;
     }
     /* in[0] => out[0]=\0 */
@@ -302,7 +302,7 @@ int _decodeBase64(unsigned char *out, char * in, int len) {
     while (1) {
         /* check remain buffer size >= 4 */
         if (len2 < 4) {
-            ERROR("bad base64 data size");
+            LOG(LOG_ERR, "bad base64 data size");
             goto error;
         }
         /* remove CR and Space and check bad string */
@@ -327,7 +327,7 @@ int _decodeBase64(unsigned char *out, char * in, int len) {
                     j++;
                 } else {
                     /* BAD BASE64 String */
-                    ERROR("bad base64 data string, 0x%0x", in2[i]);
+                    LOG(LOG_ERR, "bad base64 data string, 0x%0x", in2[i]);
                     goto error;
                 }
             }
@@ -396,14 +396,14 @@ unsigned char *decodeBase64(char * in, int inlen, int *outlen) {
 
     /* check */
     if (in == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return NULL;
     }
 
     len1 = _sizeofBase64Decode(inlen);
     out = (unsigned char *) xmalloc_assert(len1);
     if (out == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         *outlen = 0;
         return NULL;
     }
@@ -411,7 +411,7 @@ unsigned char *decodeBase64(char * in, int inlen, int *outlen) {
 
     len2 = _decodeBase64(out, in, inlen);
     if (len2 < 0) {
-        ERROR("fatal error");
+        LOG(LOG_ERR, "fatal error");
         xfree(out);
         *outlen = 0;
         return NULL;

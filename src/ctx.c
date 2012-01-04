@@ -204,7 +204,7 @@ char * getAlgString(int type) {
     } else if (type == ALGTYPE_MD5) {
         return "md5";
     } else {
-        ERROR("unknown type %d\n", type);
+        LOG(LOG_ERR, "unknown type %d\n", type);
         return NULL;
     }
 }
@@ -263,8 +263,8 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
 
         /* check for line length */
         if (len == FSM_BUF_SIZE) {
-            ERROR("Line too long in %s\n", filename);
-            OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+            LOG(LOG_ERR, "Line too long in %s\n", filename);
+            OUTPUT(NLS(MS_OPENPTS, OPENPTS_CONFIG_BAD_CONFIG_FILE, "Bad configuration file\n"));
             rc = PTS_FATAL;
             goto error;
         }
@@ -283,16 +283,16 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
 #if 1
             // Using config file <= version 0.2.3
             if (strstr(buf, "platform.model.") != NULL) {
-                ERROR("ptsc.conf has old format <=v0.2.3 %s\n", filename);
-                ERROR("change platform.model to rm.model.0\n");
+                LOG(LOG_ERR, "ptsc.conf has old format <=v0.2.3 %s\n", filename);
+                LOG(LOG_ERR, "change platform.model to rm.model.0\n");
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
                 rc = PTS_FATAL;
                 goto error;
             }
 
             if (strstr(buf, "runtime.model.") != NULL) {
-                ERROR("ptsc.conf has old format <=v0.2.3 %s\n", filename);
-                ERROR("change runtime.model to rm.model.1\n");
+                LOG(LOG_ERR, "ptsc.conf has old format <=v0.2.3 %s\n", filename);
+                LOG(LOG_ERR, "change runtime.model to rm.model.1\n");
                 OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
                 rc = PTS_FATAL;
                 goto error;
@@ -322,7 +322,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
                 rc = readUmlModel(fsm, buf2);
                 // TODO(munetoh) cehck rc
                 if (rc != PTS_SUCCESS) {
-                    ERROR("addFsmByPropFile -  [%s] / [%s] -> [%s] fail rc=%d, pwd = %s\n",
+                    LOG(LOG_ERR, "addFsmByPropFile -  [%s] / [%s] -> [%s] fail rc=%d, pwd = %s\n",
                         conf->model_dir, model_filename, buf2, rc,
                         getenv("PWD"));
                     goto error;  // return -1;
@@ -331,7 +331,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
                 /* setup the NEW snapshots, BIOS, GRUB */
                 ss = getNewSnapshotFromTable(ctx->ss_table, pcr_index, level);
                 if (ss == NULL) {
-                    ERROR("FSM has been assigned at lvl=%d pcr=%d  %s. check the config file\n",
+                    LOG(LOG_ERR, "FSM has been assigned at lvl=%d pcr=%d  %s. check the config file\n",
                         level, pcr_index, buf);
                     rc = PTS_FATAL;
                     goto error;
@@ -361,7 +361,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
             ptr = buf;
             while (*ptr != '\0') {
                 if (!isspace(*ptr)) {
-                    ERROR("Syntax error in %s\n", filename);
+                    LOG(LOG_ERR, "Syntax error in %s\n", filename);
                     OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
                     rc =  PTS_FATAL;
                     goto error;

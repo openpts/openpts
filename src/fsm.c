@@ -58,7 +58,7 @@ OPENPTS_FSM_CONTEXT *newFsmContext() {
     /* malloc */
     ctx = (OPENPTS_FSM_CONTEXT *) xmalloc(sizeof(OPENPTS_FSM_CONTEXT));
     if (ctx == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     /* init */
@@ -78,7 +78,7 @@ OPENPTS_FSM_CONTEXT *newFsmContext() {
 void freeFsmTransitionChain(OPENPTS_FSM_Transition *fsm_trans) {
     /* check */
     if (fsm_trans == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -102,7 +102,7 @@ void freeFsmSubvertexChain(OPENPTS_FSM_Subvertex *fsm_sub) {
 
     /* check */
     if (fsm_sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -122,7 +122,7 @@ int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -157,7 +157,7 @@ int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
 void resetFsmSubvertex(OPENPTS_FSM_CONTEXT *ctx) {
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -171,7 +171,7 @@ void resetFsmSubvertex(OPENPTS_FSM_CONTEXT *ctx) {
 void resetFsmTransition(OPENPTS_FSM_CONTEXT *ctx) {
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -197,23 +197,23 @@ void addFsmSubvertex(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (type == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (id == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (action == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -253,7 +253,7 @@ void addFsmSubvertex(
                 ptr_pre->next = ptr;  // else
                 ptr->prev = ptr_pre;
             } else {
-                ERROR("BAD, free last one");
+                LOG(LOG_ERR, "BAD, free last one");
                 xfree(ptr);  // free last one
                 return;
             }
@@ -274,11 +274,11 @@ OPENPTS_FSM_Subvertex * getSubvertex(OPENPTS_FSM_CONTEXT *ctx, char * id) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
     if (id == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -304,11 +304,11 @@ char * getSubvertexName(OPENPTS_FSM_CONTEXT *ctx, char * id) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
     if (id == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -333,11 +333,11 @@ char * getSubvertexId(OPENPTS_FSM_CONTEXT *ctx, char * name) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -358,7 +358,7 @@ static char *skipWhiteSpace(char *str, int *len /* out */) {
 
     /* check */
     if (str == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -375,7 +375,7 @@ static char *skipWhiteSpace(char *str, int *len /* out */) {
 static int isEndOfString(char *str) {
     /* check */
     if (str == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;  // TODO
     }
 
@@ -387,7 +387,7 @@ static char *skipParameter(char *str, int *len /* out */) {
 
     /* check */
     if (str == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -420,7 +420,7 @@ int getTypeFlag(char * cond, UINT32 *eventtype /* out */) {
 
     /* check */
     if (cond == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -442,7 +442,7 @@ int getTypeFlag(char * cond, UINT32 *eventtype /* out */) {
 
         /* operation */
         if (len < 2) {
-            ERROR("ERROR 001\n");
+            LOG(LOG_ERR, "ERROR 001\n");
             return -1;  // end
         }
         if ((loc[0] == '=') && (loc[1] == '=')) {  // ==
@@ -454,7 +454,7 @@ int getTypeFlag(char * cond, UINT32 *eventtype /* out */) {
         } else if ((loc[0] == 'n') && (loc[1] == 'e')) {  // !=
             rc = 2;
         } else {
-            ERROR("ERROR 002 %c %c \n", loc[0], loc[1]);
+            LOG(LOG_ERR, "ERROR 002 %c %c \n", loc[0], loc[1]);
             return -1;  // unknown operand
         }
         loc += 2;
@@ -506,7 +506,7 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
 
     /* check */
     if (cond == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -528,13 +528,13 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
 
         /* operation, "==" only */
         if (len < 2) {
-            ERROR("ERROR 001\n");
+            LOG(LOG_ERR, "ERROR 001\n");
             return -1;  // end
         }
         if ((loc[0] == '=') && (loc[1] == '=')) {  // ==
             // operand is ==
         } else {
-            ERROR("ERROR 002 [%c%c]  not  ==, (cond = %s)\n", loc[0], loc[1], cond);
+            LOG(LOG_ERR, "ERROR 002 [%c%c]  not  ==, (cond = %s)\n", loc[0], loc[1], cond);
             return -1;  // unknown operand
         }
         loc +=2;
@@ -564,7 +564,7 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
                 SHA1_BASE64_DIGEST_SIZE,
                 &buf_len);
             if (buf == NULL) {
-                ERROR("decodeBase64 fail");
+                LOG(LOG_ERR, "decodeBase64 fail");
                 *digest = NULL;
                 *digest_size = 0;
                 return -1;
@@ -573,7 +573,7 @@ int getDigestFlag(char * cond, BYTE **digest, int *digest_size) {
                 *digest_size = SHA1_DIGEST_SIZE;
                 return DIGEST_FLAG_EQUAL;  // 1
             } else {
-                ERROR("getDigestFlag() - decodeBase64() was failed \n");
+                LOG(LOG_ERR, "getDigestFlag() - decodeBase64() was failed \n");
                 xfree(buf);
                 *digest = NULL;
                 *digest_size = 0;
@@ -603,11 +603,11 @@ int getCounterFlag(char *cond, char *name, char **flag /* out */) {
 
     /* check */
     if (cond == NULL) {
-        ERROR("Null condition found");
+        LOG(LOG_ERR, "Null condition found");
         return 0;
     }
     if (name == NULL) {
-        ERROR("Null condition found");
+        LOG(LOG_ERR, "Null condition found");
         return 0;
     }
 
@@ -665,7 +665,7 @@ int getCounterFlag(char *cond, char *name, char **flag /* out */) {
             loc +=2;
             len -=2;
         } else {
-            ERROR("unknown operand [%s]", &loc[0]);
+            LOG(LOG_ERR, "unknown operand [%s]", &loc[0]);
             goto error;  //return -1;
         }
 
@@ -698,7 +698,7 @@ int getCounterFlag(char *cond, char *name, char **flag /* out */) {
     return rc;
 
   error:
-    ERROR("getCounterFlag(\"%s\",\"%s\") fail", cond, name);
+    LOG(LOG_ERR, "getCounterFlag(\"%s\",\"%s\") fail", cond, name);
     return -1;
 }
 
@@ -725,7 +725,7 @@ int getLastFlag(char * cond) {
 
     /* check */
     if (cond == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -758,13 +758,13 @@ int getLastFlag(char * cond) {
             loc +=2;
             len -=2;
         } else {
-            ERROR("Unknown operation [%s], cond=[%s], BAD Validation Model\n", &loc[0], cond);
+            LOG(LOG_ERR, "Unknown operation [%s], cond=[%s], BAD Validation Model\n", &loc[0], cond);
             return -1;
         }
 
         loc = skipWhiteSpace(loc, &len);
         if (isEndOfString(loc)) {
-            ERROR("Unknown operation [%s]\n", &loc[0]);
+            LOG(LOG_ERR, "Unknown operation [%s]\n", &loc[0]);
             return -1;
         }
 
@@ -784,7 +784,7 @@ int getLastFlag(char * cond) {
                 rc = LAST_FLAG_EQ;
             }
         } else {
-            ERROR("unknown value, %s\n", loc2);
+            LOG(LOG_ERR, "unknown value, %s\n", loc2);
         }
     }
 
@@ -816,19 +816,19 @@ int addFsmTransition(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (source == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (target == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (cond == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -844,7 +844,7 @@ int addFsmTransition(
             ptr = (OPENPTS_FSM_Transition *)
                     xmalloc(sizeof(OPENPTS_FSM_Transition));
             if (ptr == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 return PTS_INTERNAL_ERROR;
             }
             /* init */
@@ -867,12 +867,12 @@ int addFsmTransition(
                 // 0:don't care, 1:<, 2:>=
                 ptr->counter_flag = getCounterFlag(cond, "digest_count", &ptr->counter_name);
                 if (ptr->counter_flag < 0) {
-                    ERROR("getCounterFlag() fail (%s => %s [%s])", source, target, cond);
+                    LOG(LOG_ERR, "getCounterFlag() fail (%s => %s [%s])", source, target, cond);
                 }
                 // 0:don't care, 1:<, 2:>=
                 ptr->fatal_counter_flag = getCounterFlag(cond, "fatal_count", &ptr->fatal_counter_name);
                 if (ptr->fatal_counter_flag < 0) {
-                    ERROR("getCounterFlag() fail (%s => %s [%s])", source, target, cond);
+                    LOG(LOG_ERR, "getCounterFlag() fail (%s => %s [%s])", source, target, cond);
                 }
                 // 0:don't care 1: ==last 2: != last
                 ptr->last_flag = getLastFlag(cond);
@@ -897,7 +897,7 @@ int addFsmTransition(
                 ptr->prev = ptr_pre;
                 ptr->next = NULL;  // last trans
             } else {
-                ERROR("BAD, free last one");
+                LOG(LOG_ERR, "BAD, free last one");
                 xfree(ptr);  // free last one
                 return PTS_INTERNAL_ERROR;
             }
@@ -910,7 +910,7 @@ int addFsmTransition(
         ptr = (OPENPTS_FSM_Transition *)ptr->next;
     }
 
-    ERROR("missing?\n");
+    LOG(LOG_ERR, "missing?\n");
     return PTS_INTERNAL_ERROR;
 }
 
@@ -935,7 +935,7 @@ char *getEventString(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     if (event != NULL) {
         // len = snprintf(buf, size, "PCR[%d],TYPE=%d", (int)event->ulPcrIndex, event->eventType);
     } else {
-        ERROR("NULL event\n");  // TODO(munetoh)
+        LOG(LOG_ERR, "NULL event\n");  // TODO(munetoh)
         xfree(buf);
         return NULL;
     }
@@ -960,11 +960,11 @@ int getCountFromProperty(OPENPTS_CONTEXT *ctx, char * name) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
     if (name == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -1027,11 +1027,11 @@ int updateFsm(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (fsm == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1060,7 +1060,7 @@ int updateFsm(
         /*  push */
         rc = updateFsm(ctx, fsm, eventWrapper);
         if (rc == OPENPTS_FSM_ERROR) {
-            ERROR("updateFsm() - updateFsm push was fail\n");
+            LOG(LOG_ERR, "updateFsm() - updateFsm push was fail\n");
         }
         if (rc == OPENPTS_FSM_ERROR_LOOP) {
             // DEBUG("updateFsm -- updateFsm push - loop \n");
@@ -1083,7 +1083,7 @@ int updateFsm(
                 return OPENPTS_FSM_ERROR_LOOP;
             }
         } else {
-           ERROR("missing event body\n");
+           LOG(LOG_ERR, "missing event body\n");
            return OPENPTS_FSM_ERROR;
         }
     } else {
@@ -1163,7 +1163,7 @@ int updateFsm(
                     if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
                         rc = OPENPTS_FSM_FINISH;
                     } else {
-                        ERROR("updateFsm - flash FSM was failed\n");
+                        LOG(LOG_ERR, "updateFsm - flash FSM was failed\n");
                         rc = OPENPTS_FSM_ERROR;
                     }
                 } else if (rc == OPENPTS_FSM_TRANSIT) {
@@ -1175,14 +1175,14 @@ int updateFsm(
                     if  (rc == OPENPTS_FSM_FINISH_WO_HIT) {
                         rc = OPENPTS_FSM_TRANSIT;
                     } else {
-                        ERROR("updateFsm - FSM did not finish\n");
+                        LOG(LOG_ERR, "updateFsm - FSM did not finish\n");
                         rc = OPENPTS_FSM_ERROR;
                     }
                 } else if (rc == OPENPTS_FSM_ERROR) {
-                    ERROR("updateFsm - FSM doActivity False\n");
+                    LOG(LOG_ERR, "updateFsm - FSM doActivity False\n");
                     return rc;
                 } else if (rc == OPENPTS_FSM_MIGRATE_EVENT) {
-                    TODO("updateFsm - OPENPTS_FSM_MIGRATE_EVENT \n");
+                    LOG(LOG_TODO, "updateFsm - OPENPTS_FSM_MIGRATE_EVENT \n");
                     return rc;
                 } else if (rc == OPENPTS_FSM_SUCCESS) {
                     rc = updateFsm(ctx, fsm, eventWrapper);
@@ -1190,12 +1190,12 @@ int updateFsm(
                     // TODO  << INFO:(TODO) action.c:97 addBIOSAction() - eventWrapper is NULL
                     rc = updateFsm(ctx, fsm, eventWrapper);
                 } else {
-                    TODO("updateFsm() - rc = %d, call updateFsm() again\n", rc);
+                    LOG(LOG_TODO, "updateFsm() - rc = %d, call updateFsm() again\n", rc);
                     rc = updateFsm(ctx, fsm, eventWrapper);
                 }
             }  // curr state
         } else {  // hit
-            TODO("no trans\n");
+            LOG(LOG_TODO, "no trans\n");
         }
     } else {
         /* check trans chain */
@@ -1300,7 +1300,7 @@ int updateFsm(
                     int fatal_count = getCountFromProperty(ctx, trans->fatal_counter_name);
 
                     if (fatal_count < 0) {
-                        ERROR("getCountFromProperty() fail");
+                        LOG(LOG_ERR, "getCountFromProperty() fail");
                     } else if (ctx->count < fatal_count) {
                         DEBUG_FSM("FATAL COUNTER %d < %d - HIT\n", ctx->count, fatal_count);
                         fatal_counter_check = 1;  // HIT
@@ -1314,7 +1314,7 @@ int updateFsm(
 
                     // TODO at this moment we ignore >= condition,
                     if (fatal_count < 0) {
-                        ERROR("getCountFromProperty() fail");
+                        LOG(LOG_ERR, "getCountFromProperty() fail");
                     } else if (ctx->count >= fatal_count) {
                         DEBUG_FSM("FATAL COUNTER %d >= %d - HIT\n", ctx->count, fatal_count);
                         fatal_counter_check = 1;  // HIT
@@ -1330,7 +1330,7 @@ int updateFsm(
                     int thisCount = 1 + trans->event_num;
                     int maxCount = getCountFromProperty(ctx, trans->counter_name);
                     if (maxCount < 0) {
-                        ERROR("getCountFromProperty() fail, trans->counter_flag=%d", trans->counter_flag);
+                        LOG(LOG_ERR, "getCountFromProperty() fail, trans->counter_flag=%d", trans->counter_flag);
                     } else if (trans->counter_flag == COUNTER_FLAG_GE &&
                         thisCount >= maxCount) {
                         DEBUG_FSM("DIGEST COUNTER %d >= %d ('%s') - digest is transparent\n",
@@ -1356,7 +1356,7 @@ int updateFsm(
                         /* Final state */
                         DEBUG_FSM("\tPCR[%d] level %d, Final state!! move to the next snapshot\n",
                             fsm->pcr_index, fsm->level);
-                        // ERROR("PCR[%d] level %d, Final\n", fsm->pcr_index, fsm->level);
+                        // LOG(LOG_ERR, "PCR[%d] level %d, Final\n", fsm->pcr_index, fsm->level);
                         fsm->status = OPENPTS_FSM_FINISH;
                         return OPENPTS_FSM_FINISH_WO_HIT;  // FINAL
                     }
@@ -1390,7 +1390,7 @@ int updateFsm(
                                 if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
                                     rc = OPENPTS_FSM_FINISH;
                                 } else {
-                                    ERROR("flash FSM was failed\n");
+                                    LOG(LOG_ERR, "flash FSM was failed\n");
                                     rc = OPENPTS_FSM_ERROR;
                                 }
                             } else if (rc == OPENPTS_FSM_TRANSIT) {
@@ -1402,7 +1402,7 @@ int updateFsm(
                                 if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
                                     rc = OPENPTS_FSM_TRANSIT;
                                 } else {
-                                    ERROR("updateFsm - FSM did not finish\n");
+                                    LOG(LOG_ERR, "updateFsm - FSM did not finish\n");
                                     rc = OPENPTS_FSM_ERROR;
                                 }
                             } else if (rc == OPENPTS_FSM_ERROR) {
@@ -1414,12 +1414,12 @@ int updateFsm(
                                     fsm->pcr_index, (char *)fsm->curr_state->action, fsm->curr_state->name);
                                 return rc;
                             } else if (rc == OPENPTS_FSM_MIGRATE_EVENT) {
-                                TODO("updateFsm - OPENPTS_FSM_MIGRATE_EVENT \n");
+                                LOG(LOG_TODO, "updateFsm - OPENPTS_FSM_MIGRATE_EVENT \n");
                                 return rc;
                             } else if (rc == OPENPTS_FSM_SUCCESS) {
                                 rc = updateFsm(ctx, fsm, eventWrapper);
                             } else {
-                                TODO("rc = %d\n", rc);
+                                LOG(LOG_TODO, "rc = %d\n", rc);
                                 rc = updateFsm(ctx, fsm, eventWrapper);
                             }
                         }
@@ -1446,7 +1446,7 @@ int updateFsm(
                                 if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
                                     rc = OPENPTS_FSM_FINISH;
                                 } else {
-                                    ERROR("updateFsm - flash FSM was failed, rc = %d\n", rc);
+                                    LOG(LOG_ERR, "updateFsm - flash FSM was failed, rc = %d\n", rc);
                                     rc = OPENPTS_FSM_ERROR;
                                 }
                             } else if (rc == OPENPTS_FSM_TRANSIT) {
@@ -1458,11 +1458,11 @@ int updateFsm(
                                 if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
                                     rc = OPENPTS_FSM_TRANSIT;
                                 } else {
-                                    ERROR("updateFsm - FSM did not finish\n");
+                                    LOG(LOG_ERR, "updateFsm - FSM did not finish\n");
                                     rc = OPENPTS_FSM_ERROR;
                                 }
                             } else if (rc == OPENPTS_FSM_ERROR) {
-                                ERROR("updateFsm - FSM doActivity False, rc = %d\n", rc);
+                                LOG(LOG_ERR, "updateFsm - FSM doActivity False, rc = %d\n", rc);
                                 return rc;
                             } else if (rc == OPENPTS_FSM_MIGRATE_EVENT) {
                                 // DEBUG("updateFsm - OPENPTS_FSM_MIGRATE_EVENT \n");
@@ -1475,7 +1475,7 @@ int updateFsm(
                                 rc = OPENPTS_FSM_SUCCESS;
                             }
                         } else {
-                            ERROR("curr_state is NULL, missing %s\n", trans->target);
+                            LOG(LOG_ERR, "curr_state is NULL, missing %s\n", trans->target);
                             rc = OPENPTS_FSM_ERROR;
                             return rc;
                         }
@@ -1545,7 +1545,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
     count = 0;
     src_fsm_sub = src_fsm->fsm_sub;
     if (src_fsm_sub == NULL) {
-        ERROR("ERROR No FSM SUB\n");
+        LOG(LOG_ERR, "ERROR No FSM SUB\n");
         goto error;
     }
 
@@ -1583,7 +1583,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
     src_fsm_trans = src_fsm->fsm_trans;
 
     if (src_fsm_trans == NULL) {
-        ERROR("ERROR No FSM TRANS\n");
+        LOG(LOG_ERR, "ERROR No FSM TRANS\n");
         goto error;
     }
 
@@ -1611,7 +1611,7 @@ OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
         if (src_fsm_sub != NULL) {
             dst_fsm_trans->source_subvertex = src_fsm_sub->link;
         } else {
-            ERROR("ERROR BHV trans %s source_subvertex is NULL\n",
+            LOG(LOG_ERR, "ERROR BHV trans %s source_subvertex is NULL\n",
                 src_fsm_trans->source);
         }
 
@@ -1669,15 +1669,15 @@ int changeTargetSubvertex(
 
     /* check */
     if (fsm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (old_sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (new_sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1726,15 +1726,15 @@ int changeTransTargetSubvertex(
 
     /* check */
     if (fsm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (old_sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (new_sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1824,30 +1824,30 @@ int insertFsmNew(
 
     /* check input */
     if (fsm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
     if (fsm_trans == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
     event = eventWrapper->event;
     if (event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
     if (fsm_trans->source_subvertex == NULL) {
-        ERROR("ERROR fsm_trans->source_subvertex == NULL, %s -> %s\n",
+        LOG(LOG_ERR, "ERROR fsm_trans->source_subvertex == NULL, %s -> %s\n",
             fsm_trans->source, fsm_trans->target);
         return -1;
     }
     if (fsm_trans->target_subvertex == NULL) {
-        ERROR("ERROR fsm_trans->target_subvertex == NULL\n");
+        LOG(LOG_ERR, "ERROR fsm_trans->target_subvertex == NULL\n");
         return -1;
     }
 
@@ -1994,11 +1994,11 @@ int insertFsmNew(
             DEBUG_FSM("\tUpdate Trans BIN(%s -> %s)\n",
                       fsm_trans->source, fsm_trans->target);
         } else {
-            ERROR("BAD LOOP");
+            LOG(LOG_ERR, "BAD LOOP");
             return PTS_FATAL;
         }
     } else {
-        ERROR("Not a loop");
+        LOG(LOG_ERR, "Not a loop");
         return PTS_FATAL;
     }
 
@@ -2019,11 +2019,11 @@ int removeFsmTrans(
 
     /* check */
     if (fsm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (trans == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -2060,11 +2060,11 @@ int removeFsmSub(
 
     /* check */
     if (fsm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (sub == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -2106,7 +2106,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
 
     /* check */
     if (fsm_ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -2117,7 +2117,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     trans = fsm_ctx->fsm_trans;
 
     if (trans == NULL) {
-        ERROR("ERROR No FSM TRANS\n");
+        LOG(LOG_ERR, "ERROR No FSM TRANS\n");
         return -1;
     }
 
@@ -2129,7 +2129,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
                       trans->source, trans->target);
             rc = removeFsmTrans(fsm_ctx, trans);  // remove Trans
             if (rc < 0) {
-                ERROR("removeFsmTrans of %s -> %s was failed\n",
+                LOG(LOG_ERR, "removeFsmTrans of %s -> %s was failed\n",
                       trans->source, trans->target);
                 return -1;
             }
@@ -2146,7 +2146,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     /* Delete state which does not have incomming trans */
     sub = fsm_ctx->fsm_sub;
     if (sub == NULL) {
-        ERROR("ERROR No FSM SUB\n");
+        LOG(LOG_ERR, "ERROR No FSM SUB\n");
         return -1;
     }
 
@@ -2201,7 +2201,7 @@ int cleanupFsm(OPENPTS_FSM_CONTEXT *fsm_ctx) {
     trans = fsm_ctx->fsm_trans;
 
     if (trans == NULL) {
-        ERROR("No FSM TRANS\n");
+        LOG(LOG_ERR, "No FSM TRANS\n");
         return -1;
     }
 
@@ -2252,7 +2252,7 @@ int writeDotModel(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -2260,7 +2260,7 @@ int writeDotModel(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
         fp = stdout;
     } else {
         if ((fp = fopen(filename, "w")) == NULL) {
-            ERROR("fopen fail %s\n", filename);
+            LOG(LOG_ERR, "fopen fail %s\n", filename);
             return PTS_OS_ERROR;
         }
     }
@@ -2347,11 +2347,11 @@ int writeCsvTable(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return -1;
     }
     if (filename == NULL) {
-        ERROR("writeCsvTable - filename is NULL\n");
+        LOG(LOG_ERR, "writeCsvTable - filename is NULL\n");
         return -1;
     }
 
@@ -2410,7 +2410,7 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -2424,7 +2424,7 @@ int printFsmModel(OPENPTS_FSM_CONTEXT *ctx) {
     ptr = ctx->fsm_trans;
     for (i = 0; i < ctx->transition_num; i++) {
         if (ptr == NULL) {
-            ERROR("PTR is NULL at %d\n", i);
+            LOG(LOG_ERR, "PTR is NULL at %d\n", i);
             return PTS_FATAL;
         }
         OUTPUT("%5d ", i);

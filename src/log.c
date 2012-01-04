@@ -104,6 +104,7 @@
 #endif  // AIX
 
 #ifdef ENABLE_NLS
+#include <locale.h>
 #ifdef HAVE_CATGETS
 #include <nl_types.h>
 nl_catd catd;
@@ -184,8 +185,6 @@ void determineLogLocationByEnv(void) {
     char *tempLogFileName = NULL;
     char *tempDebugMode = NULL;
 
-
-
     /* Location */
     if (getenv("OPENPTS_LOG_SYSLOG") != NULL) {
         logLocation = OPENPTS_LOG_SYSLOG;
@@ -219,7 +218,27 @@ void setLogLocation(int ll, char *filename) {
     logLocation = ll;
 
     if (ll == OPENPTS_LOG_FILE) {
-        expandLogFilePath(filename);
+        if (logFileFd != -1) {
+            char * oldlog;
+            /* already open */
+            LOG(LOG_INFO, "Logfile changed from %s to %s\n", logFileName, filename);
+            oldlog=strdup(logFileName);
+            if (oldlog == NULL) {
+                LOG(LOG_ERR, "no memory");
+                return;
+            }
+            close(logFileFd);
+            logFileFd = -1;
+            expandLogFilePath(filename);
+            LOG(LOG_INFO, "Logfile changed from %s to %s\n", oldlog, logFileName);
+            free(oldlog);
+        } else {
+            if (filename != NULL) {
+                expandLogFilePath(filename);
+            } else {
+                expandLogFilePath(DEFAULT_LOG_FILE);
+            }
+        }
     }
 }
 
@@ -240,7 +259,7 @@ char *getLogLocationString() {
     } else if (logLocation == OPENPTS_LOG_FILE) {
         return logFileName;
     } else {
-        ERROR("logLocation %d\n", logLocation);
+        LOG(LOG_ERR, "logLocation %d\n", logLocation);
         return "TBD";
     }
 }
@@ -299,17 +318,16 @@ void writeLog(int priority, const char *format, ...) {
     int len;
     char *format2 = NULL;
     va_list list;
-    // char buf[SYSLOG_BUF_SIZE];
     va_start(list, format);
 
-
+    /* check def */
     if (logLocation == OPENPTS_LOG_UNDEFINED) {
         determineLogLocationByEnv();
-        // fprintf(stderr, "logLocation == OPENPTS_LOG_UNDEFINED\n");
         return;
     }
 
     if (logLocation == OPENPTS_LOG_NULL) {
+        /* disable logging */
         return;
     }
 

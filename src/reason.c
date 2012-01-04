@@ -48,7 +48,7 @@
 void freeReason(OPENPTS_REASON *reason) {
     /* check */
     if (reason == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -65,7 +65,7 @@ void freeReason(OPENPTS_REASON *reason) {
 int freeReasonChain(OPENPTS_REASON *reason) {
     /* check */
     if (reason == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -92,7 +92,7 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -103,7 +103,7 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
 
     reason = (OPENPTS_REASON *) xmalloc(sizeof(OPENPTS_REASON));
     if (reason == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
     memset(reason, 0, sizeof(OPENPTS_REASON));
@@ -124,7 +124,7 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
     reason->pcr = pcr;
     reason->message = xmalloc(len +1);
     if (reason->message == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         xfree(reason);
         return PTS_FATAL;
     }
@@ -149,7 +149,7 @@ int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -217,7 +217,7 @@ void printReason(OPENPTS_CONTEXT *ctx, int print_pcr_hints) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     reason = ctx->reason_start;

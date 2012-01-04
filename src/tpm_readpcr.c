@@ -65,7 +65,7 @@ int hex2bin(void *dest, const void *src, size_t n) {
     unsigned char *ussrc = (unsigned char *) src;
 
     if (n & 0x01) {
-        ERROR("ERROR: hex2bin wrong size %d\n", (int)n);
+        LOG(LOG_ERR, "ERROR: hex2bin wrong size %d\n", (int)n);
         return -1;
     }
 
@@ -98,10 +98,10 @@ int hex2bin(void *dest, const void *src, size_t n) {
 
 void printhex(char *str, unsigned char *buf, int len) {
     int i;
-    printf("%s", str);
+    OUTPUT("%s", str);
     for (i = 0; i < len; i++)
-        printf("%02x", buf[i]);
-    printf("\n");
+        OUTPUT("%02x", buf[i]);
+    OUTPUT("\n");
 }
 
 void fprinthex(FILE * fp, char *str, unsigned char *buf, int len) {
@@ -123,16 +123,16 @@ void fprinthex2(FILE * fp, char *str, unsigned char *buf, int len) {
 
 
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TPM_READPCR_USAGE,
-                    "OpenPTS command\n\n"
-                    "Usage: tpm_readpcr [options]\n\n"
-                    "Options:\n"
-                    "  -p pcr_index          Set PCR index to read\n"
-                    "  -a                    Show all PCRs value (default)\n"
-                    "  -k                    Display PCR same as kernel format (/sys/class/misc/tpm0/device/pcrs)\n"
-                    "  -o filename           Output to file (default is STDOUT)\n"
-                    "  -h                    Help\n"
-                    "\n"));
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_READPCR_USAGE,
+        "OpenPTS command\n\n"
+        "Usage: tpm_readpcr [options]\n\n"
+        "Options:\n"
+        "  -p pcr_index          Set PCR index to read\n"
+        "  -a                    Show all PCRs value (default)\n"
+        "  -k                    Display PCR same as kernel format (/sys/class/misc/tpm0/device/pcrs)\n"
+        "  -o filename           Output to file (default is STDOUT)\n"
+        "  -h                    Help\n"
+        "\n"));
 }
 
 
@@ -197,14 +197,14 @@ int main(int argc, char *argv[]) {
 
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Create failed rc=0x%x\n",
               result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Connect failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -213,7 +213,7 @@ int main(int argc, char *argv[]) {
     /* Get TPM handles */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
     pcrNum = *(UINT32 *) blob;
 
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_TPM_GetCapability failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_TPM_GetCapability failed rc=0x%x\n", result);
         goto free;
     }
 
@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
                                  &blob);
 
             if (result != TSS_SUCCESS) {
-                ERROR("ERROR: Tspi_TPM_PcrRead failed rc=0x%x\n", result);
+                LOG(LOG_ERR, "ERROR: Tspi_TPM_PcrRead failed rc=0x%x\n", result);
                 goto free;
             }
 

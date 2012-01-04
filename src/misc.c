@@ -65,9 +65,9 @@
 void *xmalloc(size_t size) {
     char *result = malloc(size);
     if (NULL == result) {
-        ERROR("Failed to allocate %d bytes of memory\n", size);
+        LOG(LOG_ERR, "Failed to allocate %d bytes of memory\n", size);
         // if ( size > 0 ) {
-        //     ERROR("malloc");
+        //     LOG(LOG_ERR, "malloc");
         // }
     }
     return result;
@@ -77,7 +77,7 @@ void *xmalloc(size_t size) {
 void *xmalloc_assert(size_t size) {
     char *result = malloc(size);
     if (NULL == result) {
-        ERROR("Failed to allocate %d bytes of memory\n", size);
+        LOG(LOG_ERR, "Failed to allocate %d bytes of memory\n", size);
         OUTPUT("About to return NULL pointer - cannot continue\n");
         exit(1);
     }
@@ -86,7 +86,7 @@ void *xmalloc_assert(size_t size) {
 
 void xfree(void *buf) {
     if (buf == NULL) {
-        ERROR("Freeing a NULL pointer is bad");
+        LOG(LOG_ERR, "Freeing a NULL pointer is bad");
         return;
     }
 #ifndef NEVER_FREE_MEMORY
@@ -110,7 +110,7 @@ char *smalloc(char *str) {
     /* check string length */
     out = strdup(str);
     if (out == NULL) {
-        ERROR("Failed to duplicate string '%s'\n", str);
+        LOG(LOG_ERR, "Failed to duplicate string '%s'\n", str);
     }
 
     return out;
@@ -132,7 +132,7 @@ char *smalloc_assert(char *str) {
     /* check string length */
     out = strdup(str);
     if (NULL == out) {
-        ERROR("Failed to duplicate string '%s'\n", str);
+        LOG(LOG_ERR, "Failed to duplicate string '%s'\n", str);
         OUTPUT("About to return NULL pointer - cannot continue\n");
         exit(1);
     }
@@ -154,7 +154,7 @@ char *snmalloc(char *str, int len) {
 
     /* check */
     if (str == NULL) {
-        ERROR("smalloc - string is NULL\n");
+        LOG(LOG_ERR, "smalloc - string is NULL\n");
         return NULL;
     }
 
@@ -187,15 +187,15 @@ BYTE *snmalloc2(BYTE *buf, int offset, int len) {
 
     /* check */
     if (buf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
     if (offset < 0) {
-        ERROR("offset < 0");
+        LOG(LOG_ERR, "offset < 0");
         return NULL;
     }
     if (len < 0) {
-        ERROR("len < 0");
+        LOG(LOG_ERR, "len < 0");
         return NULL;
     }
 
@@ -239,11 +239,11 @@ char *getFullpathName(char *basepath, char *filename) {
 
     /* check */
     if (basepath == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -256,7 +256,7 @@ char *getFullpathName(char *basepath, char *filename) {
     /* basepath + filename */
     if (basepath[0] != '/') {
         /* relative path -> error when it run as daemon */
-        TODO("getFullpathName() - basepath, '%s' is not started from root\n", basepath);
+        LOG(LOG_TODO, "getFullpathName() - basepath, '%s' is not started from root\n", basepath);
     }
 
 
@@ -272,7 +272,7 @@ char *getFullpathName(char *basepath, char *filename) {
     filename_len = strlen(filename);
 
     if (filename_len < 2) {
-        ERROR("ilename len < 2\n");
+        LOG(LOG_ERR, "ilename len < 2\n");
         return NULL;
     }
 
@@ -318,7 +318,7 @@ char *getFullpathName(char *basepath, char *filename) {
             fullpath[basepath_len + filename_len - 1] = 0;
             break;
         default:
-            ERROR("internal error\n");
+            LOG(LOG_ERR, "internal error\n");
             break;
     }  // switch
 
@@ -340,7 +340,7 @@ char *getFullpathDir(char *filename) {
 
     /* check */
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -369,7 +369,7 @@ UINT32 byte2uint32(BYTE *b) {
     UINT32 a = 0;
 
     if (b == NULL) {
-        ERROR("byte2uint32 - NULL");
+        LOG(LOG_ERR, "byte2uint32 - NULL");
         OUTPUT("About to return NULL pointer - cannot continue\n");  // TODO
         exit(1);
     }
@@ -397,7 +397,7 @@ char * trim(char *str) {
 
     /* check */
     if (str == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -438,7 +438,7 @@ char *getHexString(BYTE *bin, int size) {
 
     /* check */
     if (bin == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -448,7 +448,7 @@ char *getHexString(BYTE *bin, int size) {
         // len = snprintf(ptr, sizeof(ptr), "%02x", bin[i]);
         len = snprintf(ptr, 3, "%02x", bin[i]);
         if (len != 2) {
-            ERROR("FATAL");
+            LOG(LOG_ERR, "FATAL");
             free(buf);
             return NULL;
         }
@@ -469,19 +469,19 @@ void snprintHex(
 
     /* check */
     if (outBuf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (head == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (data == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (tail == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -518,11 +518,11 @@ void fprintHex(FILE *fp, BYTE *data, int num) {
 
     /* check */
     if (fp == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
     if (data == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -570,20 +570,20 @@ int saveToFile(
 
     /* check */
     if (len < 0) {
-        ERROR("len <0 \n");
+        LOG(LOG_ERR, "len <0 \n");
         return PTS_FATAL;
     }
     if (msg == NULL) {
-        ERROR("msg is NULL \n");
+        LOG(LOG_ERR, "msg is NULL \n");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("filename is NULL \n");
+        LOG(LOG_ERR, "filename is NULL \n");
         return PTS_FATAL;
     }
 
     if ((fp = fopen(filename, "w+b")) == NULL) {
-        ERROR("File open failed, %s \n", filename);
+        LOG(LOG_ERR, "File open failed, %s \n", filename);
         return PTS_FATAL;  // TODO(munetoh): set PTS error code.
     }
 
@@ -605,7 +605,7 @@ int saveToFile(
     fclose(fp);
 
     if (len > 0) {
-        ERROR("After %d retries still have %d bytes unwritten to '%s'\n", max_retries, len, filename);
+        LOG(LOG_ERR, "After %d retries still have %d bytes unwritten to '%s'\n", max_retries, len, filename);
         return PTS_FATAL;
     } else {
         return PTS_SUCCESS;
@@ -620,7 +620,7 @@ UINT32 getUint32(BYTE *buf) {
 
     /* check */
     if (buf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;  // TODO
     }
     // TODO check the size?
@@ -643,7 +643,7 @@ int makeDir(char *dirname) {
 
     /* check */
     if (dirname == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -653,7 +653,7 @@ int makeDir(char *dirname) {
     if (rc != 0) {
         switch (errno) {
         case EACCES:
-            ERROR("mkdir %s failed, EACCES", dirname);
+            LOG(LOG_ERR, "mkdir %s failed, EACCES", dirname);
             rc = PTS_FATAL;
             break;
         case EEXIST:
@@ -661,7 +661,7 @@ int makeDir(char *dirname) {
             rc = lstat(dirname, &st);
             if (rc == 0) {
                 if ((st.st_mode & S_IFMT) != S_IFDIR) {
-                    ERROR("directory, %s is not a directory %x %x\n",
+                    LOG(LOG_ERR, "directory, %s is not a directory %x %x\n",
                         dirname, (st.st_mode & S_IFMT), S_IFDIR);
                     rc = PTS_INTERNAL_ERROR;
                 } else {
@@ -669,17 +669,17 @@ int makeDir(char *dirname) {
                     rc = PTS_SUCCESS;
                 }
             } else {
-                ERROR("lstat(%s) failed, errno=%d\n", dirname, errno);
+                LOG(LOG_ERR, "lstat(%s) failed, errno=%d\n", dirname, errno);
                 rc = PTS_FATAL;
             }
             break;
         case EFAULT:
-            ERROR("mkdir %s failed, EFAULT", dirname);
+            LOG(LOG_ERR, "mkdir %s failed, EFAULT", dirname);
             rc = PTS_FATAL;
             break;
         // TODO add others :-)
         default:
-            ERROR("mkdir %s failed, errono = 0x%X", dirname, errno);
+            LOG(LOG_ERR, "mkdir %s failed, errono = 0x%X", dirname, errno);
             rc = PTS_FATAL;
             break;
         }
@@ -701,7 +701,7 @@ int checkDir(char *dirname) {
 
     /* check */
     if (dirname == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -724,7 +724,7 @@ int checkFile(char *filename) {
 
     /* check */
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -747,7 +747,7 @@ ssize_t wrapRead(int fd, void *buf, size_t count) {
 
     /* check */
     if (buf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;  // TODO
     }
 
@@ -768,7 +768,7 @@ ssize_t wrapWrite(int fd, const void *buf, size_t count) {
 
     /* check */
     if (buf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;  // TODO
     }
 
@@ -793,13 +793,13 @@ static int unlinkDir_(char *dirPath) {
 
     /* check */
     if (dirPath == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     dirHandle = opendir(dirPath);
     if (dirHandle == NULL) {
-        ERROR("opendir(%s) fail", dirPath);
+        LOG(LOG_ERR, "opendir(%s) fail", dirPath);
         return PTS_FATAL;
     }
 
@@ -815,7 +815,7 @@ static int unlinkDir_(char *dirPath) {
 
         snprintf(path, sizeof(path), "%s/%s", dirPath, entry->d_name);
         if (stat(path, &st) != 0) {
-            ERROR("stat(%s) fail", path);
+            LOG(LOG_ERR, "stat(%s) fail", path);
             rc = PTS_FATAL;
             goto free_error;
         }
@@ -827,7 +827,7 @@ static int unlinkDir_(char *dirPath) {
             }
         } else if (S_ISREG(st.st_mode)) {
             if (unlink(path) != 0) {
-                ERROR("unlink(%s) fail", path);
+                LOG(LOG_ERR, "unlink(%s) fail", path);
                 rc = PTS_FATAL;
                 goto free_error;
             }
@@ -836,7 +836,7 @@ static int unlinkDir_(char *dirPath) {
 
     /* rm this dir */
     if (rmdir(dirPath) != 0) {
-        ERROR("rmdir(%s) fail", dirPath);
+        LOG(LOG_ERR, "rmdir(%s) fail", dirPath);
         rc = PTS_FATAL;
         goto free_error;
     }
@@ -857,11 +857,11 @@ int unlinkDir(const char *dirPath) {
 
     /* check */
     if (dirPath == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (dirPath[0] == '\0' || strlen(dirPath) >= PATH_MAX) {
-        ERROR("bad dirPath, %s", dirPath);
+        LOG(LOG_ERR, "bad dirPath, %s", dirPath);
         return PTS_FATAL;
     }
 

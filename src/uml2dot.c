@@ -50,7 +50,7 @@
  * usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UML2DOT_USAGE,
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_UML2DOT_USAGE,
             "usage: uml2dot [options] UMLfile \n"
             "\t-o output\tset output file (default is stdout)\n"
             "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n"
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     /* Read UML(XML) file */
 
     if (input_filename == NULL) {
-        printf(NLS(MS_OPENPTS, OPENPTS_UML2DOT_MISSING_XML_FILE, "ERROR missing XMLfile\n"));
+        ERROR(NLS(MS_OPENPTS, OPENPTS_UML2DOT_MISSING_XML_FILE, "ERROR missing XMLfile\n"));
         usage();
         return -1;
     }
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     rc = readUmlModel(ctx, argv[0]);
 
     if (rc != 0) {
-        ERROR("ERROR\n");
+        LOG(LOG_ERR, "ERROR\n");
         goto error;
     }
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     rc = writeDotModel(ctx, output_filename);
 
     if (rc != 0) {
-        ERROR("ERROR\n");
+        LOG(LOG_ERR, "ERROR\n");
         goto error;
     }
 

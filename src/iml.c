@@ -58,7 +58,7 @@ int resetSnapshot(OPENPTS_SNAPSHOT * snapshots) {
 
     /* check */
     if (snapshots == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -75,7 +75,7 @@ int resetSnapshot(OPENPTS_SNAPSHOT * snapshots) {
                     xfree(event->rgbEvent);
                 xfree(event);
             } else {
-                ERROR("resetSnapshot - NULL event\n");  // TODO(munetoh)
+                LOG(LOG_ERR, "resetSnapshot - NULL event\n");  // TODO(munetoh)
             }
             eventWrapper_next = eventWrapper->next_pcr;
             xfree(eventWrapper);
@@ -100,7 +100,7 @@ OPENPTS_PCR_EVENT_WRAPPER * newEventWrapper() {
 
     ew = (OPENPTS_PCR_EVENT_WRAPPER *)xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
     if (ew == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -115,7 +115,7 @@ OPENPTS_PCR_EVENT_WRAPPER * newEventWrapper() {
 void freeEventWrapper(OPENPTS_PCR_EVENT_WRAPPER * ew) {
     /* check */
     if (ew == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -130,7 +130,7 @@ void freeEventWrapperChain(OPENPTS_PCR_EVENT_WRAPPER * ew) {
 
     /* check */
     if (ew == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -147,7 +147,7 @@ void freeEventWrapperChain(OPENPTS_PCR_EVENT_WRAPPER * ew) {
             xfree(event->rgbEvent);
         xfree(event);
     } else {
-        ERROR("freeSnapshot - NULL event\n");  // TODO(munetoh)
+        LOG(LOG_ERR, "freeSnapshot - NULL event\n");  // TODO(munetoh)
     }
     xfree(ew);
     ew = NULL;
@@ -188,15 +188,15 @@ int addEventToSnapshotBhv(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (eventWrapper->event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -233,7 +233,7 @@ int addEventToSnapshotBhv(
             /* level 0 SS is null => check Level 1 SS */
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
-                ERROR("getSnapshotFromTable(%d,1) is null", index);
+                LOG(LOG_ERR, "getSnapshotFromTable(%d,1) is null", index);
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING,
                     "[PCR%02d] Snapshot(FSM) is missing for PCR%d. "
                     "Please check the configuration file '%s'"),
@@ -252,7 +252,7 @@ int addEventToSnapshotBhv(
                 DEBUG_FSM("[PCR%02d] RM0 -> RM1 (RM0 is missing)\n", index);
             } else {
                 /* FSM is missing */
-                ERROR("getSnapshotFromTable(), FSM is null");
+                LOG(LOG_ERR, "getSnapshotFromTable(), FSM is null");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING,
                     "[RM01-PCR%02d] FSM is missing for PCR%d, Level 1. "
                     "Please check the configuration file '%s'"),
@@ -272,7 +272,7 @@ int addEventToSnapshotBhv(
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
                 /* SS is missing */
-                ERROR("getSnapshotFromTable(), ss is null");
+                LOG(LOG_ERR, "getSnapshotFromTable(), ss is null");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_2,
                     "[PCR%02d] Snapshot is missing for PCR%d for Level 0 and 1. "
                     "Please check the configuration file '%s'"),
@@ -291,7 +291,7 @@ int addEventToSnapshotBhv(
                 active_level = 1;
             } else {
                 /* FSM is missing*/
-                ERROR("getSnapshotFromTable(), FSM is null");
+                LOG(LOG_ERR, "getSnapshotFromTable(), FSM is null");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING_2,
                     "[RM01-PCR%02d] FSM is missing for PCR%d, Level 1. Please check the configuration file '%s'"),
                     index,
@@ -305,7 +305,7 @@ int addEventToSnapshotBhv(
         ss = getSnapshotFromTable(ctx->ss_table, index, 1);
         if (ss == NULL) {
             /* SS is missing */
-            ERROR("getSnapshotFromTable(), ss is null");
+            LOG(LOG_ERR, "getSnapshotFromTable(), ss is null");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_6,
                 "[RM%02d-PCR%02d] Snapshot is missing for PCR%d, Level %d. Please check the configuration file '%s'"),
                 active_level,
@@ -319,7 +319,7 @@ int addEventToSnapshotBhv(
         /* check FSM */
         if (ss->fsm_behavior == NULL) {
             /* FSm is missing */
-            ERROR("getSnapshotFromTable(), FSM is null");
+            LOG(LOG_ERR, "getSnapshotFromTable(), FSM is null");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING_3,
                 "[RM%02d-PCR%02d] FSM is missing for PCR%d, Level %d. Please check the configuration file '%s'"),
                 active_level,
@@ -333,7 +333,7 @@ int addEventToSnapshotBhv(
         /* OK, the BHV-FSM exists at Level 1*/
 
     } else {
-        ERROR("level >1 is TBD, pcr=%d level=%d\n", index, active_level);
+        LOG(LOG_ERR, "level >1 is TBD, pcr=%d level=%d\n", index, active_level);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -348,7 +348,7 @@ int addEventToSnapshotBhv(
         DEBUG("[RM%02d-PCR%02d] updateFsm() => OPENPTS_FSM_ERROR   ===>  rc=PTS_INVALID_SNAPSHOT, added Reason\n",
             active_level, index);
         if (ss->fsm_behavior->curr_state == NULL) {
-            ERROR("ss->fsm_behavior->curr_state == NULL");
+            LOG(LOG_ERR, "ss->fsm_behavior->curr_state == NULL");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_VALIDATION_FAILED,
                            "[RM%02d-PCR%02d] IML validation by FSM has failed. State='%s' at the FSM is '%s'"),
                 active_level,
@@ -356,13 +356,13 @@ int addEventToSnapshotBhv(
                 "unknown",
                 ss->fsm_behavior->uml_file);
         } else if (ss->fsm_behavior->curr_state->name == NULL) {
-            ERROR("ss->fsm_behavior->curr_state->name == NULL");
+            LOG(LOG_ERR, "ss->fsm_behavior->curr_state->name == NULL");
             // TODO
         } else if (ss->fsm_behavior->uml_file == NULL) {
-            ERROR("ss->fsm_behavior->uml_file == NULL");
+            LOG(LOG_ERR, "ss->fsm_behavior->uml_file == NULL");
             // TODO
         } else {
-            ERROR("IML validation by FSM has failed.");
+            LOG(LOG_ERR, "IML validation by FSM has failed.");
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_VALIDATION_FAILED,
                            "[RM%02d-PCR%02d] IML validation by FSM has failed. State='%s' at the FSM is '%s'"),
                 active_level,
@@ -403,7 +403,7 @@ int addEventToSnapshotBhv(
         /* this event is migrated to target PCR, remove from this SS (did not put the EW chain) */
         goto end;
     } else {
-        ERROR("updateFsm rc=%d\n", rc);
+        LOG(LOG_ERR, "updateFsm rc=%d\n", rc);
     }
 
 
@@ -447,15 +447,15 @@ int addEventToSnapshotBin(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (eventWrapper->event == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -474,7 +474,7 @@ int addEventToSnapshotBin(
 
         /* check next level (1) */
         if (ss == NULL) {
-            ERROR("addEventToSnapshotBin() - pcr=%d Level=%d snapshots is missing\n",index, active_level);
+            LOG(LOG_ERR, "addEventToSnapshotBin() - pcr=%d Level=%d snapshots is missing\n",index, active_level);
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_3, "[PCR%02d] Snapshot(FSM) is missing"),
                 index);
             ctx->ss_table->error[index] = PTS_INTERNAL_ERROR;
@@ -505,19 +505,19 @@ int addEventToSnapshotBin(
             DEBUG_FSM("addEventToSnapshotBin() - No trans, return PTS_INVALID_SNAPSHOT\n");
             // TODO Broken FSM - 20110115 SM under ARU test
             if (ss->fsm_binary == NULL) {
-                ERROR("ss->fsm_binary == NULLn");
+                LOG(LOG_ERR, "ss->fsm_binary == NULLn");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_IR_VALIDATION_FAILED_1,
                                 "[RM%02d-PCR%02d-MissingFSM] IR validation by RM has failed"),
                     active_level,
                     index);
             } else if (ss->fsm_binary->curr_state == NULL) {
-                ERROR("ss->fsm_binary->curr_state == NULL\n");
+                LOG(LOG_ERR, "ss->fsm_binary->curr_state == NULL\n");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_IR_VALIDATION_FAILED_2,
                                 "[RM%02d-PCR%02d-MissingState] IR validation by RM has failed"),
                     active_level,
                     index);
             } else if (ss->fsm_binary->curr_state->name == NULL) {
-                ERROR("ss->fsm_binary->curr_state->name == NULL\n");
+                LOG(LOG_ERR, "ss->fsm_binary->curr_state->name == NULL\n");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_IR_VALIDATION_FAILED_3,
                                 "[RM%02d-PCR%02d-MissingStateName] IR validation by RM has failed"),
                     active_level,
@@ -540,7 +540,7 @@ int addEventToSnapshotBin(
             /* check the next level */
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
-                ERROR("no BIN-FSM at level 0,  no SS at level 1\n");
+                LOG(LOG_ERR, "no BIN-FSM at level 0,  no SS at level 1\n");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_4,
                     "[PCR%02d] Snapshot(FSM) is missing"),
                     index);
@@ -556,14 +556,14 @@ int addEventToSnapshotBin(
                 /* Update with new SS */
                 ss = getSnapshotFromTable(ctx->ss_table, index, 1);  // TODO new func for next
                 if (ss == NULL) {
-                    ERROR("getSnapshotFromTable(%d,%d) is NULL\n", index, 1);
+                    LOG(LOG_ERR, "getSnapshotFromTable(%d,%d) is NULL\n", index, 1);
                     return PTS_INTERNAL_ERROR;
                 } else {
                     eventWrapper->snapshot = ss;
                     rc = updateFsm(ctx, ss->fsm_binary, eventWrapper);
                     if (rc == OPENPTS_FSM_ERROR) {
                         DEBUG_FSM("No trans, return PTS_INVALID_SNAPSHOT at %s\n", ss->fsm_binary->curr_state->name);
-                        ERROR("updateFsm fail\n");
+                        LOG(LOG_ERR, "updateFsm fail\n");
                         addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_IR_VALIDATION_FAILED_5,
                                   "[RM%02d-PCR%02d-%s] IR validation by RM has failed"),
                                   active_level + 1,
@@ -574,7 +574,7 @@ int addEventToSnapshotBin(
                     }
                 }
             } else {
-                ERROR("no BIN-FSM at level 0,  no BIN-FSM at level 1\n");
+                LOG(LOG_ERR, "no BIN-FSM at level 0,  no BIN-FSM at level 1\n");
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_5,
                           "[PCR%02d] Snapshot(FSM) is missing"),
                           index);
@@ -622,7 +622,7 @@ int flashSnapshot(
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -641,13 +641,13 @@ int flashSnapshot(
     /* Get Snapshot */
     ss = getSnapshotFromTable(ctx->ss_table, index, active_level);
     if (ss == NULL) {
-        ERROR("No Snapshot at PCR[%d]. level %d\n", index, active_level);
+        LOG(LOG_ERR, "No Snapshot at PCR[%d]. level %d\n", index, active_level);
         // return PTS_INTERNAL_ERROR;
         // TODO 2011-05-02
         active_level++;
         ss = getSnapshotFromTable(ctx->ss_table, index, active_level);
         if (ss == NULL) {
-            ERROR("No Snapshot at PCR[%d], level %d\n", index, active_level);
+            LOG(LOG_ERR, "No Snapshot at PCR[%d], level %d\n", index, active_level);
             return PTS_INTERNAL_ERROR;
         } else {
             DEBUG("Skip Null SS level. level = %d\n", active_level);
@@ -661,7 +661,7 @@ int flashSnapshot(
             ss_lv0 = ss;
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
-                ERROR("PCR[%d] level 1 SS is null\n", index);
+                LOG(LOG_ERR, "PCR[%d] level 1 SS is null\n", index);
                 return PTS_INTERNAL_ERROR;
             }
 
@@ -671,20 +671,20 @@ int flashSnapshot(
                 setActiveSnapshotLevel(ctx->ss_table, index, 1);
                 active_level = 1;
             } else {
-                ERROR("level 1 BHV-FSM is null\n");
+                LOG(LOG_ERR, "level 1 BHV-FSM is null\n");
                 return PTS_INTERNAL_ERROR;
             }
         }
     } else if (active_level == 1) {
         /* use level 1 snapshot */
         if (ss->fsm_binary == NULL) {
-            ERROR("Missing BIB-FSM pcr=%d,level=%d, ss=%p -> %p\n",
+            LOG(LOG_ERR, "Missing BIB-FSM pcr=%d,level=%d, ss=%p -> %p\n",
                 index, active_level, ss_lv0, ss);
             // printeventWrapper(eventWrapper);
             return PTS_INTERNAL_ERROR;
         }
     } else {
-        ERROR("level %d is not supported yet\n", active_level);
+        LOG(LOG_ERR, "level %d is not supported yet\n", active_level);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -722,12 +722,12 @@ int flashSnapshot(
         DEBUG_FSM("updateFsm, OPENPTS_FSM_SUCCESS => PCR[%d] level == %d\n",
             index, getActiveSnapshotLevel(ctx->ss_table, index));
     } else if (rc == OPENPTS_FSM_ERROR) {
-        ERROR("flashSnapshot - updateFsm fail, rc = %d\n", rc);
+        LOG(LOG_ERR, "flashSnapshot - updateFsm fail, rc = %d\n", rc);
     } else if (rc == OPENPTS_FSM_ERROR_LOOP) {
         // IMA's last
         // DEBUG("flashSnapshot - updateFsm looped - end of the IMA IML, rc = %d\n", rc);
     } else {
-        ERROR("flashSnapshot - updateFsm rc=%d\n", rc);
+        LOG(LOG_ERR, "flashSnapshot - updateFsm rc=%d\n", rc);
     }
 
     DEBUG_CAL("flashSnapshot - done\n");
@@ -769,7 +769,7 @@ int getIml(OPENPTS_CONTEXT * ctx, int option) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -778,27 +778,27 @@ int getIml(OPENPTS_CONTEXT * ctx, int option) {
 
     /* check SS table */
     if (ctx->ss_table == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Create failed rc=0x%x\n", result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handles */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -806,7 +806,7 @@ int getIml(OPENPTS_CONTEXT * ctx, int option) {
     /* Get Log */
     result = Tspi_TPM_GetEventLog(hTPM, &ulEventNumber, &pcrEvents);
     if (result != TSS_SUCCESS) {  // ERROR
-        ERROR("ERROR: Tspi_TPM_GetEventLog failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_TPM_GetEventLog failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -881,13 +881,13 @@ int getIml(OPENPTS_CONTEXT * ctx, int option) {
                 rc = addEventToSnapshotBhv(ctx, ew_new);  // iml.c
             } else {
                 /* Unknwon error */
-                ERROR("getIml - addEventToSnapshotBhv rc = %d\n", rc);
+                LOG(LOG_ERR, "getIml - addEventToSnapshotBhv rc = %d\n", rc);
             }
 
             /* TPM Extend */
             rc = extendTpm(&ctx->tpm, ew_new->event);
             if (rc < 0) {
-                ERROR("getIml - extendTpm fail\n");
+                LOG(LOG_ERR, "getIml - extendTpm fail\n");
                 goto free;
             }
         }
@@ -937,7 +937,7 @@ UINT32 freadUint32(FILE * stream, int endian) {
 
     /* check */
     if (stream == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0xFFFFFFFF;
     }
 
@@ -945,7 +945,7 @@ UINT32 freadUint32(FILE * stream, int endian) {
     size = fread(&data, 1, 4, stream);
 
     if (size != 4) {
-        // This is EOF ERROR("\n");
+        // This is EOF LOG(LOG_ERR, "\n");
         return 0xFFFFFFFF;  // TODO
     }
 
@@ -1014,17 +1014,17 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* open file */
     if ((fp = fopen(filename, "rb")) == NULL) {
-        ERROR("%s missing", filename);
+        LOG(LOG_ERR, "%s missing", filename);
         return PTS_INTERNAL_ERROR;
     }
 
@@ -1056,7 +1056,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
 
         event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (event == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1070,13 +1070,13 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
         event->ulPcrValueLength = SHA1_DIGEST_SIZE;
         event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE);  // leaked
         if (event->rgbPcrValue == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             rc = PTS_FATAL;
             goto close;
         }
         size = fread(event->rgbPcrValue, 1, SHA1_DIGEST_SIZE, fp);
         if (size != SHA1_DIGEST_SIZE) {  // TODO(munetoh) SHA1 only
-            ERROR("BIOS IML File %s, bad pcr size %d at %d event\n",
+            LOG(LOG_ERR, "BIOS IML File %s, bad pcr size %d at %d event\n",
                 filename, (int)size, i);
             rc = PTS_INTERNAL_ERROR;
             goto close;
@@ -1094,14 +1094,14 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
         }
         /* malloc EventData */
         if ((event->rgbEvent = xmalloc_assert(eventLength)) == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             rc = PTS_FATAL;
             goto close;
         }
         // TODO if rgbevent is huge 0x4000000 #=> check the endian
         size = fread(event->rgbEvent, 1, eventLength, fp);
         if (size != eventLength) {
-            ERROR("BIOS IML File %s, bad eventdata size 0x%x != 0x%x at %d event\n",
+            LOG(LOG_ERR, "BIOS IML File %s, bad eventdata size 0x%x != 0x%x at %d event\n",
                 filename, (int)size, (int)eventLength, i);
             rc = PTS_INTERNAL_ERROR;
             goto close;
@@ -1111,7 +1111,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
         ew_new = (OPENPTS_PCR_EVENT_WRAPPER *)
             xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         if (ew_new == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1140,7 +1140,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
                 /* SKIP */
             } else {
                 /* Unknwon error */
-                ERROR("getBiosImlFile - addEventToSnapshotBhv rc = %d\n", rc);
+                LOG(LOG_ERR, "getBiosImlFile - addEventToSnapshotBhv rc = %d\n", rc);
             }
         } else {  // USE_BIN_FSM
             /* BIN-FSM - map to the snapshot */
@@ -1154,24 +1154,24 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
                 DEBUG_FSM("\tTransit to next FSM ======================================\n");
                 result = addEventToSnapshotBin(ctx, ew_new);  // iml.c
                 if (result < 0) {  // TODO
-                    TODO("getBiosImlFile - addEventToSnapshotBin rc = %d\n", rc);
+                    LOG(LOG_TODO, "getBiosImlFile - addEventToSnapshotBin rc = %d\n", rc);
                 }
             } else if (result == OPENPTS_FSM_FINISH_WO_HIT) {
                 DEBUG_FSM("\tTransit to next FSM ======================================\n");
                 result = addEventToSnapshotBin(ctx, ew_new);  // iml.c
                 if (result < 0) {  // TODO
-                    TODO("getBiosImlFile - addEventToSnapshotBin rc = %d\n", rc);
+                    LOG(LOG_TODO, "getBiosImlFile - addEventToSnapshotBin rc = %d\n", rc);
                 }
             } else {
                 /* Unknwon error */
-                ERROR("getBiosImlFile - addEventToSnapshotBin rc = %d\n", rc);
+                LOG(LOG_ERR, "getBiosImlFile - addEventToSnapshotBin rc = %d\n", rc);
             }
         }
 
         /* TPM Extend */
         result = extendTpm(&ctx->tpm, ew_new->event);
         if (result != PTS_SUCCESS) {
-            ERROR("extend TPM fail\n");
+            LOG(LOG_ERR, "extend TPM fail\n");
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -1188,7 +1188,7 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
 
   close:
     if (fclose(fp) == EOF) {
-        ERROR("BIOS IML File %s, read fail\n", filename);
+        LOG(LOG_ERR, "BIOS IML File %s, read fail\n", filename);
         rc = PTS_INTERNAL_ERROR;
     }
     DEBUG("read BIOS IML, file %s => %d events\n", filename, ctx->ss_table->event_num);
@@ -1410,17 +1410,17 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* open file */
     if ((fp = fopen(filename, "rb")) == NULL) {
-        ERROR("readImaImlFile - file open was failed, [%s]\n", filename);
+        LOG(LOG_ERR, "readImaImlFile - file open was failed, [%s]\n", filename);
         return -1;
     }
 
@@ -1439,7 +1439,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             break;
         }
         if (pcr_index > MAX_PCRNUM) {
-            ERROR("Linux-IMA IML File %s, bad pcr index value %d at %d event\n",
+            LOG(LOG_ERR, "Linux-IMA IML File %s, bad pcr index value %d at %d event\n",
                 filename, pcr_index, i);
             rc = PTS_INTERNAL_ERROR;
             goto close;
@@ -1448,7 +1448,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
         /* alloc event structure */
         event = (TSS_PCR_EVENT *) xmalloc(sizeof(TSS_PCR_EVENT));
         if (event == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1464,7 +1464,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read type */
             size = fread(&event->eventType, 1, 4, fp);
             if (size != 4) {
-                ERROR("Linux-IMA(ORIGINAL) IML File %s, bad eventType at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(ORIGINAL) IML File %s, bad eventType at %d event\n",
                     filename, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1474,13 +1474,13 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulPcrValueLength = SHA1_DIGEST_SIZE;
             event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE);
             if (event->rgbPcrValue == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
             size = fread(event->rgbPcrValue, 1, SHA1_DIGEST_SIZE, fp);
             if (size != SHA1_DIGEST_SIZE) {
-                ERROR("Linux-IMA(ORIGINAL) IML File %s, bad pcr size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(ORIGINAL) IML File %s, bad pcr size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1489,14 +1489,14 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read eventdata length */
             size = fread(&event->ulEventLength, 1, 4, fp);
             if (size != 4) {
-                ERROR("Linux-IMA(ORIGINAL) IML File %s, bad event length size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(ORIGINAL) IML File %s, bad event length size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
             /* alloc eventdata */
             if ((event->rgbEvent = xmalloc(event->ulEventLength)) == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
@@ -1505,7 +1505,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read filename */
             size = fread(event->rgbEvent, 1, event->ulEventLength, fp);
             if (size != event->ulEventLength) {
-                ERROR("Linux-IMA(ORIGINAL) IML File %s, bad event size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(ORIGINAL) IML File %s, bad event size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1515,7 +1515,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read type */
             size = fread(&event_type, 1, 4, fp);
             if (size != 4) {
-                ERROR("Linux-IMA(IMA_31) IML File %s, bad eventType at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(IMA_31) IML File %s, bad eventType at %d event\n",
                     filename, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1525,13 +1525,13 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulPcrValueLength = SHA1_DIGEST_SIZE;
             event->rgbPcrValue = (BYTE *) xmalloc(SHA1_DIGEST_SIZE);
             if (event->rgbPcrValue == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
             size = fread(event->rgbPcrValue, 1, SHA1_DIGEST_SIZE, fp);
             if (size != SHA1_DIGEST_SIZE) {
-                ERROR("Linux-IMA(IMA_31) IML File %s, bad pcr size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(IMA_31) IML File %s, bad pcr size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1540,7 +1540,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read Template length */
             size = fread(&template_len, 1, 4, fp);
             if (size != 4) {
-                ERROR("Linux-IMA(IMA_31) IML File %s, bad template size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(IMA_31) IML File %s, bad template size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1551,7 +1551,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulEventLength = 20 + 256;  // TODO(munetoh)
             event->rgbEvent = xmalloc(event->ulEventLength);
             if (event->rgbEvent == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
@@ -1560,7 +1560,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read Template digest */
             size = fread(event->rgbEvent, 1, SHA1_DIGEST_SIZE, fp);
             if (size != SHA1_DIGEST_SIZE) {
-                ERROR("Linux-IMA(IMA_31) IML File %s, bad event size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(IMA_31) IML File %s, bad event size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1571,7 +1571,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read filename */
             size = fread(&event->rgbEvent[20], 1, filename_len, fp);
             if (size != filename_len) {
-                ERROR("Linux-IMA(IMA_31) IML File %s, bad event size %d != %dat %d event\n",
+                LOG(LOG_ERR, "Linux-IMA(IMA_31) IML File %s, bad event size %d != %dat %d event\n",
                     filename, (int)size, (int)filename_len, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1581,14 +1581,14 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             event->ulPcrValueLength = SHA1_DIGEST_SIZE;
             event->rgbPcrValue = (BYTE *) xmalloc_assert(SHA1_DIGEST_SIZE);
             if (event->rgbPcrValue == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 rc = PTS_FATAL;
                 goto close;
             }
 
             size = fread(event->rgbPcrValue, 1, SHA1_DIGEST_SIZE, fp);
             if (size != SHA1_DIGEST_SIZE) {
-                ERROR("Linux-IMA() IML File %s, bad pcr size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA() IML File %s, bad pcr size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
@@ -1597,14 +1597,14 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read Template type length */
             size = fread(&template_type_len, 1, 4, fp);
             if (size != 4) {
-                ERROR("Linux-IMA() IML File %s, bad template size %d at %d event\n",
+                LOG(LOG_ERR, "Linux-IMA() IML File %s, bad template size %d at %d event\n",
                     filename, size, i);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
 
             if (template_type_len >= TEMPLATE_TYPE_SIZE) {
-                ERROR("template_type_len %d(0x%x) is too big\n", template_type_len, template_type_len);
+                LOG(LOG_ERR, "template_type_len %d(0x%x) is too big\n", template_type_len, template_type_len);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1613,7 +1613,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* read Template type */
             size = fread(&buf, 1, template_type_len, fp);
             if (size != template_type_len) {
-                ERROR("missing\n");
+                LOG(LOG_ERR, "missing\n");
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1629,7 +1629,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
                 event->ulEventLength = 20 + 256;  // TODO(munetoh)
                 event->rgbEvent = xmalloc(event->ulEventLength);
                 if (event->rgbEvent == NULL) {
-                    ERROR("no memory");
+                    LOG(LOG_ERR, "no memory");
                     rc = PTS_FATAL;
                     goto close;
                 }
@@ -1638,7 +1638,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
                 /* read Template digest */
                 size = fread(event->rgbEvent, 1, SHA1_DIGEST_SIZE, fp);
                 if (size != SHA1_DIGEST_SIZE) {
-                    ERROR("missing\n");
+                    LOG(LOG_ERR, "missing\n");
                     rc = PTS_INTERNAL_ERROR;
                     goto close;
                 }
@@ -1646,13 +1646,13 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
                 /* read filename len */
                 size = fread(&filename_len, 1, 4, fp);
                 if (size != 4) {
-                    ERROR("missing\n");
+                    LOG(LOG_ERR, "missing\n");
                     rc = PTS_INTERNAL_ERROR;
                     goto close;
                 }
 
                 if (filename_len > 255) {
-                    ERROR("filename_len is too big, %d, 0x%x\n", filename_len, filename_len);
+                    LOG(LOG_ERR, "filename_len is too big, %d, 0x%x\n", filename_len, filename_len);
                     rc = PTS_INTERNAL_ERROR;
                     goto close;
                 }
@@ -1662,13 +1662,13 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
                 /* read filename */
                 size = fread(&event->rgbEvent[20], 1, filename_len, fp);
                 if (size != filename_len) {
-                    ERROR("missing\n");
+                    LOG(LOG_ERR, "missing\n");
                     rc = PTS_INTERNAL_ERROR;
                     goto close;
                 }
 
             } else {
-                ERROR("Unknown template [%s]\n", buf);
+                LOG(LOG_ERR, "Unknown template [%s]\n", buf);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1679,7 +1679,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
         ew = (OPENPTS_PCR_EVENT_WRAPPER *)
             xmalloc(sizeof(OPENPTS_PCR_EVENT_WRAPPER));
         if (ew == NULL) {
-            ERROR("no memory");
+            LOG(LOG_ERR, "no memory");
             rc = PTS_FATAL;
             goto close;
         }
@@ -1699,7 +1699,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* map to the snapshot */
             result = addEventToSnapshotBhv(ctx, ew_last);  // iml.c
             if (result != PTS_SUCCESS) {
-                ERROR("readImaImlFile - addEventToSnapshotBhv fail, rc = %d\n", rc);
+                LOG(LOG_ERR, "readImaImlFile - addEventToSnapshotBhv fail, rc = %d\n", rc);
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1707,7 +1707,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
             /* map to the snapshot */
             result = addEventToSnapshotBin(ctx, ew_last);  // iml.c
             if (result != PTS_SUCCESS) {
-                ERROR("readImaImlFile - addEventToSnapshotBin fail\n");
+                LOG(LOG_ERR, "readImaImlFile - addEventToSnapshotBin fail\n");
                 rc = PTS_INTERNAL_ERROR;
                 goto close;
             }
@@ -1718,7 +1718,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
         /* TPM Extend */
         result = extendTpm(&ctx->tpm, ew_last->event);
         if (result !=0) {
-            ERROR("extend TPM fail\n");
+            LOG(LOG_ERR, "extend TPM fail\n");
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
@@ -1737,7 +1737,7 @@ int readImaImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int type, int mo
     fclose(fp);
 
     // DEBUG("iml.c - getBiosImlFile - done, %d events\n", event_num);
-    // ERROR("SS LEVEL %d  == 1?, ss->event_num =%d\n",ss->level,ss->event_num );
+    // LOG(LOG_ERR, "SS LEVEL %d  == 1?, ss->event_num =%d\n",ss->level,ss->event_num );
     DEBUG("read IMA IML, file %s => %d events\n", filename, event_num);
     DEBUG_CAL("readImaImlFile - done, %d events\n", event_num);
 
@@ -1774,11 +1774,11 @@ int setPcrsToSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_PCRS *pcrs) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (pcrs == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -1846,20 +1846,20 @@ int getPcr(OPENPTS_CONTEXT * ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Create failed rc=0x%x\n", result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -1867,7 +1867,7 @@ int getPcr(OPENPTS_CONTEXT * ctx) {
     /* Get TPM handles */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -1881,7 +1881,7 @@ int getPcr(OPENPTS_CONTEXT * ctx) {
                 &blobLength,
                 &blob);
     if (result != TSS_SUCCESS) {
-        ERROR("ERROR: Tspi_TPM_GetCapability failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "ERROR: Tspi_TPM_GetCapability failed rc=0x%x\n", result);
         goto free;
     }
 
@@ -1893,7 +1893,7 @@ int getPcr(OPENPTS_CONTEXT * ctx) {
         result = Tspi_TPM_PcrRead(hTPM, i, &blobLength, &blob);
 
         if (result != TSS_SUCCESS) {
-            ERROR("ERROR: Tspi_TPM_PcrRead failed rc=0x%x\n", result);
+            LOG(LOG_ERR, "ERROR: Tspi_TPM_PcrRead failed rc=0x%x\n", result);
             pcrNum = 0;
             goto free;
         }
@@ -1957,7 +1957,7 @@ BYTE hex2byte(char *buf, int offset) {
 
     /* check */
     if (buf == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return 0;
     }
 
@@ -1986,17 +1986,17 @@ int getPcrBySysfsFile(OPENPTS_CONTEXT * ctx, const char *filename) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* open */
     if ((fp = fopen(filename, "r")) == NULL) {
-        TODO("getPcrBySysfsFile - pcr file is %s missing  -- ignore in test\n", filename);
+        LOG(LOG_TODO, "getPcrBySysfsFile - pcr file is %s missing  -- ignore in test\n", filename);
         return -1;  // TODO
     }
 
@@ -2053,7 +2053,7 @@ int validatePcr(OPENPTS_CONTEXT * ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -2105,7 +2105,7 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 
     /* check */
     if (eventWrapper == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -2118,7 +2118,7 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         }
         OUTPUT("eventdata[%4d]\n", event->ulEventLength);
     } else {
-        ERROR("NULL event\n");  // TODO(munetoh)
+        LOG(LOG_ERR, "NULL event\n");  // TODO(munetoh)
     }
 }
 
@@ -2134,7 +2134,7 @@ void printSnapshotsInfo(OPENPTS_CONTEXT * ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -2159,7 +2159,7 @@ void printSnapshotsInfo(OPENPTS_CONTEXT * ctx) {
         if (ss != NULL) {
             OUTPUT(" %6d\n", ss->event_num);
             level1_num += ss->event_num;
-            if (ss->level != 1) ERROR("bad level %d\n", ss->level);
+            if (ss->level != 1) LOG(LOG_ERR, "bad level %d\n", ss->level);
         } else {
             OUTPUT("\n");
         }

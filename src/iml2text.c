@@ -773,7 +773,7 @@ EventData
                     len,
                     &b64buf_len);
                 if (b64buf == NULL) {
-                    ERROR("encodeBase64 fail");
+                    LOG(LOG_ERR, "encodeBase64 fail");
                 } else {
                     fprintf(fp, ", base64(%s)", b64buf);
                     fprintf(fp, "]");
@@ -852,7 +852,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
 
     /* check */
     if (filename == NULL) {
-        ERROR("filename is NULL\n");
+        LOG(LOG_ERR, "filename is NULL\n");
         return TSS_E_INTERNAL_ERROR;
     }
 
@@ -911,7 +911,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
         }
         size = fread(ew->event->rgbPcrValue, 1, SHA1_DIGEST_SIZE, fp);
         if (size != SHA1_DIGEST_SIZE) {  // TODO(munetoh) SHA1 only
-            ERROR("SHA1 only");
+            LOG(LOG_ERR, "SHA1 only");
             rc =  TSS_E_INTERNAL_ERROR;
             goto close;
         }
@@ -924,7 +924,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
         /* EventData len */
         size = fread(&eventLength, 1, 4, fp);
         if (size != 4) {
-            ERROR("fread NG\n");
+            LOG(LOG_ERR, "fread NG\n");
             rc =  TSS_E_INTERNAL_ERROR;
             goto close;
         }
@@ -952,7 +952,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
         }
         size = fread(ew->event->rgbEvent, 1, aligned_length, fp);
         if (size != aligned_length) {
-            ERROR("fread NG, size = %d != %d (@PCR[%d])\n",
+            LOG(LOG_ERR, "fread NG, size = %d != %d (@PCR[%d])\n",
                 (unsigned int) size,
                 (unsigned int) ew->event->ulEventLength,
                 pcrIndex);
@@ -1037,7 +1037,7 @@ TSS_RESULT getEventLog(char *filename, int endian, int aligned, UINT32 *event_nu
  * Usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IML2TEXT_USAGE,
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IML2TEXT_USAGE,
         "OpenPTS command\n\n"
         "Usage: iml2text [options]\n\n"
         "Options:\n"
@@ -1122,7 +1122,8 @@ int main(int argc, char *argv[]) {
             usage();
             return 0;
         default:
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IML2TEXT_BAD_OPTION_C, "bad option '%c'\n"), c);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_IML2TEXT_BAD_OPTION_C,
+                "bad option '%c'\n"), c);
             usage();
             return -1;
         }
@@ -1153,14 +1154,14 @@ int main(int argc, char *argv[]) {
         /* in both cases, we have to connect to TCSD */
         result = Tspi_Context_Create(&hContext);
         if (result != TSS_SUCCESS) {
-            ERROR("ERROR: Tspi_Context_Create failed rc=0x%x\n",
+            LOG(LOG_ERR, "ERROR: Tspi_Context_Create failed rc=0x%x\n",
                    result);
             goto close;
         }
 
         result = Tspi_Context_Connect(hContext, SERVER);
         if (result != TSS_SUCCESS) {
-            ERROR("ERROR: Tspi_Context_Connect failed rc=0x%x\n",
+            LOG(LOG_ERR, "ERROR: Tspi_Context_Connect failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1168,7 +1169,7 @@ int main(int argc, char *argv[]) {
         /* Get TPM handles */
         result = Tspi_Context_GetTpmObject(hContext, &hTPM);
         if (result != TSS_SUCCESS) {
-            ERROR("ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
+            LOG(LOG_ERR, "ERROR: Tspi_Context_GetTpmObject failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1182,7 +1183,7 @@ int main(int argc, char *argv[]) {
                     &ulEventNumber,
                     &PcrEvents);
         if (result != TSS_SUCCESS) {  // ERROR
-            ERROR("ERROR: Tspi_TPM_GetEventLog failed rc=0x%x\n",
+            LOG(LOG_ERR, "ERROR: Tspi_TPM_GetEventLog failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1190,7 +1191,7 @@ int main(int argc, char *argv[]) {
         /* Get EventLog File */
         result = getEventLog(filename, endian, aligned, &ulEventNumber, &PcrEvents);
         if (result != TSS_SUCCESS) {  // ERROR
-            ERROR("getEventLog failed rc=0x%x\n",
+            LOG(LOG_ERR, "getEventLog failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1259,7 +1260,7 @@ int main(int argc, char *argv[]) {
             // actual
             result = Tspi_TPM_PcrRead(hTPM, i, &blobLength, &blob);
             if (result != TSS_SUCCESS) {  // ERROR
-                ERROR("PrcRead failed rc=0x%x\n",
+                LOG(LOG_ERR, "PrcRead failed rc=0x%x\n",
                        result);
                 goto free;
             }

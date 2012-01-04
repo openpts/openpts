@@ -82,7 +82,7 @@ OPENPTS_UUID *newOpenptsUuid() {
 
     uuid = xmalloc(sizeof(OPENPTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(uuid, 0, sizeof(OPENPTS_UUID));
@@ -100,13 +100,13 @@ OPENPTS_UUID *newOpenptsUuid2(PTS_UUID *pts_uuid) {
 
     /* check */
     if (pts_uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
     uuid = xmalloc(sizeof(OPENPTS_UUID));  // BYTE[16]
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(uuid, 0, sizeof(OPENPTS_UUID));
@@ -132,13 +132,13 @@ OPENPTS_UUID *newOpenptsUuidFromFile(char * filename) {
 
     /* check */
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
     uuid = newOpenptsUuid();
     if (uuid == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
 
@@ -148,7 +148,7 @@ OPENPTS_UUID *newOpenptsUuidFromFile(char * filename) {
     /* load the filename */
     rc = readOpenptsUuidFile(uuid);
     if (rc != PTS_SUCCESS) {
-        ERROR("newOpenptsUuidFromFile() - readOpenptsUuidFile() fail rc=%d\n", rc);
+        LOG(LOG_ERR, "newOpenptsUuidFromFile() - readOpenptsUuidFile() fail rc=%d\n", rc);
         freeOpenptsUuid(uuid);
         return NULL;
     }
@@ -162,7 +162,7 @@ OPENPTS_UUID *newOpenptsUuidFromFile(char * filename) {
 void freeOpenptsUuid(OPENPTS_UUID *uuid) {
     /* check */
     if (uuid == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return;
     }
 
@@ -191,7 +191,7 @@ void freeOpenptsUuid(OPENPTS_UUID *uuid) {
 int genOpenptsUuid(OPENPTS_UUID *uuid) {
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -206,17 +206,17 @@ int genOpenptsUuid(OPENPTS_UUID *uuid) {
     } else if (uuid->status == OPENPTS_UUID_FILLED) {
         // TODO Re genenation happen
         uuid->status = OPENPTS_UUID_CHANGED;
-        ERROR("genOpenptsUuid() %s - changed\n", uuid->str);
+        LOG(LOG_ERR, "genOpenptsUuid() %s - changed\n", uuid->str);
     } else if (uuid->status == OPENPTS_UUID_CHANGED) {
         // TODO Re genenation happen
         uuid->status = OPENPTS_UUID_CHANGED;
-        ERROR("genOpenptsUuid() %s - changed again\n", uuid->str);
+        LOG(LOG_ERR, "genOpenptsUuid() %s - changed again\n", uuid->str);
     } else if (uuid->status == OPENPTS_UUID_UUID_ONLY) {
         // TODO Re genenation happen
         uuid->status = OPENPTS_UUID_UUID_ONLY;
-        ERROR("genOpenptsUuid() %s - changed again (no binding to the file)\n", uuid->str);
+        LOG(LOG_ERR, "genOpenptsUuid() %s - changed again (no binding to the file)\n", uuid->str);
     } else {
-        ERROR("genOpenptsUuid() - bad status\n");
+        LOG(LOG_ERR, "genOpenptsUuid() - bad status\n");
     }
 
 
@@ -256,11 +256,11 @@ int readOpenptsUuidFile(OPENPTS_UUID *uuid) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (uuid->filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -314,25 +314,25 @@ int readOpenptsUuidFile(OPENPTS_UUID *uuid) {
         /* parse */
         uuid->uuid = getUuidFromString(line);
         if (uuid->uuid  == NULL) {
-            ERROR("readUuidFile() - UUID is NULL, file %s\n", uuid->filename);
+            LOG(LOG_ERR, "readUuidFile() - UUID is NULL, file %s\n", uuid->filename);
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
         uuid->str = getStringOfUuid(uuid->uuid);
         if (uuid->str == NULL) {
-            ERROR("readUuidFile() - STR UUID is NULL, file %s\n", uuid->filename);
+            LOG(LOG_ERR, "readUuidFile() - STR UUID is NULL, file %s\n", uuid->filename);
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
         uuid->time = getDateTimeOfUuid(uuid->uuid);
         if (uuid->time == NULL) {
-            ERROR("readUuidFile() - TIME UUID is NULL, file %s\n", uuid->filename);
+            LOG(LOG_ERR, "readUuidFile() - TIME UUID is NULL, file %s\n", uuid->filename);
             rc = PTS_INTERNAL_ERROR;
             goto close;
         }
         uuid->status = OPENPTS_UUID_FILLED;
     } else {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_READ_FAILED, "Failed to read the UUID file\n"));
+        ERROR(NLS(MS_OPENPTS, OPENPTS_UUID_READ_FAILED, "Failed to read the UUID file\n"));
     }
 
  close:
@@ -352,20 +352,20 @@ int writeOpenptsUuidFile(OPENPTS_UUID *uuid, int overwrite) {
 
     /* check */
     if (uuid == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (uuid->filename == NULL) {
-        ERROR("null input\n");
+        LOG(LOG_ERR, "null input\n");
         return PTS_FATAL;
     }
     if ((uuid->status != OPENPTS_UUID_FILLED) && (uuid->status != OPENPTS_UUID_CHANGED)) {
-        ERROR("writeOpenptsUuidFile() - uuid->status = %d (!= FILLED or CHANGED)\n", uuid->status);
+        LOG(LOG_ERR, "writeOpenptsUuidFile() - uuid->status = %d (!= FILLED or CHANGED)\n", uuid->status);
         // 1 => OPENPTS_UUID_FILENAME_ONLY, UUID is missing
         return PTS_INTERNAL_ERROR;
     }
     if (uuid->str == NULL) {
-        ERROR("writeOpenptsUuidFile() - uuid->str == NULL\n");
+        LOG(LOG_ERR, "writeOpenptsUuidFile() - uuid->str == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -373,7 +373,7 @@ int writeOpenptsUuidFile(OPENPTS_UUID *uuid, int overwrite) {
     if (overwrite == 1) {
         /* overwrite */
         if ((fp = fopen(uuid->filename, "w")) == NULL) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
                 "Failed to open UUID file %s\n"), uuid->filename);
             return PTS_INTERNAL_ERROR;
         }
@@ -382,18 +382,18 @@ int writeOpenptsUuidFile(OPENPTS_UUID *uuid, int overwrite) {
         if ((fd = open(uuid->filename, O_CREAT | O_EXCL | O_WRONLY, mode)) == -1) {
             if (errno == EEXIST) {
                 /* exist, keep the current UUID file */
-                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FILE_EXISTS,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_UUID_FILE_EXISTS,
                     "The UUID file '%s' already exists\n"), uuid->filename);
                 // return PTS_SUCCESS;  // TODO
                 return OPENPTS_FILE_EXISTS;
             } else {
-                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
                     "Failed to open UUID file %s\n"), uuid->filename);
                 return PTS_INTERNAL_ERROR;
             }
         }
         if ((fp = fdopen(fd, "w")) == NULL) {
-            fprintf(stderr,  NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_UUID_FILE_OPEN_FAILED,
                 "Failed to open UUID file %s\n"), uuid->filename);
             return PTS_INTERNAL_ERROR;
         }

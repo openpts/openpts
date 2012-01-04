@@ -50,7 +50,7 @@
 int freePolicyChain(OPENPTS_POLICY *pol) {
     /* check */
     if (pol == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -83,11 +83,11 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     if (filename == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
@@ -120,7 +120,7 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
             /* new  */
             pol = xmalloc(sizeof(OPENPTS_POLICY));
             if (pol == NULL) {
-                ERROR("no memory");
+                LOG(LOG_ERR, "no memory");
                 cnt = -1;  // return -1;
                 goto error;
             }
@@ -183,7 +183,7 @@ int checkPolicy(OPENPTS_CONTEXT *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     pol = ctx->policy_start;
@@ -253,7 +253,7 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
 
     /* check */
     if (ctx == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
     pol = ctx->policy_start;

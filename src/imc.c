@@ -111,14 +111,14 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
         imcID, minVersion, maxVersion);
 
     if (initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_ALREADY_INITIALIZED;
     }
 
     /* check version - Only support version 1 */
     if ((minVersion < TNC_IFIMC_VERSION_1) ||
         (maxVersion > TNC_IFIMC_VERSION_1)) {
-        ERROR("no common version");
+        LOG(LOG_ERR, "no common version");
         return TNC_RESULT_NO_COMMON_VERSION;
     }
 
@@ -129,13 +129,13 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     /* initialize PTS Collector */
     conf = newPtsConfig();
     if (conf == NULL) {
-        ERROR("no memory");
+        LOG(LOG_ERR, "no memory");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
     ctx =  newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("no memory\n");
+        LOG(LOG_ERR, "no memory\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -145,14 +145,14 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     /* configure PTS Collector */
     rc = readPtsConfig(conf, PTSC_CONFIG_FILE);
     if (rc != PTS_SUCCESS) {
-        ERROR("read config file, '%s' was failed - abort\n", PTSC_CONFIG_FILE);
+        LOG(LOG_ERR, "read config file, '%s' was failed - abort\n", PTSC_CONFIG_FILE);
         rc = TNC_RESULT_FATAL;
         goto error;
     }
 
     /* check IR dir */
     if (checkDir(conf->ir_dir) != PTS_SUCCESS) {
-        ERROR("Initialize the IMC. e.g. ptsc -i\n");
+        LOG(LOG_ERR, "Initialize the IMC. e.g. ptsc -i\n");
         rc = TNC_RESULT_FATAL;
         goto error;
     }
@@ -160,7 +160,7 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
     /* RM UUID */
     rc = readOpenptsUuidFile(conf->rm_uuid);
     if (rc != PTS_SUCCESS) {
-        ERROR("read RM UUID file %s was failed, initialize ptscd first\n", conf->rm_uuid->filename);
+        LOG(LOG_ERR, "read RM UUID file %s was failed, initialize ptscd first\n", conf->rm_uuid->filename);
         rc = TNC_RESULT_FATAL;
         goto error;
     } else {
@@ -189,7 +189,7 @@ TNC_IMC_API TNC_Result TNC_IMC_Initialize(
             &conf->pubkey_length,
             &conf->pubkey);
     if (rc != TSS_SUCCESS) {
-        ERROR("getTssPubKey() fail rc=0x%x srk password mode=%d, key =%s\n",
+        LOG(LOG_ERR, "getTssPubKey() fail rc=0x%x srk password mode=%d, key =%s\n",
             rc, conf->srk_password_mode, conf->uuid->str);
         rc = TNC_RESULT_FATAL;
         goto error;
@@ -226,13 +226,13 @@ TNC_IMC_API TNC_Result TNC_IMC_NotifyConnectionChange(
 
     /* check internal status */
     if (!initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     /* check ID */
     if (imcID != id) {
-        ERROR("BAD id");
+        LOG(LOG_ERR, "BAD id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -257,13 +257,13 @@ TNC_IMC_API TNC_Result TNC_IMC_BeginHandshake(
 
     /* check internal status */
     if (!initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     /* check ID */
     if (imcID != id) {
-        ERROR("bad id");
+        LOG(LOG_ERR, "bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -306,19 +306,19 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
 
     /* check internal status */
     if (!initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     /* check ID */
     if (imcID != id) {
-        ERROR("bad id");
+        LOG(LOG_ERR, "bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
     /* connection ID */
     if (connectionID != cid) {
-        ERROR("bad cid");
+        LOG(LOG_ERR, "bad cid");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -332,7 +332,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
         read_tlv = (PTS_IF_M_Attribute*)messageBuffer;
         if (read_tlv == NULL) {
             // TODO should send error?
-            ERROR("TLV is null");
+            LOG(LOG_ERR, "TLV is null");
             return TNC_RESULT_FATAL;
         }
 
@@ -357,7 +357,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
             /* send TPM_PUBKEY */
             msg = getPtsTlvMessage(ctx, TPM_PUBKEY, &len);
             if (msg == NULL) {
-                ERROR("return  OPENPTS_ERROR");
+                LOG(LOG_ERR, "return  OPENPTS_ERROR");
                 msg = getPtsTlvMessage(ctx, OPENPTS_ERROR, &len);
             }
 
@@ -368,7 +368,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
                 len,
                 ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
             if (rc != TNC_RESULT_SUCCESS) {
-                ERROR("[C->V] TPM_PUBKEY[%d] fail", len);
+                LOG(LOG_ERR, "[C->V] TPM_PUBKEY[%d] fail", len);
                 return TNC_RESULT_FATAL;
             } else {
                 DEBUG_IFM("[C->V] TPM_PUBKEY[%d]\n", len);
@@ -381,14 +381,14 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
             /* set RM filename */
             rc = getRmSetDir(conf);
             if (rc != PTS_SUCCESS) {
-                ERROR("collector() - getRmSetDir() was failed\n");
+                LOG(LOG_ERR, "collector() - getRmSetDir() was failed\n");
                 return PTS_INTERNAL_ERROR;
             }
 
             /* send RIMM_SET */
             msg = getPtsTlvMessage(ctx, RIMM_SET, &len);
             if (msg == NULL) {
-                ERROR("Get RIMM_SET message was faild, return  OPENPTS_ERROR");
+                LOG(LOG_ERR, "Get RIMM_SET message was faild, return  OPENPTS_ERROR");
                 msg = getPtsTlvMessage(ctx, OPENPTS_ERROR, &len);
             }
 
@@ -399,7 +399,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
                 len,
                 ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
             if (rc != TNC_RESULT_SUCCESS) {
-                ERROR("[C->V] RIMM_SET[%d] fail\n", len);
+                LOG(LOG_ERR, "[C->V] RIMM_SET[%d] fail\n", len);
                 return TNC_RESULT_FATAL;
             } else {
                 DEBUG_IFM("[C->V] RIMM_SET[%d]\n", len);
@@ -419,7 +419,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
             /* send INTEGRITY_REPORT */
             msg = getPtsTlvMessage(ctx, INTEGRITY_REPORT, &len);
             if (msg == NULL) {
-                ERROR("return  OPENPTS_ERROR");
+                LOG(LOG_ERR, "return  OPENPTS_ERROR");
                 msg = getPtsTlvMessage(ctx, OPENPTS_ERROR, &len);
             }
 
@@ -430,7 +430,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
                 len,
                 ((TNC_VENDORID_OPENPTS << 8) | TNC_SUBTYPE_OPENPTS));
             if (rc != TNC_RESULT_SUCCESS) {
-                ERROR("[C->V] INTEGRITY_REPORT[%d] fail", len);
+                LOG(LOG_ERR, "[C->V] INTEGRITY_REPORT[%d] fail", len);
                 return TNC_RESULT_FATAL;
             } else {
                 DEBUG_IFM("[C->V] INTEGRITY_REPORT[%d]\n", len);
@@ -438,16 +438,16 @@ TNC_IMC_API TNC_Result TNC_IMC_ReceiveMessage(
             break;
 
         default:
-            ERROR("Unknown type %08X", type);
+            LOG(LOG_ERR, "Unknown type %08X", type);
             break;
         }
         return rc;
     } else if (messageType == ((TNC_VENDORID_TCG_PEN << 8) | TNC_SUBTYPE_TCG_PTS)) {
         /* TCG */
-        ERROR("TBD\n");
+        LOG(LOG_ERR, "TBD\n");
         return TNC_RESULT_FATAL;
     } else {
-        ERROR("bad msg from collector");
+        LOG(LOG_ERR, "bad msg from collector");
         return TNC_RESULT_FATAL;
     }
 
@@ -464,19 +464,19 @@ TNC_IMC_API TNC_Result TNC_IMC_BatchEnding(
 
     /* check internal status */
     if (!initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     /* check ID */
     if (imcID != id) {
-        ERROR("bad id");
+        LOG(LOG_ERR, "bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
     /* connection ID */
     if (connectionID != cid) {
-        ERROR("bad cid");
+        LOG(LOG_ERR, "bad cid");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -494,13 +494,13 @@ TNC_IMC_API TNC_Result TNC_IMC_Terminate(
 
     /* check internal status */
     if (!initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     /* check ID */
     if (imcID != id) {
-        ERROR("bad id");
+        LOG(LOG_ERR, "bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -530,7 +530,7 @@ static TNC_Result reportMessageTypes(
         imcID, supportedTypes, typeCount);
 
     if (!reportMessageTypesPtr) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TNC_RESULT_FATAL;
     }
 
@@ -554,7 +554,7 @@ static TNC_Result sendMessage(
             message, (int)messageType);
 
     if (!sendMessagePtr) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TNC_RESULT_FATAL;
     }
 
@@ -615,13 +615,13 @@ TNC_IMC_API TNC_Result TNC_IMC_ProvideBindFunction(
 
     /* check internal status */
     if (!initialized) {
-        ERROR("not initialized");
+        LOG(LOG_ERR, "not initialized");
         return TNC_RESULT_NOT_INITIALIZED;
     }
 
     /* check ID */
     if (imcID != id) {
-        ERROR("bad id");
+        LOG(LOG_ERR, "bad id");
         return TNC_RESULT_INVALID_PARAMETER;
     }
 
@@ -631,7 +631,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ProvideBindFunction(
                             "TNC_TNCC_ReportMessageTypes",
                             (void**)&reportMessageTypesPtr)
                 != TNC_RESULT_SUCCESS) {
-            ERROR("bind function fails -TNC_TNCC_ReportMessageTypes\n");
+            LOG(LOG_ERR, "bind function fails -TNC_TNCC_ReportMessageTypes\n");
             rc = TNC_RESULT_FATAL;
             return rc;
         }
@@ -639,7 +639,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ProvideBindFunction(
                             "TNC_TNCC_RequestHandshakeRetry",
                             (void**)&requestHandshakeRetryPtr)
                 != TNC_RESULT_SUCCESS) {
-            ERROR("bind function fails - TNC_TNCC_RequestHandshakeRetry\n");
+            LOG(LOG_ERR, "bind function fails - TNC_TNCC_RequestHandshakeRetry\n");
             rc = TNC_RESULT_FATAL;
             return rc;
         }
@@ -647,7 +647,7 @@ TNC_IMC_API TNC_Result TNC_IMC_ProvideBindFunction(
                             "TNC_TNCC_SendMessage",
                             (void**)&sendMessagePtr)
                 != TNC_RESULT_SUCCESS) {
-            ERROR("bind functionfails -  TNC_TNCC_SendMessage\n");
+            LOG(LOG_ERR, "bind functionfails -  TNC_TNCC_SendMessage\n");
             rc = TNC_RESULT_FATAL;
             return rc;
         }

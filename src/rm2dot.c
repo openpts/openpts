@@ -64,12 +64,13 @@
  * usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_RM2DOT_USAGE, "usage: rm2dot [options] RMfile \n"
-                    "\t-o output\tset output file (default is stdout)\n"
-                    "\t-p pcrindex\tset PCR index\n"
-                    "\t-l level\tset snapshot level (0 or 1)\n"
-                    "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n"
-                    "\n"));
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_RM2DOT_USAGE,
+        "usage: rm2dot [options] RMfile \n"
+        "\t-o output\tset output file (default is stdout)\n"
+        "\t-p pcrindex\tset PCR index\n"
+        "\t-l level\tset snapshot level (0 or 1)\n"
+        "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n"
+        "\n"));
 }
 
 /**
@@ -116,7 +117,8 @@ int main(int argc, char *argv[]) {
     /* Read RM(XML) file */
 
     if (input_filename == NULL) {
-        printf(NLS(MS_OPENPTS, OPENPTS_RM2DOT_MISSING_XML_FILE, "ERROR missing XMLfile\n"));
+        ERROR(NLS(MS_OPENPTS, OPENPTS_RM2DOT_MISSING_XML_FILE,
+            "Missing XML file\n"));
         usage();
         return -1;
     }
@@ -124,20 +126,20 @@ int main(int argc, char *argv[]) {
     /* new pts context */
     conf = newPtsConfig();
     if (conf == NULL) {
-        ERROR("ERROR\n");
+        LOG(LOG_ERR, "ERROR\n");
         return -1;
     }
 
     ctx = newPtsContext(conf);
     if (ctx == NULL) {
-        ERROR("ERROR\n");
+        LOG(LOG_ERR, "ERROR\n");
         return -1;
     }
 
     /* read RM */
     rc = readRmFile(ctx, input_filename, 0);
     if (rc != PTS_SUCCESS) {
-        ERROR("ERROR readRmFile\n");
+        LOG(LOG_ERR, "ERROR readRmFile\n");
         goto error;
     }
 
@@ -146,13 +148,14 @@ int main(int argc, char *argv[]) {
     } else if (level == 1) {
         ss =  getSnapshotFromTable(ctx->ss_table, pcr_index, 1);
     } else {
-        fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_RM2DOT_BAD_LEVEL, "ERROR bad level %d\n"), level);
+        ERROR(NLS(MS_OPENPTS, OPENPTS_RM2DOT_BAD_LEVEL,
+            "Bad level %d, the level should be 0 or 1\n"), level);
         goto error;
     }
 
     rc = writeDotModel(ss->fsm_binary, output_filename);
     if (rc != PTS_SUCCESS) {
-        ERROR("ERROR writeDotModel\n");
+        LOG(LOG_ERR, "ERROR writeDotModel\n");
         goto error;
     }
 

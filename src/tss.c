@@ -81,12 +81,23 @@ int printTssKeyList(int ps_type) {
     return TSS_SUCCESS;
 }
 
-int createTssSignKey(PTS_UUID *uuid, int key_storage_type, char *filename, int force, int srk_password_mode) {
+int createTssSignKey(
+    PTS_UUID *uuid,
+    int key_storage_type,
+    char *filename,
+    int auth_type,
+    int force,
+    int srk_password_mode)
+{
     /* dummy */
     return TSS_SUCCESS;
 }
 
-int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
+int deleteTssKey(
+    PTS_UUID *uuid,
+    int key_storage_type,
+    char *filename)
+{
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -98,46 +109,47 @@ int getTpmVersion(TSS_VERSION *version) {
 
 int createAIK() {
     /* dummy */
-    TODO("createAIK - TBD\n");
+    LOG(LOG_TODO, "createAIK - TBD\n");
     return TSS_E_FAIL;
 }
 
 int getTssPubKey(
     PTS_UUID *uuid,
-    int key_storage_type, int srk_password_mode,
-    int resetdalock, char *filename, int *pubkey_length, BYTE **pubkey) {
+    int key_storage_type,
+    int srk_password_mode,
+    int resetdalock,
+    char *filename,
+    int auth_type,
+    int *pubkey_length, BYTE **pubkey)
+{
     /* dummy */
     return TSS_SUCCESS;
 }
 
 int quoteTss(
-        /* Key */
-        PTS_UUID *uuid,
-        int key_storage_type,
-        int srk_password_mode,
-        char *filename,
-        /* Nonce */
-        BYTE *nonce,
-        /* PCR selection */
-        OPENPTS_PCRS *pcrs,
-        /* Output */
-        TSS_VALIDATION *validationData) {
+    PTS_UUID *uuid,
+    int key_storage_type,
+    int srk_password_mode,
+    char *filename,
+    int auth_type,
+    BYTE *nonce,
+    OPENPTS_PCRS *pcrs,
+    TSS_VALIDATION *validationData)
+{
     /* dummy */
     return TSS_SUCCESS;
 }
 
 int quote2Tss(
-        /* Key */
-        PTS_UUID *uuid,
-        int key_storage_type,
-        int srk_password_mode,
-        char *filename,
-        /* Nonce */
-        BYTE *nonce,
-        /* PCR selection */
-        OPENPTS_PCRS *pcrs,
-        /* Output */
-        TSS_VALIDATION *validationData) {
+    PTS_UUID *uuid,
+    int key_storage_type,
+    int srk_password_mode,
+    char *filename,
+    int auth_type,
+    BYTE *nonce,
+    OPENPTS_PCRS *pcrs,
+    TSS_VALIDATION *validationData)
+{
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -185,7 +197,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
@@ -195,7 +207,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -203,7 +215,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -211,7 +223,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
     /* Get TPM policy */
     result = Tspi_GetPolicyObject(hTPM, TSS_POLICY_USAGE, &hTPMPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -226,7 +238,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
         tpm_auth = null_srk_auth;
         tpm_auth_len = 0;
     } else {
-        ERROR("TPM secret\n");
+        LOG(LOG_ERR, "TPM secret\n");
         result = PTS_INTERNAL_ERROR;  // TODO
         goto close;
     }
@@ -236,7 +248,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
                 tpm_auth_len,
                 tpm_auth);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -248,7 +260,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
                 flag,
                 value);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_TPM_GetStatus failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_TPM_GetStatus failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -276,7 +288,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
@@ -286,7 +298,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -294,7 +306,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -302,7 +314,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
     /* Get TPM policy */
     result = Tspi_GetPolicyObject(hTPM, TSS_POLICY_USAGE, &hTPMPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -317,7 +329,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
         tpm_auth = null_srk_auth;
         tpm_auth_len = 0;
     } else {
-        ERROR("TPM secret\n");
+        LOG(LOG_ERR, "TPM secret\n");
         result = PTS_INTERNAL_ERROR;  // TODO
         goto close;
     }
@@ -327,7 +339,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
                 tpm_auth_len,
                 tpm_auth);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -339,7 +351,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
                 flag,  // TSS_TPMSTATUS_RESETLOCK,
                 value);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -367,14 +379,14 @@ int printTssKeyList(int ps_type) {
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -394,7 +406,7 @@ int printTssKeyList(int ps_type) {
             "The key cannot be found in the persistent storage database.\n"));
         goto close;
     } else if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetRegisteredKeysByUUID failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetRegisteredKeysByUUID failed rc=0x%x\n",
             result);
         goto close;
     }
@@ -468,19 +480,19 @@ int createTssSignKey(
     /* check */
     if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
         /* TSS */
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
     if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         if (filename == NULL) {
             /* BLOB */
-            ERROR("null input");
+            LOG(LOG_ERR, "null input");
             return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
         } else {
             if (force != 1) {
                 /* check file */
                 if (checkFile(filename) == OPENPTS_FILE_EXISTS) {
-                    ERROR("Blob file already exit. %s", filename);
+                    LOG(LOG_ERR, "Blob file already exit. %s", filename);
                     return TSS_E_KEY_ALREADY_REGISTERED;
                 }
             }
@@ -490,14 +502,14 @@ int createTssSignKey(
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -505,7 +517,7 @@ int createTssSignKey(
     /* get TPM handles */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -517,10 +529,10 @@ int createTssSignKey(
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
          result);
         if (result == 0x2020) {
-            ERROR("Your key storage of tcsd is damaged or missing. \n");
+            LOG(LOG_ERR, "Your key storage of tcsd is damaged or missing. \n");
         }
         goto close;
     }
@@ -528,7 +540,7 @@ int createTssSignKey(
     /* SRK Policy objects */
     result = Tspi_GetPolicyObject(hSRK, TSS_POLICY_USAGE, &hSRKPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -550,7 +562,7 @@ int createTssSignKey(
                 srk_auth_len,
                 srk_auth);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -567,7 +579,7 @@ int createTssSignKey(
                     TSS_KEY_AUTHORIZATION | TSS_KEY_SIZE_2048 | TSS_KEY_TYPE_SIGNING,
                     &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -579,9 +591,8 @@ int createTssSignKey(
                     TSS_POLICY_USAGE,
                     &hKeyPolicy);
         if (result != TSS_SUCCESS) {
-            printf
-            ("ERROR: Tspi_Context_CreateObject failed rc=0x%x\n",
-             result);
+            LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
+                result);
             goto close;
         }
 
@@ -591,18 +602,16 @@ int createTssSignKey(
                     strlen(TPMSIGKEY_SECRET),
                     (BYTE *)TPMSIGKEY_SECRET);
         if (result != TSS_SUCCESS) {
-            printf
-            ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
-             result);
+            LOG(LOG_ERR, "ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                result);
             goto close;
         }
 
         result = Tspi_Policy_AssignToObject(hKeyPolicy, hKey);
 
         if (result != TSS_SUCCESS) {
-            printf
-            ("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
-             result);
+            LOG(LOG_ERR, "ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+                result);
             goto close;
         }
     } else {
@@ -614,7 +623,7 @@ int createTssSignKey(
                     TSS_KEY_SIZE_2048 | TSS_KEY_TYPE_SIGNING,
                     &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -623,10 +632,10 @@ int createTssSignKey(
     /* create Key */
     result = Tspi_Key_CreateKey(hKey, hSRK, 0);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Key_CreateKey failed rc=0x%04x\n",
+        LOG(LOG_ERR, "Tspi_Key_CreateKey failed rc=0x%04x\n",
                result);
         if (result == 0x12) {
-            ERROR("TPM_NOSRK error, take the TPM ownership before initialize ptsc");
+            LOG(LOG_ERR, "TPM_NOSRK error, take the TPM ownership before initialize ptsc");
         }
         goto close;
     }
@@ -638,7 +647,7 @@ int createTssSignKey(
 
         fp = fopen(filename, "w");
         if (fp==NULL) {
-            ERROR("file open fail, key blob file is %s",filename);
+            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -650,7 +659,7 @@ int createTssSignKey(
                      &keyLength,
                      &keyBlob);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_GetAttribData failed rc=0x%04x\n",
+            LOG(LOG_ERR, "Tspi_GetAttribData failed rc=0x%04x\n",
                    result);
             fclose(fp);
             goto close;
@@ -685,19 +694,19 @@ int createTssSignKey(
                                tss_uuid,
                                &hKey);
                     if (result != TSS_SUCCESS) {
-                        ERROR("Tspi_Context_UnregisterKey failed rc=0x%x\n",
+                        LOG(LOG_ERR, "Tspi_Context_UnregisterKey failed rc=0x%x\n",
                          result);
                     } else {
                         /* try regkey again */
                         goto regkey;
                     }
                 } else {
-                    ERROR("Tspi_Context_RegisterKey failed rc=0x%x\n",
+                    LOG(LOG_ERR, "Tspi_Context_RegisterKey failed rc=0x%x\n",
                      result);
-                    ERROR("       TSS_E_KEY_ALREADY_REGISTERED\n");
+                    LOG(LOG_ERR, "       TSS_E_KEY_ALREADY_REGISTERED\n");
                 }
             } else {
-                ERROR("spi_Context_RegisterKey failed rc=0x%x\n",
+                LOG(LOG_ERR, "spi_Context_RegisterKey failed rc=0x%x\n",
                  result);
                 // 0x3003 TEE_E_BAD_PARAMETOR
             }
@@ -720,7 +729,7 @@ int createTssSignKey(
  * Create AIK
  */
 int createAIK() {
-    TODO("createAIK - TBD\n");
+    LOG(LOG_TODO, "createAIK - TBD\n");
     return TSS_E_FAIL;
 }
 
@@ -737,17 +746,17 @@ int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
     /* check BLOB */
     if (key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) {
         if (filename == NULL) {
-            ERROR("null input");
+            LOG(LOG_ERR, "null input");
             return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
         } else {
             /* check file */
             if (checkFile(filename) != OPENPTS_FILE_EXISTS) {
-                ERROR("Blob file not found. %s", filename);
+                LOG(LOG_ERR, "Blob file not found. %s", filename);
                 return TSS_E_BAD_PARAMETER;
             }
             /* delete file */
             if (remove(filename) != 0) {
-                ERROR("remove key blob is fail. %s", filename);
+                LOG(LOG_ERR, "remove key blob is fail. %s", filename);
                 return TSS_E_FAIL;
             }
             /* OK */
@@ -757,21 +766,21 @@ int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
 
     /* check TSS */
     if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
 
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -787,7 +796,7 @@ int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
             tss_uuid,
             &hKey);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_UnregisterKey failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_UnregisterKey failed rc=0x%x\n",
          result);
     }
 
@@ -831,11 +840,11 @@ int getTssPubKey(
 
     /* check */
     if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_TSS) && (uuid == NULL)) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
     if ((key_storage_type == OPENPTS_AIK_STORAGE_TYPE_BLOB) && (filename == NULL)) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
 
@@ -851,14 +860,14 @@ int getTssPubKey(
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         goto close;
     }
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -874,11 +883,11 @@ int getTssPubKey(
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
          result);
         if (result == 0x2020) {
-            ERROR(" TSS_E_PS_KEY_NOT_FOUND.\n");
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
+            LOG(LOG_ERR, " TSS_E_PS_KEY_NOT_FOUND.\n");
+            ERROR(NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
                 "Please check your system_ps_file setting in /etc/security/tss/tcsd.conf. "
                 "(The default is /var/tss/lib/tpm/system.data)\n"
                 "If system_ps_file size is zero then it does not contain the SRK info\n"));
@@ -891,7 +900,7 @@ int getTssPubKey(
     /* SRK Policy objects */
     result = Tspi_GetPolicyObject(hSRK, TSS_POLICY_USAGE, &hSRKPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -914,7 +923,7 @@ int getTssPubKey(
                 srk_auth_len,
                 srk_auth);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -930,7 +939,7 @@ int getTssPubKey(
 
         fp = fopen(filename, "r");
         if (fp==NULL) {
-            ERROR("file open fail, key blob file is %s",filename);
+            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -945,7 +954,7 @@ int getTssPubKey(
                     blob,
                     &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_LoadKeyByBlob (Key) failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Context_LoadKeyByBlob (Key) failed rc=0x%x\n",
              result);
             goto close;
         }
@@ -957,12 +966,12 @@ int getTssPubKey(
                     tss_uuid,
                     &hKey);
         if (result == 0x803) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_TPM_LOCKED,
-                        "The TPM is locked. Please use the 'tpm_resetdalock' command to clear the lock\n"
-                        "For the ptscd daemon please set the flag 'tpm.resetdalock=on' in /etc/ptsc.conf\n"));
+            ERROR(NLS(MS_OPENPTS, OPENPTS_TSS_TPM_LOCKED,
+                  "The TPM is locked. Please use the 'tpm_resetdalock' command to clear the lock\n"
+                  "For the ptscd daemon please set the flag 'tpm.resetdalock=on' in /etc/ptsc.conf\n"));
             goto close;
         } else if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
+            LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
             debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
 
             goto close;
@@ -972,7 +981,7 @@ int getTssPubKey(
     /* Policy Object*/
     result = Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hKeyPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -986,7 +995,7 @@ int getTssPubKey(
                     strlen(TPMSIGKEY_SECRET),
                     (BYTE *)TPMSIGKEY_SECRET);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1001,7 +1010,7 @@ int getTssPubKey(
                     0,
                     key_auth);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1017,7 +1026,7 @@ int getTssPubKey(
                                 (UINT32 *) pubkey_length,
                                 &buf);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetAttribData failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetAttribData failed rc=0x%x\n",
                result);
         goto free;
     }
@@ -1055,14 +1064,14 @@ int getTpmVersion(TSS_VERSION *version) {
 
     /* check */
     if (version == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TSS_E_BAD_PARAMETER;  // TSS ERROR_CODE
     }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
@@ -1073,7 +1082,7 @@ int getTpmVersion(TSS_VERSION *version) {
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         rc = (int)result;
         goto close;
@@ -1082,7 +1091,7 @@ int getTpmVersion(TSS_VERSION *version) {
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
                result);
         rc = (int)result;
         goto close;
@@ -1098,14 +1107,14 @@ int getTpmVersion(TSS_VERSION *version) {
                 &data_len,
                 &data);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_TPM_GetCapability failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_TPM_GetCapability failed rc=0x%x\n",
                result);
         rc = (int)result;
         goto close;
     }
 
     if (data_len != 4) {
-        ERROR("bad TPM version\n");
+        LOG(LOG_ERR, "bad TPM version\n");
         rc = TSS_E_FAIL;
         goto close;
     }
@@ -1171,7 +1180,7 @@ int quoteTss(
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
@@ -1182,7 +1191,7 @@ int quoteTss(
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1190,7 +1199,7 @@ int quoteTss(
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1206,7 +1215,7 @@ int quoteTss(
                                     &pulRespDataLength, &prgbRespData);
 
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_TPM_GetCapability failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_TPM_GetCapability failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1223,7 +1232,7 @@ int quoteTss(
                 0,
                 &hPcrComposite);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1235,7 +1244,7 @@ int quoteTss(
                         hPcrComposite,
                         i);
             if (result != TSS_SUCCESS) {
-                    ERROR("failed rc=0x%x\n", result);
+                    LOG(LOG_ERR, "failed rc=0x%x\n", result);
                     goto close;
             }
             pcrSelectCount++;
@@ -1244,7 +1253,7 @@ int quoteTss(
 
     /* check PCR */
     if (pcrSelectCount == 0) {
-        ERROR("No PCR is selected for quote\n");
+        LOG(LOG_ERR, "No PCR is selected for quote\n");
         goto close;
     }
 
@@ -1255,11 +1264,11 @@ int quoteTss(
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
          result);
         if (result == 0x2020) {
-            ERROR(" TSS_E_PS_KEY_NOT_FOUND.\n");
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
+            LOG(LOG_ERR, " TSS_E_PS_KEY_NOT_FOUND.\n");
+            ERROR(NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
                 "Please check your system_ps_file setting in /etc/tcsd.conf. "
                 "(The default is /var/lib/tpm/system.data)\n"
                 "If system_ps_file size is zero then it does not contains the SRK info\n"));
@@ -1272,7 +1281,7 @@ int quoteTss(
     /* Get SRK Policy objects */
     result = Tspi_GetPolicyObject(hSRK, TSS_POLICY_USAGE, &hSRKPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1296,7 +1305,7 @@ int quoteTss(
                 srk_auth_len,
                 srk_auth);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1311,7 +1320,7 @@ int quoteTss(
 
         fp = fopen(filename, "r");
         if (fp==NULL) {
-            ERROR("file open fail, key blob file is %s",filename);
+            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -1327,7 +1336,7 @@ int quoteTss(
                      blob,
                      &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_LoadKeyByBlob (Key) failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Context_LoadKeyByBlob (Key) failed rc=0x%x\n",
              result);
             goto close;
         }
@@ -1339,7 +1348,7 @@ int quoteTss(
                     tss_uuid,
                     &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
+            LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
             debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
 
             goto close;
@@ -1349,7 +1358,7 @@ int quoteTss(
     /* get Policy Object of Sign key */
     result = Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hKeyPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
               result);
         goto close;
     }
@@ -1363,7 +1372,7 @@ int quoteTss(
                     strlen(TPMSIGKEY_SECRET),
                     (BYTE *)TPMSIGKEY_SECRET);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1378,7 +1387,7 @@ int quoteTss(
                     0,
                     key_auth);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1400,11 +1409,11 @@ int quoteTss(
                             hKey, hPcrComposite, &validation_data);
     if (result != TSS_SUCCESS) {
         if (result == 0x01) {
-            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n",
+            LOG(LOG_ERR, "Tspi_TPM_Quote failed rc=0x%04x\n",
                    result);
-            ERROR("       Authorization faild, needs valid password\n");
+            LOG(LOG_ERR, "       Authorization faild, needs valid password\n");
         } else {
-            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n",
+            LOG(LOG_ERR, "Tspi_TPM_Quote failed rc=0x%04x\n",
                    result);
         }
         goto free;
@@ -1482,13 +1491,11 @@ int quoteTss(
                         hPcrComposite, i,
                         &length, &data);
             if (result != TSS_SUCCESS) {
-                ERROR("Tspi_PcrComposite_GetPcrValue failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_PcrComposite_GetPcrValue failed rc=0x%x\n",
                         result);
                 goto free;
             }
 
-            // fprintf(fp, "pcr.%d=", i);
-            // fprinthex(fp, "", data, length);
             if (length < MAX_DIGEST_SIZE) {
                 memcpy(&pcrs->pcr[i], data, length);
                 if (isDebugFlagSet(DEBUG_FLAG)) {
@@ -1496,7 +1503,7 @@ int quoteTss(
                     debugHex("             : ", data, length, "\n");
                 }
             } else {
-                ERROR("pcr size is too big %d >  %d\n", length, MAX_DIGEST_SIZE);
+                LOG(LOG_ERR, "pcr size is too big %d >  %d\n", length, MAX_DIGEST_SIZE);
             }
 
             Tspi_Context_FreeMemory(hContext, data);
@@ -1575,7 +1582,7 @@ int quote2Tss(
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n",
                result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
@@ -1586,7 +1593,7 @@ int quote2Tss(
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1594,7 +1601,7 @@ int quote2Tss(
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1611,7 +1618,7 @@ int quote2Tss(
                 &pulRespDataLength, &prgbRespData);
 
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_TPM_GetCapability failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_TPM_GetCapability failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1628,7 +1635,7 @@ int quote2Tss(
                 TSS_PCRS_STRUCT_INFO_SHORT,
                 &hPcrComposite);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_CreateObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_CreateObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1641,7 +1648,7 @@ int quote2Tss(
                         i,
                         TSS_PCRS_DIRECTION_RELEASE);
             if (result != TSS_SUCCESS) {
-                    ERROR("failed rc=0x%x\n", result);
+                    LOG(LOG_ERR, "failed rc=0x%x\n", result);
                     goto close;
             }
             pcrSelectCount++;
@@ -1650,7 +1657,7 @@ int quote2Tss(
 
     /* check PCR */
     if (pcrSelectCount == 0) {
-        ERROR("No PCR is selected for quote\n");
+        LOG(LOG_ERR, "No PCR is selected for quote\n");
         goto close;
     }
 
@@ -1661,11 +1668,11 @@ int quote2Tss(
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (SRK) failed rc=0x%x\n",
          result);
         if (result == 0x2020) {
-            ERROR(" TSS_E_PS_KEY_NOT_FOUND.\n");
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
+            LOG(LOG_ERR, " TSS_E_PS_KEY_NOT_FOUND.\n");
+            ERROR(NLS(MS_OPENPTS, OPENPTS_TSS_CHECK_SETTING,
                 "Please check your system_ps_file setting in /etc/tcsd.conf. "
                 "(The default is /var/lib/tpm/system.data)\n"
                 "If system_ps_file size is zero then it does not contains the SRK info\n"));
@@ -1678,7 +1685,7 @@ int quote2Tss(
     /* Get SRK Policy objects */
     result = Tspi_GetPolicyObject(hSRK, TSS_POLICY_USAGE, &hSRKPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1701,7 +1708,7 @@ int quote2Tss(
                 srk_auth_len,
                 srk_auth);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Policy_SetSecret failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1716,7 +1723,7 @@ int quote2Tss(
 
         fp = fopen(filename, "r");
         if (fp==NULL) {
-            ERROR("file open fail, key blob file is %s",filename);
+            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -1733,7 +1740,7 @@ int quote2Tss(
                      blob,
                      &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_LoadKeyByBlob (Key) failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Context_LoadKeyByBlob (Key) failed rc=0x%x\n",
              result);
             goto close;
         }
@@ -1745,7 +1752,7 @@ int quote2Tss(
                     tss_uuid,
                     &hKey);
         if (result != TSS_SUCCESS) {
-            ERROR("Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
+            LOG(LOG_ERR, "Tspi_Context_LoadKeyByUUID (Key) failed rc=0x%x\n", result);
             debugHex("\t\tUUID", (BYTE*)&tss_uuid, 16, "\n");
 
             goto close;
@@ -1755,7 +1762,7 @@ int quote2Tss(
     /* get Policy Object of Sign key */
     result = Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hKeyPolicy);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_GetPolicyObject failed rc=0x%x\n",
+        LOG(LOG_ERR, "Tspi_GetPolicyObject failed rc=0x%x\n",
                result);
         goto close;
     }
@@ -1769,7 +1776,7 @@ int quote2Tss(
                     strlen(TPMSIGKEY_SECRET),
                     (BYTE *)TPMSIGKEY_SECRET);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1784,7 +1791,7 @@ int quote2Tss(
                     0,
                     key_auth);
         if (result != TSS_SUCCESS) {
-            printf("ERROR: Tspi_Policy_SetSecret failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_Policy_SetSecret failed rc=0x%x\n",
                    result);
             goto close;
         }
@@ -1805,10 +1812,11 @@ int quote2Tss(
                 &versionInfo);
     if (result != TSS_SUCCESS) {
         if (result == 0x01) {
-            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n", result);
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_AUTH_FAILED, "Authorization failed, needs valid password\n"));
+            LOG(LOG_ERR, "Tspi_TPM_Quote failed rc=0x%04x\n", result);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_TSS_AUTH_FAILED,
+                "Authorization failed, needs valid password\n"));
         } else {
-            ERROR("Tspi_TPM_Quote failed rc=0x%04x\n", result);
+            LOG(LOG_ERR, "Tspi_TPM_Quote failed rc=0x%04x\n", result);
         }
         goto free;
     }
@@ -1842,7 +1850,7 @@ int quote2Tss(
                         hPcrComposite, i,
                         &length, &data);
             if (result != TSS_SUCCESS) {
-                ERROR("Tspi_PcrComposite_GetPcrValue failed rc=0x%x\n",
+                LOG(LOG_ERR, "Tspi_PcrComposite_GetPcrValue failed rc=0x%x\n",
                         result);
                 goto free;
             }
@@ -1851,7 +1859,7 @@ int quote2Tss(
             result = Tspi_TPM_PcrRead(
                 hTPM, i, &length, &data);
             if (result != TSS_SUCCESS) {
-                ERROR("Tspi_TPM_PcrRead failed rc=0x%x\n", result);
+                LOG(LOG_ERR, "Tspi_TPM_PcrRead failed rc=0x%x\n", result);
                 goto free;
             }
 #endif
@@ -1863,7 +1871,7 @@ int quote2Tss(
                     debugHex("             : ", data, length, "\n");
                 }
             } else {
-                fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_TSS_PCR_SIZE_TOO_BIG,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_TSS_PCR_SIZE_TOO_BIG,
                     "PCR size is too big %d > %d\n"), length, MAX_DIGEST_SIZE);
             }
 
@@ -1959,18 +1967,18 @@ int getRandom(BYTE *out, int size) {
 
     /* check */
     if (size <= 0) {
-        ERROR("bad size. %d", size);
+        LOG(LOG_ERR, "bad size. %d", size);
         return TSS_E_FAIL;
     }
     if (out == NULL) {
-        ERROR("null input");
+        LOG(LOG_ERR, "null input");
         return TSS_E_FAIL;
     }
 
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n", result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
@@ -1979,14 +1987,14 @@ int getRandom(BYTE *out, int size) {
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -1994,8 +2002,7 @@ int getRandom(BYTE *out, int size) {
     /* get Random*/
     result = Tspi_TPM_GetRandom(hTPM, size, &buf);
     if (result != TSS_SUCCESS) {
-            ERROR
-                ("Tspi_TPM_GetRandom failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_TPM_GetRandom failed rc=0x%x\n",
                  result);
             Tspi_Context_FreeMemory(hContext, NULL);
             goto free;
@@ -2032,7 +2039,7 @@ int extendEvent(TSS_PCR_EVENT* event) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n", result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
@@ -2041,14 +2048,14 @@ int extendEvent(TSS_PCR_EVENT* event) {
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
@@ -2066,8 +2073,7 @@ int extendEvent(TSS_PCR_EVENT* event) {
                 &pcr_len,
                 &pcr);
     if (result != TSS_SUCCESS) {
-            ERROR
-                ("Tspi_TPM_PcrExtend failed rc=0x%x\n",
+            LOG(LOG_ERR, "Tspi_TPM_PcrExtend failed rc=0x%x\n",
                  result);
             // Tspi_Context_FreeMemory(hContext, NULL);
             goto close;
@@ -2097,7 +2103,7 @@ int readPcr(int pcr_index, BYTE *pcr) {
     /* Connect to TCSD */
     result = Tspi_Context_Create(&hContext);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Create failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_Create failed rc=0x%x\n", result);
         if (result == 0x3011) {
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_COMMS_FAILURE, "TSS communications failure. Is tcsd running?\n"));
         }
@@ -2106,25 +2112,25 @@ int readPcr(int pcr_index, BYTE *pcr) {
 
     result = Tspi_Context_Connect(hContext, SERVER);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_Connect failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_Connect failed rc=0x%x\n", result);
         goto close;
     }
 
     /* Get TPM handle */
     result = Tspi_Context_GetTpmObject(hContext, &hTPM);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_Context_GetTpmObject failed rc=0x%x\n", result);
         goto close;
     }
 
     result = Tspi_TPM_PcrRead(
         hTPM, pcr_index, &data_len, &data);
     if (result != TSS_SUCCESS) {
-        ERROR("Tspi_TPM_PcrRead failed rc=0x%x\n", result);
+        LOG(LOG_ERR, "Tspi_TPM_PcrRead failed rc=0x%x\n", result);
         goto close;
     }
     if (data_len != SHA1_DIGEST_SIZE) {
-        ERROR("Bad PCR size %d\n", data_len);
+        LOG(LOG_ERR, "Bad PCR size %d\n", data_len);
         result = PTS_INTERNAL_ERROR;
     } else {
         memcpy(pcr, data, SHA1_DIGEST_SIZE);
@@ -2176,15 +2182,15 @@ int validateQuoteData(
 
     /* check */
     if (pcrs == NULL) {
-        ERROR("validateQuoteData - pcrs is NULL\n");
+        LOG(LOG_ERR, "validateQuoteData - pcrs is NULL\n");
         return PTS_INTERNAL_ERROR;
     }
     if (pcrs->pubkey_length == 0) {
-        ERROR("validateQuoteData - pcrs->pubkey_length is ZERO\n");
+        LOG(LOG_ERR, "validateQuoteData - pcrs->pubkey_length is ZERO\n");
         return PTS_INTERNAL_ERROR;
     }
     if (pcrs->pubkey == NULL) {
-        ERROR("validateQuoteData - pcrs->pubkey is NULL\n");
+        LOG(LOG_ERR, "validateQuoteData - pcrs->pubkey is NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -2194,13 +2200,13 @@ int validateQuoteData(
     } else if (validationData->ulDataLength == 52) {
         DEBUG("Quote2\n");
     } else {
-        ERROR("validationData->ulDataLength != 48/52, but %d\n",
+        LOG(LOG_ERR, "validationData->ulDataLength != 48/52, but %d\n",
             validationData->ulDataLength);
         return PTS_INTERNAL_ERROR;
     }
 
     if (validationData->ulExternalDataLength != 20) {
-        ERROR("validationData->ulExternalDataLength != 20, but %d\n",
+        LOG(LOG_ERR, "validationData->ulExternalDataLength != 20, but %d\n",
             validationData->ulExternalDataLength);
         return PTS_INTERNAL_ERROR;
     }
@@ -2247,7 +2253,7 @@ int validateQuoteData(
     // memcpy(&pubkey[1],&pcrs->pubkey[28], 256);
 
 #if 0
-    TODO("\n");
+    LOG(LOG_TODO, "\n");
     printHex("message   :", message, message_length, "\n");
     printHex("hash      :", hash, hash_length, "\n");
     printHex("signature :", signature, signature_length, "\n");
@@ -2306,10 +2312,10 @@ int validateQuoteData(
         UINT32 e;  // unsigned long
         ERR_load_crypto_strings();
         e = ERR_get_error();
-        ERROR("RSA_verify failed, %s\n", ERR_error_string(e, NULL));
-        ERROR("   %s\n", ERR_lib_error_string(e));
-        ERROR("   %s\n", ERR_func_error_string(e));
-        ERROR("   %s\n", ERR_reason_error_string(e));
+        LOG(LOG_ERR, "RSA_verify failed, %s\n", ERR_error_string(e, NULL));
+        LOG(LOG_ERR, "   %s\n", ERR_lib_error_string(e));
+        LOG(LOG_ERR, "   %s\n", ERR_func_error_string(e));
+        LOG(LOG_ERR, "   %s\n", ERR_reason_error_string(e));
         ERR_free_strings();
         return PTS_VERIFY_FAILED;
     }
@@ -2340,16 +2346,16 @@ int validatePcrCompositeV11(
 
     /* check */
     if (validationData == NULL) {
-        ERROR("validationData == NULL\n");
+        LOG(LOG_ERR, "validationData == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
     if (validationData->rgbData == NULL) {
-        ERROR("validationData->rgbData == NULL\n");
+        LOG(LOG_ERR, "validationData->rgbData == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
     if (validationData->ulDataLength != 48) {
-        ERROR("validationData->ulDataLength != 48, but %d\n",
+        LOG(LOG_ERR, "validationData->ulDataLength != 48, but %d\n",
             validationData->ulDataLength);
         return PTS_INTERNAL_ERROR;
     }
@@ -2475,12 +2481,12 @@ int validatePcrCompositeV12(
 
     /* check */
     if (validationData == NULL) {
-        ERROR("validationData == NULL\n");
+        LOG(LOG_ERR, "validationData == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
     if (validationData->rgbData == NULL) {
-        ERROR("validationData->rgbData == NULL\n");
+        LOG(LOG_ERR, "validationData->rgbData == NULL\n");
         return PTS_INTERNAL_ERROR;
     }
 
@@ -2494,7 +2500,7 @@ int validatePcrCompositeV12(
         pcrsel_size = 3;
         composit_hash = &validationData->rgbData[32];
     } else  {
-        ERROR("validationData->ulDataLength != 48 or 52, but %d\n",
+        LOG(LOG_ERR, "validationData->ulDataLength != 48 or 52, but %d\n",
             validationData->ulDataLength);
         return PTS_INTERNAL_ERROR;
     }

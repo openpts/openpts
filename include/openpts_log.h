@@ -34,7 +34,6 @@
 #define INCLUDE_OPENPTS_LOG_H_
 
 #include <syslog.h>
-#include <assert.h>
 
 #ifdef NLS
 #undef NLS
@@ -59,12 +58,35 @@ extern nl_catd catd;
 extern int debugBits;
 extern int verbosity;
 
+/* Macro for console out (stdout) */
+
+#define OUTPUT(fmt, ...) fprintf(stdout, fmt, ##__VA_ARGS__)
+
+/* Macro for console out (stderr) */
+
+#define ERROR(fmt, ...)  fprintf(stderr, fmt, ##__VA_ARGS__)
+
+/* Macro for console out (stderr) */
+
+#define VERBOSE(v, fmt, ...) if (verbosity >= v) fprintf(stderr, fmt, ##__VA_ARGS__)
+/* helpers */
+#define setVerbosity(x) (verbosity = (x))
+#define incVerbosity()  (verbosity++)
+#define getVerbosity()  (verbosity)
+
+/* Macro for logging out (syslog/file/console) */
+
 #define OPENPTS_LOG_UNDEFINED 0
 #define OPENPTS_LOG_SYSLOG    1
 #define OPENPTS_LOG_CONSOLE   2
 #define OPENPTS_LOG_FILE      3
 #define OPENPTS_LOG_NULL      4
 
+/* ERROR/INFO/TODO */
+#define LOG_TODO        0x0006  // = LOG_INFO
+#define LOG(type, fmt, ...) writeLog(type,  "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+
+/* DEBUG */
 #define DEBUG_FLAG     0x01
 #define DEBUG_FSM_FLAG 0x02
 #define DEBUG_XML_FLAG 0x04
@@ -72,23 +94,6 @@ extern int verbosity;
 #define DEBUG_SAX_FLAG 0x10
 #define DEBUG_TPM_FLAG 0x20
 #define DEBUG_CAL_FLAG 0x40
-
-#define isDebugFlagSet(x) (debugBits & (x))
-#define isAnyDebugFlagSet(x) (debugBits != 0)
-#define setDebugFlags(x) (debugBits = (x))
-#define getDebugFlags() (debugBits)
-#define addDebugFlags(x) (debugBits |= (x))
-
-#define setVerbosity(x) (verbosity = (x))
-#define incVerbosity() (verbosity++)
-#define getVerbosity() (verbosity)
-
-#define OUTPUT(fmt, ...) fprintf(stdout, fmt, ##__VA_ARGS__)
-#define VERBOSE(v, fmt, ...) if (verbosity >= v) fprintf(stderr, fmt, ##__VA_ARGS__)
-
-#define ERROR(fmt, ...) writeLog(LOG_ERR,  "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#define TODO(fmt, ...)  writeLog(LOG_INFO, "%s:%d TODO " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#define INFO(fmt, ...)  writeLog(LOG_INFO, fmt, ##__VA_ARGS__)
 
 #define DEBUG_WITH_FLAG(debug_level, fmt, ...) if (debugBits & debug_level) \
 writeLog(LOG_DEBUG, "%s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
@@ -100,6 +105,16 @@ writeLog(LOG_DEBUG, "%s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #define DEBUG_SAX(fmt, ...) DEBUG_WITH_FLAG(DEBUG_SAX_FLAG, fmt, ##__VA_ARGS__)
 #define DEBUG_TPM(fmt, ...) DEBUG_WITH_FLAG(DEBUG_TPM_FLAG, fmt, ##__VA_ARGS__)
 #define DEBUG_CAL(fmt, ...) DEBUG_WITH_FLAG(DEBUG_CAL_FLAG, fmt, ##__VA_ARGS__)
+
+/* helpers */
+#define isDebugFlagSet(x) (debugBits & (x))
+#define isAnyDebugFlagSet(x) (debugBits != 0)
+#define setDebugFlags(x) (debugBits = (x))
+#define getDebugFlags() (debugBits)
+#define addDebugFlags(x) (debugBits |= (x))
+
+
+
 
 void writeLog(int priority, const char *format, ...);
 void initCatalog(void);

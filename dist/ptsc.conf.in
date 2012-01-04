@@ -14,6 +14,12 @@
 openpts.version=@VERSION@
 
 #
+# Logging&Debug
+# logging.file=./openpts.log
+logging.location=syslog
+debug.mode=0x0
+
+#
 # Platform metadata (SMBIOS) - TBD
 #
 #   set manually

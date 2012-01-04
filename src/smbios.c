@@ -26,7 +26,7 @@
  * \brief parse SMBIOS info
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-29
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-03 SM
  *
  * SMBIOS Info in BIOS IML -> platform properties
  *
@@ -79,7 +79,7 @@ int genSmbiosFileByDmidecode(char * filename) {
     /* exec dmidecode */
     pid = fork();
     if (pid < 0) {
-        ERROR("\n");
+        LOG(LOG_ERR, "\n");
         return -1;
     }
     if (pid == 0) {
@@ -94,13 +94,13 @@ int genSmbiosFileByDmidecode(char * filename) {
         // DEBUG("status = %d\n", status);
         if (WIFEXITED(status)) {
             /* 1 : OK */
-            TODO("Exit status %d\n", WEXITSTATUS(status));
+            LOG(LOG_TODO, "Exit status %d\n", WEXITSTATUS(status));
             return 1;
         } else if (WIFSIGNALED(status)) {
-            ERROR("Signal status %d\n", WIFSIGNALED(status));
+            LOG(LOG_ERR, "Signal status %d\n", WIFSIGNALED(status));
             return -1;
         } else {
-            ERROR("Bad exit");
+            LOG(LOG_ERR, "Bad exit");
             return -1;
         }
     }
@@ -129,7 +129,7 @@ int readSmbiosFile(char * filename, BYTE **data, int *len) {
     }
 
     if ((fp = fopen(filename, "rb")) == NULL) {
-        ERROR("%s missing\n", filename);
+        LOG(LOG_ERR, "%s missing\n", filename);
         rc = PTS_INTERNAL_ERROR;
         goto error;
     }
@@ -171,26 +171,18 @@ int printSmbios(BYTE *data, int length) {
         /* */
         str_length = ptr[0x16] + (ptr[0x17]<<8);
         str_num = ptr[0x1C] + (ptr[0x1D]<<8);
-        printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_STRUCTURES,
-            "%d structures occupying %d bytes.\n"), str_num, str_length);
         eod = ptr + str_length + 32;
         // SKIP Head
         ptr += 32;
     }
 
-
-
     while (1) {
         type = ptr[0];
         len = ptr[1];
         handle = ptr[2] + ptr[3]*256;
-        printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_HANDLE,
-            "Handle 0x%04x, DMI type %d(0x%x), %d bytes\n"), handle, type, type, len);
-        printHex(NLS(MS_OPENPTS, OPENPTS_SMBIOS_HEAD, "  head"), ptr, len, "\n");
 
         if (type == 127) {
-            printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_END_OF_TABLE, "End Of Table\n"));
-            // printf("%ld\n", ptr - data);
+            // End Of Table
             break;
         }
 
@@ -202,7 +194,7 @@ int printSmbios(BYTE *data, int length) {
         }
 
         if (ptr >  eod) {
-            printf(NLS(MS_OPENPTS, OPENPTS_SMBIOS_END_OF_TABLE, "End Of Table\n"));
+            // End Of Table
             break;
         }
 
@@ -215,9 +207,6 @@ int printSmbios(BYTE *data, int length) {
         }
         ptr++;
         ptr++;
-
-        printHex(NLS(MS_OPENPTS, OPENPTS_SMBIOS_BODY, "  body"), strings, ptr - strings, "\n");
-
 
         if (ptr > eod) {
             break;
@@ -275,7 +264,6 @@ int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length) {
     BYTE *strings[10];  // TODO size
     BYTE *eod = data + length;
     int str_length;
-    // int str_num;
     int cnt = 0;
     int scnt;
     OPENPTS_CONFIG *conf = ctx->conf;
@@ -285,7 +273,6 @@ int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length) {
         /* */
         str_length = ptr[0x16] + (ptr[0x17]<<8);
         // str_num = ptr[0x1C] + (ptr[0x1D]<<8);
-        // printf("%d structures occupying %d bytes.\n", str_num, str_length);
         eod = ptr + str_length + 32;
         // SKIP Head
         ptr += 32;
@@ -300,12 +287,9 @@ int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length) {
         type = ptr[0];
         len = ptr[1];
         handle = ptr[2] + ptr[3]*256;
-        // printf("Handle 0x%04x, DMI type %d(0x%x), %d bytes\n", handle, type,type, len);
-        // printHex("  head",ptr, len, "\n");
 
         if (type == 127) {
-            // printf("End Of Table\n");
-            // printf("%ld\n", ptr - data);
+            // End Of Table
             break;
         }
 
@@ -318,7 +302,6 @@ int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length) {
         }
 
         if (ptr >  eod) {
-            // printf("End Of Table\n");
             break;
         }
 
@@ -335,12 +318,6 @@ int parseSmbios(OPENPTS_CONTEXT *ctx, BYTE *data, int length) {
         }
         ptr++;
         ptr++;
-
-        // printHex("  body", strings[0], ptr - strings[0], "\n");
-        // printf("  scnt %d\n",scnt);
-        // for (i=0;i<scnt;i++) {
-        //     printf("    %d %s\n",i, strings[i]);
-        // }
 
         /* to config  */
         switch (type) {

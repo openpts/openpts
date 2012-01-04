@@ -279,7 +279,7 @@ void  irStartDocument(void * ctx) {
  * SAX parser
  */
 void  irEndDocument(void * ctx) {
-    // printf("END DOC \n");
+    // END DOC
 }
 
 /**
@@ -313,29 +313,27 @@ void  irStartElement(void* context, const xmlChar* name, const xmlChar** atts) {
         //
     } else if (!strcmp((char *)name, "pcrindex")) {
         /* stuff:Hash -> PCR value (base64) */
-        // printf("START ELEMENT [%s]  <<<< HASH HASH \n",name);
+        // DEBUG("START ELEMENT [%s]  <<<< HASH HASH \n",name);
         // ctx->sax_state = IR_SAX_STATE_PCR_INDEX;
     } else if (!strcmp((char *)name, "eventtype")) {
-        // printf("START ELEMENT [%s]  <<<< HASH HASH \n",name);
+        // DEBUG("START ELEMENT [%s]  <<<< HASH HASH \n",name);
         // ctx->sax_state = IR_SAX_STATE_EVENT_TYPE;
     } else if (!strcmp((char *)name, "stuff:Hash")) {
-        // printf("START ELEMENT [%s]  <<<< DIGEST \n",name);
+        // DEBUG("START ELEMENT [%s]  <<<< DIGEST \n",name);
         // ctx->sax_state = IR_SAX_STATE_DIGEST;
     } else if (!strcmp((char *)name, "eventdata")) {
-        // printf("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
+        // DEBUG("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
         // ctx->sax_state = IR_SAX_STATE_EVENT_DATA;
     } else if (!strcmp((char *)name, "PcrHash")) {
-        // printf("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
+        // DEBUG("START ELEMENT [%s]  <<<<  EVENT_DATA\n",name);
         // ctx->sax_state = IR_SAX_STATE_PCR;
 
         /* get Number =pcrindex) attribute ( */
         if (atts != NULL) {
             for (i = 0;(atts[i] != NULL);i++) {
                 type = (char *)atts[i++];
-                // printf(", %s='", type);
                 if (atts[i] != NULL) {
                     value= (char *)atts[i];
-                    // printf("%s'", value);
                     if (!strcmp(type, "Number")) {
                         ctx->pcr_index = atoi(value);
                     }
@@ -365,13 +363,13 @@ void  irStartElement(void* context, const xmlChar* name, const xmlChar** atts) {
     } else if (!strcmp((char *)name, "SignatureMethod")) {
         // TODO check alg
     } else if (!strcmp((char *)name, "SignatureValue")) {
-        // DONE TODO("get value(base64)\n");
+        // DONE LOG(LOG_TODO, "get value(base64)\n");
     } else if (!strcmp((char *)name, "KeyInfo")) {
     } else if (!strcmp((char *)name, "KeyValue")) {
-        // DONE TODO("get value(base64)\n");
+        // DONE LOG(LOG_TODO, "get value(base64)\n");
     } else {
         /* Else? */
-        ERROR("START ELEMENT [%s] \n", name);
+        LOG(LOG_ERR, "START ELEMENT [%s] \n", name);
         ctx->sax_state = IR_SAX_STATE_IDOL;
     }
 }
@@ -391,7 +389,7 @@ void irEndElement(void * context, const xmlChar * name) {
 
         /* set the event structure */
         if (ctx->event == NULL) {
-            ERROR("internal error\n");
+            LOG(LOG_ERR, "internal error\n");
             ctx->sax_error++;
         } else {
             if (ctx->binary == 0) {
@@ -434,7 +432,7 @@ void irEndElement(void * context, const xmlChar * name) {
                     if (pad_len > 0) {
                         /* add padding */
                         rc = fwrite((BYTE *)&padding, 1, pad_len, ctx->fp);  // Padding
-                        TODO("%d mod  %d => %d\n", ctx->event->ulEventLength, ctx->aligned, pad_len);
+                        LOG(LOG_TODO, "%d mod  %d => %d\n", ctx->event->ulEventLength, ctx->aligned, pad_len);
                     }
                 }
             }
@@ -458,7 +456,7 @@ void irEndElement(void * context, const xmlChar * name) {
             ctx->char_size,
             (int *)&ctx->event->ulPcrValueLength);
         if (ctx->event->rgbEvent == NULL) {
-            // ERROR()
+            // LOG(LOG_ERR, )
             ctx->event->ulPcrValueLength = 0;
         }
     } else if (!strcmp((char *)name, "eventtype")) {
@@ -471,7 +469,7 @@ void irEndElement(void * context, const xmlChar * name) {
             ctx->char_size,
             (int *)&ctx->event->ulEventLength);
         if (ctx->event->rgbEvent == NULL) {
-            // ERROR()
+            // LOG(LOG_ERR, )
             ctx->event->ulEventLength = 0;
         }
     } else if (!strcmp((char *)name, "PcrHash")) {
@@ -483,7 +481,7 @@ void irEndElement(void * context, const xmlChar * name) {
         // rc = checkTpmPcr2(&pctx->tpm, ctx->pcr_index, ctx->pcr);
 
         if (rc != 0) {
-            ERROR("ERROR PCR[%d] != IML\n", ctx->pcr_index);
+            LOG(LOG_ERR, "ERROR PCR[%d] != IML\n", ctx->pcr_index);
             ctx->sax_error = 1;
         } else {
             /* IML and PCR are consistent :-) */
@@ -495,7 +493,7 @@ void irEndElement(void * context, const xmlChar * name) {
             if (pctx->conf->iml_mode == 0) {
                 if (pcrs == NULL) {
                     /* malloc OPENPTS_PCRS */
-                    // ERROR("PCR is not intialized - No QuoteData element\n");
+                    // LOG(LOG_ERR, "PCR is not intialized - No QuoteData element\n");
                     pcrs = xmalloc(sizeof(OPENPTS_PCRS));
                     if (pcrs == NULL) {
                         return;
@@ -522,7 +520,7 @@ void irEndElement(void * context, const xmlChar * name) {
         DEBUG("ignore QuoteData\n");
     } else {
         /* Else? */
-        // printf("END ELEMENT [%s] ",name);
+        DEBUG("END ELEMENT [%s] ",name);
     }
 
     ctx->sax_state = IR_SAX_STATE_IDOL;
@@ -539,7 +537,7 @@ void irCharacters(void* context, const xmlChar * ch, int len) {
 
     /* copy to buf at ctx */
     if (ctx->char_size + len > EVENTDATA_BUF_SIZE) {
-        ERROR("Buffer for EVENTDATA is too small, %d + %d > %d\n", ctx->char_size, len, EVENTDATA_BUF_SIZE);
+        LOG(LOG_ERR, "Buffer for EVENTDATA is too small, %d + %d > %d\n", ctx->char_size, len, EVENTDATA_BUF_SIZE);
         return;
     }
     memcpy(&ctx->buf[ctx->char_size], ch, len);
@@ -580,16 +578,17 @@ int readIr(IR_CONTEXT *context, const char *filename) {
  * Usage
  */
 void usage(void) {
-    fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IR2TEXT_USAGE, "OpenPTS command\n\n"
-                    "Usage: ir2text [options]\n\n"
-                    "Options:\n"
-                    "  -i filename           Set IR file\n"
-                    "  -o filename           Set output file, else stdout\n"
-                    "  -P filename           Set PCR output file (option)\n"
-                    "  -b                    Binary, (Convert IR to IML)\n"
-                    "  -E                    Enable endian conversion (BE->LE or LE->BE)\n"
-                    "  -h                    Show this help message\n"
-                    "\n"));
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_IR2TEXT_USAGE,
+        "OpenPTS command\n\n"
+        "Usage: ir2text [options]\n\n"
+        "Options:\n"
+        "  -i filename           Set IR file\n"
+        "  -o filename           Set output file, else stdout\n"
+        "  -P filename           Set PCR output file (option)\n"
+        "  -b                    Binary, (Convert IR to IML)\n"
+        "  -E                    Enable endian conversion (BE->LE or LE->BE)\n"
+        "  -h                    Show this help message\n"
+        "\n"));
 }
 
 int main(int argc, char *argv[]) {
@@ -649,7 +648,8 @@ int main(int argc, char *argv[]) {
             usage();
             return 0;
         default:
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IR2TEXT_BAD_OPTION_C, "bad option %c\n"), c);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_IR2TEXT_BAD_OPTION_C,
+                "bad option %c\n"), c);
             usage();
             return -1;
         }
@@ -666,14 +666,14 @@ int main(int argc, char *argv[]) {
             /* open output file */
             ctx->fp = fopen(out_filename, "w");
             if (ctx->fp == NULL) {
-                ERROR("output file %s - open failed\n", out_filename);
+                LOG(LOG_ERR, "output file %s - open failed\n", out_filename);
                 return rc;
             }
         }
     } else {
         /* print IR in binary text, with -o option */
         if (out_filename == NULL) {
-            fprintf(stderr, NLS(MS_OPENPTS, OPENPTS_IR2TEXT_OUTPUT_BINARY_MODE,
+            ERROR(NLS(MS_OPENPTS, OPENPTS_IR2TEXT_OUTPUT_BINARY_MODE,
                 "set the output file for the binary mode\n"));
             usage();
             return -1;
@@ -683,7 +683,7 @@ int main(int argc, char *argv[]) {
         /* open output file */
         ctx->fp = fopen(out_filename, "wb");
         if (ctx->fp == NULL) {
-            ERROR("output file %s - open failed\n", out_filename);
+            LOG(LOG_ERR, "output file %s - open failed\n", out_filename);
             return rc;
         }
     }
@@ -702,12 +702,12 @@ int main(int argc, char *argv[]) {
     if (pcrout_filename != NULL) {
         FILE *fp;
         int i, j;
-        TODO("pcrout_filename = %s\n", pcrout_filename);
+        LOG(LOG_TODO, "pcrout_filename = %s\n", pcrout_filename);
 
         /* open output file */
         fp = fopen(pcrout_filename, "w");
         if (fp == NULL) {
-            ERROR("PCR output file %s - open failed\n", pcrout_filename);
+            LOG(LOG_ERR, "PCR output file %s - open failed\n", pcrout_filename);
             return -1;
         }
 
