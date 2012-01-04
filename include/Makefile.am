@@ -27,3 +27,8 @@
 
 #unsealinclude_HEADERS = tpm_unseal.h
 #noinst_HEADERS = tpm_pkcs11.h tpm_seal.h tpm_tspi.h tpm_utils.h 
+
+all: openpts_msg.h
+# catgets msgs
+openpts_msg.h: cvs2msg.pl openpts_msg.csv
+	./cvs2msg.pl openpts_msg.csv > openpts_msg.h
