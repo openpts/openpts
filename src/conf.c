@@ -721,6 +721,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     xfree(conf->prop_filename);
                 }
                 conf->prop_filename = getFullpathName(conf->config_dir, value);
+                DEBUG("conf->prop_filename         : %s\n", conf->prop_filename);
             }
             if (!strncmp(name, "ir.quote", 8)) {
                 if (!strncmp(value, "WITHOUT_QUOTE", 13)) {
@@ -760,8 +761,10 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "ima.validation.mode", 19)) {
                 if (!strncmp(value, "aide", 4)) {
                     conf->ima_validation_mode = OPENPTS_VALIDATION_MODE_AIDE;
+                    DEBUG("conf->ima_validation_mode  : OPENPTS_VALIDATION_MODE_AIDE\n");
                 } else if (!strncmp(value, "none", 4)) {
                     conf->ima_validation_mode = OPENPTS_VALIDATION_MODE_NONE;
+                    DEBUG("conf->ima_validation_mode  : OPENPTS_VALIDATION_MODE_NONE\n");
                 } else {
                     LOG(LOG_ERR, "unknown ima.validation.mode [%s]\n", value);
                     isFileIncorrect = 1;
@@ -923,9 +926,8 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
             /* SSH */
             /*     default values */
-            conf->ssh_username = NULL;  // use default values
-            conf->ssh_port = NULL;
-
+            // conf->ssh_username = NULL;  // use default values
+            // conf->ssh_port = NULL;
             if (!strncmp(name, "ssh.username", 12)) {
                 conf->ssh_username = smalloc_assert(value);
                 DEBUG("conf->ssh_username         : %s\n", conf->ssh_username);

@@ -342,6 +342,14 @@ int main(int argc, char *argv[]) {
             target_conf_dir = getTargetConfDir(conf);  // HOME/.openpts/UUID/
             target_conf_filename = smalloc_assert(target_collector->target_conf_filename);
             target_conf = (OPENPTS_CONFIG*)target_collector->target_conf;
+            /* lookup SSH setting */
+            if ((ssh_username == NULL) && (target_conf->ssh_username != NULL)) {
+                ssh_username = target_conf->ssh_username;
+            }
+            if ((ssh_port == NULL) && (target_conf->ssh_port != NULL)) {
+                ssh_port = target_conf->ssh_port;
+            }
+
         }
     }
 

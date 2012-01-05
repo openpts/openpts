@@ -1319,6 +1319,12 @@ int enroll(
 
 
     /* save target conf */
+    if (ssh_username != NULL) {
+        target_conf->ssh_username = smalloc(ssh_username);
+    }
+    if (ssh_port != NULL) {
+        target_conf->ssh_port = smalloc(ssh_port);
+    }
     writeTargetConf(
         target_conf,
         target_conf->uuid->uuid,
