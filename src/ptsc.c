@@ -125,11 +125,10 @@ int collector(OPENPTS_CONFIG *conf) {
             case OPENPTS_CAPABILITIES:
                 DEBUG("IF-M OPENPTS_CAPABILITIES\n");
                 /* check the UUID */
-                if (read_tlv->length != sizeof(OPENPTS_IF_M_Capability)) {  // TODO use defined name
-                    LOG(LOG_ERR, "Bad PTS_CAPABILITIES, len = %d != %d\n",
-                        read_tlv->length, sizeof(OPENPTS_IF_M_Capability));
-                    terminate = 1;
-                } else {
+                // v0.2.5 : length is 48
+                // v0.2.6 : length is 64
+                // + new_manifest_uuid (not used by collector side)
+                if ((read_tlv->length == 48) || (read_tlv->length == 64)){
                     // TODO copy
                     OPENPTS_IF_M_Capability *cap;
                     cap = (OPENPTS_IF_M_Capability *) read_tlv->value;
@@ -144,11 +143,19 @@ int collector(OPENPTS_CONFIG *conf) {
                     LOG(LOG_INFO, "verifier (UUID=%s)\n", ctx->str_uuid);
 
                     /* send PTS_CAPABILITIES msg. to verifier (=UUID) */
-                    rc = writePtsTlv(ctx, STDOUT_FILENO, OPENPTS_CAPABILITIES);
+                    if (read_tlv->length == 48) {
+                        rc = writePtsTlv(ctx, STDOUT_FILENO, OPENPTS_CAPABILITIES_025);
+                    } else {
+                        rc = writePtsTlv(ctx, STDOUT_FILENO, OPENPTS_CAPABILITIES);
+                    }
                     if (rc < 0) {
                         LOG(LOG_ERR, "Send CAPABILITY answer failed - quit");
                         terminate = 1;
                     }
+                } else {
+                    LOG(LOG_ERR, "Bad PTS_CAPABILITIES, len = %d != %d\n",
+                        read_tlv->length, sizeof(OPENPTS_IF_M_Capability));
+                    terminate = 1;
                 }
                 break;
 
@@ -310,14 +317,17 @@ int collector(OPENPTS_CONFIG *conf) {
                 break;
             default:
                 LOG(LOG_ERR, "PTS IF-M type 0x%08x is not supported\n", read_tlv->type);
-                LOG(LOG_INFO, "send OPENPTS_ERROR msg to verifier, then terminate the conenction");
+                LOG(LOG_INFO, "send OPENPTS_ERROR msg to verifier");
                 ctx->ifm_errno = PTS_UNRECOGNIZED_COMMAND;
                 if (ctx->ifm_strerror != NULL) {
                     xfree(ctx->ifm_strerror);
                 }
                 ctx->ifm_strerror = smalloc_assert("Unknown message type");
                 rc = writePtsTlv(ctx, STDOUT_FILENO, OPENPTS_ERROR);  // ifm.c
-                terminate = 1;
+                // Fedora15,16 v0.2.5 build with --with-aide
+                // Thus do not terminate the connection by unknown message
+                // terminate = 1;
+                // LOG(LOG_INFO, "terminate the connection");
                 break;
         }  // switch case
 

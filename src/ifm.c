@@ -412,7 +412,42 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         break;
     }
+    /* Collector --> Verifier (v0.2.5) */
+    case OPENPTS_CAPABILITIES_025:
+    {
+        length = sizeof(OPENPTS_IF_M_Capability_025);
 
+        buf = getTlvBuffer(OPENPTS_CAPABILITIES, length);  // v0.2.5
+        if (buf == NULL) {
+            LOG(LOG_ERR, "getTlvBuffer() is null");
+            goto error;
+        }
+
+        ptr = 12;
+        /* Send versions */
+        memcpy(&buf[ptr +  0], &ctx->conf->pts_flag, 4);
+        memcpy(&buf[ptr +  4], &ctx->conf->tpm_version, 4);
+        memcpy(&buf[ptr +  8], &ctx->conf->tss_version, 4);
+        memcpy(&buf[ptr + 12], &ctx->conf->pts_version, 4);
+        /* Send Platform UUID, ctx->uuid */
+        memcpy(&buf[ptr + 16], ctx->conf->uuid->uuid, 16);
+
+        /* Send RM UUID */
+        if (ctx->conf->rm_uuid == NULL) {
+            // TODO  verifier does not have Rm UUID. just send Verifier's UUID
+            DEBUG("writePtsTlvToSock() RM uuid is NULL, => send platform UUID\n");
+            memcpy(&buf[ptr + 32], ctx->conf->uuid->uuid, 16);
+        } else if (ctx->conf->rm_uuid->uuid == NULL) {
+            // TODO verifier?
+            DEBUG("writePtsTlvToSock() RM uuid is NULL, => send platform UUID, file = %s\n",
+                ctx->conf->rm_uuid->filename);
+
+            memcpy(&buf[ptr + 32], ctx->conf->uuid->uuid, 16);
+        } else {
+            memcpy(&buf[ptr + 32], ctx->conf->rm_uuid->uuid, 16);
+        }
+        break;
+    }
     /* Collector --> Verifier */
     case TPM_PUBKEY:
     {

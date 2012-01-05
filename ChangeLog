@@ -11,6 +11,9 @@ openpts (0.2.6) unstable; urgency=low
   * Renew validation models (models/*uml), default ptsc.conf
   * Added UEFI BIOS validation models
   * Refactoring Infineon v1.2 TPM workaround
+  * IF-M capability msg was changed.
+  * Collector support both v0.2.5 and v0.2.6.
+  * Verifier support v0.2.6 collector only.
   * Bug fixes
 
  -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Thu, 5 Jan 2012 14:40:00 +0900

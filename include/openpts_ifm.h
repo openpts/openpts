@@ -81,6 +81,7 @@ typedef struct {
 // TODO TBD
 
 #define OPENPTS_CAPABILITIES                     0x00000001
+#define OPENPTS_CAPABILITIES_025                 0x000F0001  // v0.2.5
 #define DH_NONCE_PARAMETERS_REQUEST              0x00000002
 #define DH_NONCE_PARAMETORS_RESPONSE             0x00000003
 #define DH_NONCE_FINISH                          0x00000004
@@ -207,6 +208,14 @@ typedef struct {
         PTS_UUID    new_manifest_uuid;  // 16
 } OPENPTS_IF_M_Capability;
 
+typedef struct {
+        BYTE        flag[4];            // 4
+        TPM_VERSION tpm_version;        // 4
+        TSS_VERSION tss_version;        // 4
+        TSS_VERSION pts_version;        // 4 set by configure.in
+        PTS_UUID    platform_uuid;      // 16
+        PTS_UUID    manifest_uuid;      // 16
+} OPENPTS_IF_M_Capability_025;
 
 /* OPENPTS_ERROR */
 // TODO refer rfc5792 PA-TNC

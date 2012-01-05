@@ -358,7 +358,7 @@ int verifierHandleCapability(
     DEBUG("RM  UUID               : %s\n", target_conf->rm_uuid->str);
 
 #ifdef CONFIG_AUTO_RM_UPDATE
-    /* Possible New RM Set from Collector */
+    /* Possible New RM Set from Collector. from  v0.2.6 */
     if (isFlagSet(target_conf->pts_flag[0], OPENPTS_FLAG0_NEWRM_EXIST)) {
         DEBUG("Discovered pending RM on target -> extracting UUID\n");
         conf->target_newrm_exist = 1;
