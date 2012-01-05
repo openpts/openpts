@@ -26,43 +26,31 @@
  * \brief logging functions
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-05-07
- * cleanup 2011-01-22 SM
- * cleanup 2011-12-28 SM
+ * cleanup 2012-01-04 SM
  *
- *  Verbose  OUTPUT    VERBOSE       LOGGING
- *   Level   (stdout)  (stderr)      (console/syslog/file)
+ * Console output
+ *
+ *  Verbose  OUTPUT    ERROR/VERBOSE
+ *   Level   (stdout)  (stderr)
  *  --------------------------------------------------
- *     0     ON        ERROR msg.    ERROR/INFO
- *     1     ON        +verbose msg. ERROR/INFO
- *     2     ON                      ERROR/INFO+DEBUG
+ *     0     ON        ERROR msg.
+ *     1     ON        +verbose(1) msg
+ *     2     ON        +verbose(2) msg
  *  --------------------------------------------------
  *
- *   LOG
- *    off
- *    error
- *    on/debug
+ *  Logging (syslog/console/file)
  *
- *  Config
- *    verbose=0
+ *    Default logging scheme is hard coded by each command
+ *
+ *      ptsc -m    syslog -> conf
+ *      ptsc else  env -> conf
+ *      openpts    default(file ~/.openpts/openpts.log) -> conf
+ *
+ *  Controlled by config file
+ *    debug.mode=0x01
  *    logging.location=console|syslog|file
  *    logging.file=./ptsc.log
- *    debug.mode=0x01
  *
- *   Priority
- *    1. Commandline option (location/file must be given by conf)
- *    2. ENV
- *    3. Conf file 
- *
- *  LOG("msg",format)
- *
- *  OUTPUT   console/stderr
- *  VERBOSE  console/stderr
- *  ASSERT   console/stderr
- *
- *  ERROR    console|file|syslog
- *  INFO     console|file|syslog
- *  TODO     console|file|syslog
- *  DEBUG    console|file|syslog
  *
  */
 
@@ -107,7 +95,7 @@
 #include <locale.h>
 #ifdef HAVE_CATGETS
 #include <nl_types.h>
-nl_catd catd;
+nl_catd catd = (nl_catd) -1;  /* set error until open */
 #endif
 #endif
 
@@ -206,7 +194,7 @@ void determineLogLocationByEnv(void) {
 
     /* debug mode => debugBits */
     if ((tempDebugMode = getenv("OPENPTS_DEBUG_MODE")) != NULL) {
-        debugBits = (int) strtol(tempDebugMode,NULL,16);
+        debugBits = (int) strtol(tempDebugMode, NULL, 16);
         DEBUG("DEBUG FLAG(0x%x) set by ENV\n", debugBits);
     }
 }
@@ -222,7 +210,7 @@ void setLogLocation(int ll, char *filename) {
             char * oldlog;
             /* already open */
             LOG(LOG_INFO, "Logfile changed from %s to %s\n", logFileName, filename);
-            oldlog=strdup(logFileName);
+            oldlog = strdup(logFileName);
             if (oldlog == NULL) {
                 LOG(LOG_ERR, "no memory");
                 return;
@@ -389,41 +377,10 @@ void writeLog(int priority, const char *format, ...) {
             fprintf(stderr, "%s", logEntry);
             break;
         }
-    // TODO default?
+    default:
+        LOG(LOG_ERR, "Unknown logLocation, %d", logLocation);
+        break;
     }
-
-
-#if 0
-    va_start(list, format);
-
-    // if (getenv("PTSCD_DAEMON") != NULL) {
-    if (getenv("OPENPTS_SYSLOG") != NULL) {
-        /* daemon -> syslog */
-        openlog("ptsc", LOG_NDELAY|LOG_PID, LOG_LOCAL5);
-
-        // 2011-04-11 SM shows verbose messages
-        if (priority == LOG_DEBUG) priority = LOG_INFO;
-
-        // vsyslog is not supported by some unix
-        vsnprintf(buf, SYSLOG_BUF_SIZE, format, list);
-        syslog(priority, "%s", buf);
-
-        closelog();
-    } else {
-        /* foregrond -> stdout */
-        if (priority == LOG_INFO) {
-            fprintf(stdout, "INFO:");
-        } else if (priority == LOG_ERR) {
-            fprintf(stdout, "ERROR:");
-        } else {
-            fprintf(stdout, "%d:", priority);
-        }
-        vfprintf(stdout, format, list);
-        fprintf(stdout, "\n");
-    }
-    va_end(list);
-#endif
-
 
     if (format2 != NULL) free(format2);
 }
@@ -435,7 +392,7 @@ static int openLogFile(void) {
         return logFileFd;
     }
 
-    //logFileFd = open(logFileName, O_RDWR|O_CREAT|O_TRUNC, DEFAULT_LOG_FILE_PERM);
+    /* append to the existing file */
     logFileFd = open(logFileName, O_WRONLY|O_CREAT|O_APPEND, DEFAULT_LOG_FILE_PERM);
     return logFileFd;
 }
