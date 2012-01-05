@@ -26,7 +26,7 @@
  * \brief calc D-H nonce
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-19
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-05 SM
  *
  * PTS IF-M DH-Nonce protocol
  *
@@ -233,7 +233,6 @@ int calcExternalDataValue(OPENPTS_NONCE *ctx) {
     SHA_CTX sha_ctx;
     char c = '1';
 
-    // DEBUG("calcExternalDataValue\n");
     /* check */
     if (ctx == NULL) {
         LOG(LOG_ERR, "null input");
@@ -278,8 +277,6 @@ int getDhResponce(OPENPTS_NONCE *ctx) {
     BIGNUM *p, *g;
     PTS_IF_M_DH_Nonce_Parameters_Request  *req;
     PTS_IF_M_DH_Nonce_Parameters_Responce *res;
-
-    // DEBUG("getDhResponce at Respondor\n");
 
     /* check */
     if (ctx == NULL) {
@@ -565,10 +562,6 @@ int calcDh(OPENPTS_NONCE *ctx) {
 int calcDhFin(OPENPTS_NONCE *ctx) {
     BIGNUM *pub_key;
     PTS_IF_M_DH_Nonce_Finish *fin;
-
-    // DEBUG("calcDhFin at Respondor\n");
-    // printHex("fin->dh_initiator_nonce :",fin->dh_initiator_nonce,fin->nonce_length,"\n");
-    // printHex("fin->dh_initiator_public:",fin->dh_initiator_public,ctx->pubkey_length,"\n");
 
     /* check */
     if (ctx == NULL) {

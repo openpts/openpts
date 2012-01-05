@@ -26,7 +26,7 @@
  * \brief TCG TNC IF-IMV v1.2 R8
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-05-07
- * cleanup 2011-08-22 SM
+ * cleanup 2012-01-05 SM
  *
  * http://www.trustedcomputinggroup.org/resources/tnc_ifimv_specification
  * http://www.trustedcomputinggroup.org/files/static_page_files/646808C3-1D09-3519-AD2E60765779A42A/TNC_IFIMV_v1_2_r8.pdf
@@ -51,7 +51,6 @@
 
 #include <tncifimv.h>
 #include <openpts.h>
-// #include <log.h>
 
 // ifm.c
 BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len);
@@ -63,10 +62,6 @@ static int initialized = 0;
 static OPENPTS_CONFIG *conf = NULL;
 static OPENPTS_CONTEXT *ctx = NULL;
 static int result = OPENPTS_RESULT_UNKNOWN;
-
-// int verbose = 0;
-// int verbose = DEBUG_IFM_FLAG;
-// int verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
 
 static TNC_Result sendMessage(
     /*in*/ TNC_IMVID imvID,
@@ -97,16 +92,6 @@ static TNC_TNCS_SetAttributePointer          setAttributePtr;
 static TNC_TNCS_SendMessagePointer           sendMessagePtr;
 
 
-/* List of receive message types */
-// static TNC_MessageType messageTypes[] = {
-//    TNCMESSAGENUM(TNC_VENDORID_TCG, TNC_SUBTYPE_ANY),  // generic
-//    TNCMESSAGENUM(VENDORID,  0),
-//    TNCMESSAGENUM(VENDORID,  2),
-//    TNCMESSAGENUM(VENDORID,  4),
-//    TNCMESSAGENUM(VENDORID,  6),
-//    TNCMESSAGENUM(VENDORID,  8),
-//    TNCMESSAGENUM(VENDORID, 10),
-// };
 static TNC_MessageType messageTypes[] = {
     ((TNC_VENDORID_PA_TNC << 8) | TNC_VENDORID_PA_TNC),   // TNC generic (Error)
 //    ((TNC_VENDORID_TCG_PEN << 8) | TNC_SUBTYPE_TCG_PTS),  // PTS generic
@@ -114,7 +99,7 @@ static TNC_MessageType messageTypes[] = {
 };
 
 
-/* IMV Functions */
+/* IMV Functions -------------------------------------------------------------*/
 
 /**
  * from IMV spec.

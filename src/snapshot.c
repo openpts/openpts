@@ -26,7 +26,7 @@
  * \brief Functions for snapshot
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-11-02
- * cleanup 2011-01-20 SM
+ * cleanup 2012-01-05 SM
  *
  * divided from IML.c
  * 
@@ -82,7 +82,6 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /**
  * New Snapshot
@@ -94,7 +93,7 @@
 OPENPTS_SNAPSHOT * newSnapshot() {
     OPENPTS_SNAPSHOT *ss = NULL;
 
-    ss = (OPENPTS_SNAPSHOT*) xmalloc(sizeof(OPENPTS_SNAPSHOT));  // leaked
+    ss = (OPENPTS_SNAPSHOT*) xmalloc(sizeof(OPENPTS_SNAPSHOT));
     if (ss == NULL) {
         LOG(LOG_ERR, "no memory");
         return NULL;
@@ -109,14 +108,12 @@ OPENPTS_SNAPSHOT * newSnapshot() {
     return ss;
 }
 
-
 /**
  * Free Snapshot
  *
  * return 0:success, -1:error
  */
 int freeSnapshot(OPENPTS_SNAPSHOT * ss) {
-
     /* check */
     if (ss == NULL) {
         LOG(LOG_ERR, "null input");
@@ -157,7 +154,7 @@ int freeSnapshot(OPENPTS_SNAPSHOT * ss) {
 OPENPTS_SNAPSHOT_TABLE * newSnapshotTable() {
     OPENPTS_SNAPSHOT_TABLE *sst = NULL;
 
-    sst = (OPENPTS_SNAPSHOT_TABLE *) xmalloc(sizeof(OPENPTS_SNAPSHOT_TABLE));  // leaked
+    sst = (OPENPTS_SNAPSHOT_TABLE *) xmalloc(sizeof(OPENPTS_SNAPSHOT_TABLE));
     if (sst == NULL) {
         LOG(LOG_ERR, "no memory");
         return NULL;
@@ -254,7 +251,7 @@ OPENPTS_SNAPSHOT *getSnapshotFromTable(OPENPTS_SNAPSHOT_TABLE * sst, int pcr_ind
 
     /* check 2 */
     if (sst->snapshot[pcr_index][level] == NULL) {
-        // DEBUG("sst->snapshot[%d][%d] is null", pcr_index, level);
+        /* Missing SS */
         return NULL;
     }
 

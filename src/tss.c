@@ -27,7 +27,7 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-18
  * refactoring 2011-02-15 SM
- * cleanup 2012-01-02 SM
+ * cleanup 2012-01-05 SM
  *
  * Create Sign Key
  * Create AIK
@@ -87,8 +87,7 @@ int createTssSignKey(
     char *filename,
     int auth_type,
     int force,
-    int srk_password_mode)
-{
+    int srk_password_mode) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -96,8 +95,7 @@ int createTssSignKey(
 int deleteTssKey(
     PTS_UUID *uuid,
     int key_storage_type,
-    char *filename)
-{
+    char *filename) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -120,8 +118,7 @@ int getTssPubKey(
     int resetdalock,
     char *filename,
     int auth_type,
-    int *pubkey_length, BYTE **pubkey)
-{
+    int *pubkey_length, BYTE **pubkey) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -134,8 +131,7 @@ int quoteTss(
     int auth_type,
     BYTE *nonce,
     OPENPTS_PCRS *pcrs,
-    TSS_VALIDATION *validationData)
-{
+    TSS_VALIDATION *validationData) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -148,8 +144,7 @@ int quote2Tss(
     int auth_type,
     BYTE *nonce,
     OPENPTS_PCRS *pcrs,
-    TSS_VALIDATION *validationData)
-{
+    TSS_VALIDATION *validationData) {
     /* dummy */
     return TSS_SUCCESS;
 }
@@ -267,6 +262,7 @@ int getTpmStatus(TSS_FLAG flag, TSS_BOOL *value, int tpm_password_mode) {
 
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
     return result;
 }
@@ -358,6 +354,7 @@ int setTpmStatus(TSS_FLAG flag, TSS_BOOL value, int tpm_password_mode) {
 
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
     return result;
 }
@@ -374,7 +371,8 @@ int printTssKeyList(int ps_type) {
     UINT32 ulKeyHierarchySize;
     TSS_UUID SRK_UUID = TSS_UUID_SRK;
     int i;
-    TSS_KM_KEYINFO *info = NULL;
+    TSS_KM_KEYINFO *ppKeyHierarchy = NULL;
+    TSS_KM_KEYINFO *info;
 
     /* Open TSS */
     result = Tspi_Context_Create(&hContext);
@@ -400,7 +398,7 @@ int printTssKeyList(int ps_type) {
                 (UINT32) ps_type,  // TSS_PS_TYPE_SYSTEM,
                 &SRK_UUID,
                 &ulKeyHierarchySize,
-                &info);
+                &ppKeyHierarchy);
     if (result == 0x3020) {  // TSS_E_PS_KEY_NOTFOUND
         OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY_NOTFOUND,
             "The key cannot be found in the persistent storage database.\n"));
@@ -411,9 +409,9 @@ int printTssKeyList(int ps_type) {
         goto close;
     }
 
+    info = ppKeyHierarchy;  // save for move
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY_NUM, "Key number: %d\n"), ulKeyHierarchySize);
     for (i = 0; i < (int)ulKeyHierarchySize; i++) {
-        //OUTPUT(NLS(MS_OPENPTS, OPENPTS_TPM_TSS_KEY, "Key %d\n"), i);
         OUTPUT("id      : %d\n", i);
         OUTPUT("version : %d %d %d %d\n",
             info->versionInfo.bMajor,
@@ -435,8 +433,17 @@ int printTssKeyList(int ps_type) {
         info = info + 1;
     }
 
+    /* free key info */
+    result = Tspi_Context_FreeMemory(hContext, (BYTE *)ppKeyHierarchy);
+    if (result != TSS_SUCCESS) {
+        LOG(LOG_ERR, "Tspi_Context_FreeMemory failed rc=0x%x\n",
+            result);
+        // 0x313a TSS_E_INVALID_RESOURCE
+    }
+
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
 
     return result;
@@ -459,8 +466,9 @@ int createTssSignKey(
     char *filename,
     int auth_type,
     int force,
-    int srk_password_mode)
-{
+    int srk_password_mode) {
+    int i;
+    int srk_auth_len = 0;
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
@@ -469,12 +477,10 @@ int createTssSignKey(
     TSS_HPOLICY hSRKPolicy;
     UINT32 srk_auth_mode = TSS_SECRET_MODE_PLAIN;
     BYTE *srk_auth;
-    int srk_auth_len = 0;
     TSS_HKEY hKey;
     UINT32 keyLength;
     BYTE *keyBlob;
     TSS_HPOLICY hKeyPolicy;
-    int i;
     TSS_UUID tss_uuid;
 
     /* check */
@@ -646,8 +652,8 @@ int createTssSignKey(
         FILE *fp;
 
         fp = fopen(filename, "w");
-        if (fp==NULL) {
-            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
+        if (fp == NULL) {
+            LOG(LOG_ERR, "file open fail, key blob file is %s", filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -690,7 +696,7 @@ int createTssSignKey(
                     TSS_HKEY hKey;
                     result = Tspi_Context_UnregisterKey(
                                hContext,
-                               (UINT32)key_storage_type,  //TSS_PS_TYPE_SYSTEM,
+                               (UINT32)key_storage_type,  // TSS_PS_TYPE_SYSTEM,
                                tss_uuid,
                                &hKey);
                     if (result != TSS_SUCCESS) {
@@ -718,6 +724,7 @@ int createTssSignKey(
 
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
 
     return result;
@@ -802,6 +809,7 @@ int deleteTssKey(PTS_UUID *uuid, int key_storage_type, char *filename) {
 
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
 
     return result;
@@ -823,8 +831,8 @@ int getTssPubKey(
     int resetdalock,
     char *filename,
     int auth_type,
-    int *pubkey_length, BYTE **pubkey)
-{
+    int *pubkey_length, BYTE **pubkey) {
+    int srk_auth_len = 0;
     TSS_RESULT result = 0;
     TSS_HCONTEXT hContext;
     TSS_HKEY hKey;
@@ -835,7 +843,6 @@ int getTssPubKey(
     TSS_UUID SRK_UUID = TSS_UUID_SRK;
     UINT32 srk_auth_mode = TSS_SECRET_MODE_PLAIN;
     BYTE *srk_auth;
-    int srk_auth_len = 0;
     TSS_HPOLICY hKeyPolicy;
 
     /* check */
@@ -938,8 +945,8 @@ int getTssPubKey(
         int len;
 
         fp = fopen(filename, "r");
-        if (fp==NULL) {
-            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
+        if (fp == NULL) {
+            LOG(LOG_ERR, "file open fail, key blob file is %s", filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -962,7 +969,7 @@ int getTssPubKey(
         /* TSS PS*/
         result = Tspi_Context_LoadKeyByUUID(
                     hContext,
-                    (UINT32)key_storage_type,  //TSS_PS_TYPE_SYSTEM,
+                    (UINT32)key_storage_type,  // TSS_PS_TYPE_SYSTEM,
                     tss_uuid,
                     &hKey);
         if (result == 0x803) {
@@ -1127,6 +1134,7 @@ int getTpmVersion(TSS_VERSION *version) {
 
     /* Close TSS/TPM */
   close:
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
 
     return rc;
@@ -1150,6 +1158,9 @@ int quoteTss(
         OPENPTS_PCRS *pcrs,
         /* Output */
         TSS_VALIDATION *validationData) {
+    int i;
+    int srk_auth_len = 0;
+    int pcrSelectCount = 0;
     TSS_RESULT result;
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
@@ -1158,21 +1169,16 @@ int quoteTss(
     TSS_UUID SRK_UUID = TSS_UUID_SRK;
     UINT32 srk_auth_mode = TSS_SECRET_MODE_PLAIN;
     BYTE *srk_auth = NULL;
-    int srk_auth_len = 0;
-
     TSS_HKEY hKey;
     TSS_HPOLICY hKeyPolicy;
     TSS_UUID tss_uuid;
     TSS_HPCRS hPcrComposite;
     TSS_VALIDATION validation_data;  // local
-    int i;
     UINT32 ulSubCapLength;
     UINT32 rgbSubCap;
     UINT32 pulRespDataLength;
     BYTE *prgbRespData;
     UINT32 pcrnum;
-
-    int pcrSelectCount = 0;
 
     /* UUID */
     memcpy(&tss_uuid, uuid, sizeof(TSS_UUID));
@@ -1319,8 +1325,8 @@ int quoteTss(
         int len;
 
         fp = fopen(filename, "r");
-        if (fp==NULL) {
-            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
+        if (fp == NULL) {
+            LOG(LOG_ERR, "file open fail, key blob file is %s", filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -1545,35 +1551,30 @@ int quote2Tss(
         /* PCR selection */
         OPENPTS_PCRS *pcrs,
         /* Output */
-        TSS_VALIDATION *validationData)
-{
+        TSS_VALIDATION *validationData) {
+    int i;
+    int srk_auth_len = 0;
+    int pcrSelectCount = 0;
     TSS_RESULT result;
     TSS_HCONTEXT hContext;
     TSS_HTPM hTPM;
     TSS_HKEY hSRK;
     TSS_HPOLICY hSRKPolicy;
     TSS_UUID SRK_UUID = TSS_UUID_SRK;
-
     UINT32 srk_auth_mode = TSS_SECRET_MODE_PLAIN;
     BYTE *srk_auth;
-    int srk_auth_len = 0;
-
     TSS_HKEY hKey;
     TSS_HPOLICY hKeyPolicy;
     TSS_UUID tss_uuid;
     TSS_HPCRS hPcrComposite;
     TSS_VALIDATION validation_data;  // local
-    int i;
     UINT32 ulSubCapLength;
     UINT32 rgbSubCap;
     UINT32 pulRespDataLength;
     BYTE *prgbRespData;
     UINT32 pcrnum;
-
     UINT32  versionInfoSize;
     BYTE*   versionInfo;
-
-    int pcrSelectCount = 0;
 
     /* UUID */
     // uuit_t -> TSS_UUID
@@ -1664,7 +1665,7 @@ int quote2Tss(
     /* Get SRK handles */
     result = Tspi_Context_LoadKeyByUUID(
                 hContext,
-                TSS_PS_TYPE_SYSTEM, // SRK in PS_SYSTEM
+                TSS_PS_TYPE_SYSTEM,  // SRK in PS_SYSTEM
                 SRK_UUID,
                 &hSRK);
     if (result != TSS_SUCCESS) {
@@ -1722,8 +1723,8 @@ int quote2Tss(
         int len;
 
         fp = fopen(filename, "r");
-        if (fp==NULL) {
-            LOG(LOG_ERR, "file open fail, key blob file is %s",filename);
+        if (fp == NULL) {
+            LOG(LOG_ERR, "file open fail, key blob file is %s", filename);
             result = TSS_E_KEY_NOT_LOADED;
             goto close;
         }
@@ -1748,7 +1749,7 @@ int quote2Tss(
         /* load from TSS's PS */
         result = Tspi_Context_LoadKeyByUUID(
                     hContext,
-                    key_storage_type, // TSS_PS_TYPE_SYSTEM,
+                    key_storage_type,  // TSS_PS_TYPE_SYSTEM,
                     tss_uuid,
                     &hKey);
         if (result != TSS_SUCCESS) {
@@ -2084,6 +2085,7 @@ int extendEvent(TSS_PCR_EVENT* event) {
 
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
     return result;
 }
@@ -2138,6 +2140,7 @@ int readPcr(int pcr_index, BYTE *pcr) {
 
   close:
     /* Close TSS/TPM */
+    Tspi_Context_FreeMemory(hContext, NULL);
     Tspi_Context_Close(hContext);
     return result;
 }
@@ -2163,8 +2166,7 @@ int readPcr(int pcr_index, BYTE *pcr) {
  */
 int validateQuoteData(
     OPENPTS_PCRS *pcrs,
-    TSS_VALIDATION *validationData)
-{
+    TSS_VALIDATION *validationData) {
     int rc = PTS_VERIFY_FAILED;
     int message_length;
     BYTE *message;
@@ -2331,18 +2333,17 @@ int validateQuoteData(
  */
 int validatePcrCompositeV11(
     OPENPTS_PCRS *pcrs,
-    TSS_VALIDATION *validationData)
-{
+    TSS_VALIDATION *validationData) {
     int rc = PTS_VERIFY_FAILED;
     int i;
     int buf_len;
+    int count = 0;
+    int value_size;
     BYTE *buf;
     BYTE *ptr;
     SHA_CTX ctx;
     BYTE digest[20];
     UINT16 mask = 0;
-    int count = 0;
-    int value_size;
 
     /* check */
     if (validationData == NULL) {
@@ -2463,20 +2464,19 @@ int validatePcrCompositeV11(
  */
 int validatePcrCompositeV12(
     OPENPTS_PCRS *pcrs,
-    TSS_VALIDATION *validationData)
-{
+    TSS_VALIDATION *validationData) {
     int rc = PTS_VERIFY_FAILED;
     int i;
     int buf_len;
+    int count = 0;
+    int value_size;
+    int pcrsel_size;
+    int loc = 0;
     BYTE *buf;
     BYTE *ptr;
     SHA_CTX ctx;
     BYTE digest[20];
     UINT32 mask = 0;
-    int count = 0;
-    int value_size;
-    int pcrsel_size;
-    int loc = 0;
     BYTE *composit_hash;
 
     /* check */
@@ -2607,5 +2607,3 @@ int validatePcrCompositeV12(
 
     return rc;
 }
-
-

@@ -27,61 +27,13 @@
  *
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-13
- * cleanup 2011-07-06 SM
- *
+ * cleanup 2012-01-04 SM
  *
  * grep strncmp src/conf.c | gawk '{print $3}'
  * grep strncmp src/conf.c | awk '{print " *  " $3}' | sed -e "s/\"//g" -e "s/,//g"
  *
- *  name                                   default value
- *  ----------------------------------------------------
- *  config.dir
- *  openpts.pcr.index
- *  aide
- *  aide.database.file
- *  aide.ignorelist.file
- *  aide.sqlite.file
- *  autoupdate
- *  bios.iml.file
- *  config.dir
- *  config.dir
- *  hostname
- *  ima.validation.mode
- *  iml.aligned
- *  iml.endian
- *  iml.mode
- *  ir.dir
- *  ir.file
- *  ir.quote
- *  little
- *  model.dir
- *  newrm.uuid.file
- *  oldrm.uuid.file
- *  openpts.pcr.index
- *  pcrs.file
- *  policy.file
- *  port
- *  prop.file
- *  rm.basedir
- *  rm.num
- *  rm.uuid.file
- *  runtime.iml.file
- *  runtime.iml.type
- *  securityfs
- *  selftest
- *  ssh.mode
- *  ssh.port
- *  ssh.username
- *  strncmp
- *  strncmp
- *  target.pubkey
- *  target.uuid
- *  uuid.file
- *  verifier.logging.dir
- *  ------------------------------------------------------------------------
- *  srk.password.mode        null/known
- *  ------------------------------------------------------------------------
- *  
+ * Also update man/man5/ptsc.conf.5
+ *
  */
 
 #include <stdio.h>
@@ -90,7 +42,6 @@
 #include <ctype.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /**
  * new Target list
@@ -109,7 +60,7 @@ OPENPTS_TARGET_LIST *newTargetList(int num) {
     }
     memset(list, 0, size);
 
-    list->target_num = num - 1; // set actual number 
+    list->target_num = num - 1;  // set actual number
 
     return list;
 }
@@ -157,8 +108,6 @@ void freeTargetList(OPENPTS_TARGET_LIST *list) {
 OPENPTS_CONFIG * newPtsConfig() {
     OPENPTS_CONFIG * conf;
 
-    // DEBUG("newPtsConfig()\n");
-
     /* config */
     conf = (OPENPTS_CONFIG *) xmalloc(sizeof(OPENPTS_CONFIG));
     if (conf == NULL) {
@@ -186,7 +135,6 @@ OPENPTS_CONFIG * newPtsConfig() {
  */
 int freePtsConfig(OPENPTS_CONFIG * conf) {
     int i;
-    // DEBUG("freePtsConfig()\n");
 
     /* check */
     if (conf == NULL) {
@@ -359,7 +307,6 @@ int freePtsConfig(OPENPTS_CONFIG * conf) {
         conf->config_file = NULL;
     }
 
-//<<<<<<< HEAD
 #ifdef CONFIG_AUTO_RM_UPDATE
     if (conf->newRmSet != NULL) {
         xfree(conf->newRmSet);
@@ -384,14 +331,11 @@ int freePtsConfig(OPENPTS_CONFIG * conf) {
         if (conf->compIDs[i].VendorID_Value != NULL) xfree(conf->compIDs[i].VendorID_Value);
     }
 
-//    xfree(conf);
-//=======
     if (conf->aik_storage_filename != NULL) {
         free(conf->aik_storage_filename);
     }
 
     free(conf);
-//>>>>>>> 042e40b0979f3e44e75200271e4d1282ce08f72c
 
     return PTS_SUCCESS;
 }
@@ -435,7 +379,8 @@ static int readPtsConfig_CompID(
     /******************/
 
     if (level >= MAX_RM_NUM) {
-        LOG(LOG_ERR, "readPtsConfig_CompID()- trying to affect a CompID(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
+        LOG(LOG_ERR,
+            "readPtsConfig_CompID()- trying to affect a CompID(%s) to a level(%d) greater than MAX_RM_NUM(%d)\n",
             attributeName, level, MAX_RM_NUM);
         return PTS_FATAL;
     }
@@ -555,11 +500,10 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
     /* dir where config file -> config_dir */
     if (conf->config_dir != NULL) {
-        // free old one
+        /* free old one */
         xfree(conf->config_dir);
     }
     conf->config_dir = getFullpathDir(filename2);
-
 
     /* open */
     if ((fp = fopen(filename2, "r")) == NULL) {
@@ -587,16 +531,13 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 
         if (line[0] == '#') {
             // comment -> skip
-        } else if ((eq = strstr(line, "=")) != NULL) { /* name=value line*/
+        } else if ((eq = strstr(line, "=")) != NULL) {  /* name=value line */
             char *name;
             char *value;
 
             name = line;
             value = eq + 1;
-
             *eq = 0;
-
-            //  DEBUG("%4d [%s]=[%s]\n",cnt, name, value);
 
             /* config dir
                replace the curent setting  based on the location of config file
@@ -696,7 +637,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->iml_endian = 0;
 #else
                     conf->iml_endian = 2;
-                    // DEBUG("convert endian mode\n");
                     DEBUG("endian mode            : convert\n");
 #endif
                 } else {
@@ -744,7 +684,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             // RM config - from 0.2.3
             if (!strncmp(name, "rm.basedir", 10)) {
                 if (conf->rm_basedir != NULL) {
-                    // DEBUG("realloc conf->rm_basedir");  // TODO realloc happen
                     xfree(conf->rm_basedir);
                 }
                 conf->rm_basedir = getFullpathName(conf->config_dir, value);
@@ -752,7 +691,9 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             if (!strncmp(name, "rm.num", 6)) {
                 conf->rm_num = atoi(value);
                 if (conf->rm_num > MAX_RM_NUM) {
-                    LOG(LOG_ERR, "RM number rm.num=%d is larger than MAX_RM_NUM=%d - truncking\n", conf->rm_num, MAX_RM_NUM);
+                    LOG(LOG_ERR,
+                        "RM number rm.num=%d is larger than MAX_RM_NUM=%d - truncking\n",
+                        conf->rm_num, MAX_RM_NUM);
                     conf->rm_num = MAX_RM_NUM;
                 }
                 DEBUG("conf->rm_num               : %d\n", conf->rm_num);
@@ -762,35 +703,25 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             /* Depricated - we use a temporary file in /tmp on collector side */
             if (!strncmp(name, "ir.file", 7)) {
                 if (conf->ir_filename != NULL) {
-                    // DEBUG("realloc conf->ir_filename");  // TODO realloc happen
                     xfree(conf->ir_filename);
                 }
                 conf->ir_filename = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->ir_filename          : %s\n", conf->ir_filename);
-                // LOG(LOG_ERR, "ir.file is obsolute, please use ir.dir");  /// Collectror TODO 
             }
             /* IR dir (collector side) */
             if (!strncmp(name, "ir.dir", 6)) {
                 if (conf->ir_dir != NULL) {
-                    // DEBUG("realloc conf->ir_filename");  // TODO realloc happen
                     xfree(conf->ir_dir);
                 }
                 conf->ir_dir = getFullpathName(conf->config_dir, value);
                 DEBUG("conf->ir_dir               : %s\n", conf->ir_dir);
-            } // BAD else {
-            //    /* set this to some sensible default value so that ptsc.c doesn't seg fault */
-            //    conf->ir_dir = smalloc("/tmp");
-            //}
-
+            }
             if (!strncmp(name, "prop.file", 9)) {
                 if (conf->prop_filename != NULL) {
-                    // DEBUG("realloc conf->prop_filename");  // TODO realloc happen
                     xfree(conf->prop_filename);
                 }
                 conf->prop_filename = getFullpathName(conf->config_dir, value);
             }
-
-            // 20100908 Munetoh -> ifm.c
             if (!strncmp(name, "ir.quote", 8)) {
                 if (!strncmp(value, "WITHOUT_QUOTE", 13)) {
                     conf->ir_without_quote = 1;
@@ -803,6 +734,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 conf->model_dir = getFullpathName(conf->config_dir, value);
             }
 
+            /* prop (AIX) */
             if (!strncmp(name, "iml.ipl.maxcount", 16)) {
                 conf->iml_maxcount = atoi(value);
                 DEBUG("conf->iml_maxcount         : %d\n", conf->iml_maxcount);
@@ -816,7 +748,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 conf->verifier_logging_dir = getFullpathName(conf->config_dir, value);
             }
 
-
             if (!strncmp(name, "policy.file", 11)) {
                 if (conf->policy_filename != NULL) {
                     // DEBUG("realloc conf->policy_filename\n");  // TODO realloc happen
@@ -824,17 +755,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 }
                 conf->policy_filename = getFullpathName(conf->config_dir, value);
             }
-
-#if 0
-            if (!strncmp(name, "config.dir", 10)) {
-                if (conf->config_dir != NULL) {
-                    LOG(LOG_TODO, "conf dir %s ->%s\n", conf->config_dir, value);
-                    //
-                } else {
-                    conf->config_dir = getFullpathName(config_path, value);
-                }
-            }
-#endif
 
             /* IMA and AIDE */
             if (!strncmp(name, "ima.validation.mode", 19)) {
@@ -851,7 +771,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 #ifdef CONFIG_AIDE
             if (!strncmp(name, "aide.database.file", 18)) {
                 if (conf->aide_database_filename != NULL) {
-                    // DEBUG("realloc conf->aide_database_filename\n");   // TODO realloc happen
                     xfree(conf->aide_database_filename);
                 }
                 conf->aide_database_filename = getFullpathName(conf->config_dir, value);
@@ -863,7 +782,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
 #endif
             if (!strncmp(name, "aide.ignorelist.file", 20)) {
                 if (conf->aide_ignorelist_filename != NULL) {
-                    // DEBUG("realloc conf->aide_ignorelist_filename\n");   // TODO realloc happen
                     xfree(conf->aide_ignorelist_filename);
                 }
                 conf->aide_ignorelist_filename = getFullpathName(conf->config_dir, value);
@@ -913,7 +831,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->rm_uuid = newOpenptsUuid();
                 }
                 if (conf->rm_uuid->filename != NULL) {
-                    // DEBUG("realloc conf->rm_uuid->filename");  // TODO realloc happen
                     xfree(conf->rm_uuid->filename);
                 }
                 conf->rm_uuid->filename = getFullpathName(conf->config_dir, value);
@@ -921,11 +838,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 rc = readOpenptsUuidFile(conf->rm_uuid);
                 if (rc != PTS_SUCCESS) {
                     /* uuid file is missing */
-                    // TODO gen UUID?
-                    // DEBUG("no UUID file %s\n", conf->uuid->filename);
                     conf->rm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
-                } else {
-                    //  DEBUG("read UUID from file %s, UUID=%s\n", conf->uuid->filename, conf->uuid->str);
                 }
                 DEBUG("conf->rm_uuid->str         : %s\n", conf->rm_uuid->str);
             }
@@ -937,7 +850,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->newrm_uuid = newOpenptsUuid();
                 }
                 if (conf->newrm_uuid->filename != NULL) {
-                    // DEBUG("realloc conf->rm_uuid->filename");  // TODO realloc happen
                     xfree(conf->newrm_uuid->filename);
                 }
                 conf->newrm_uuid->filename = getFullpathName(conf->config_dir, value);
@@ -945,8 +857,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 rc = readOpenptsUuidFile(conf->newrm_uuid);
                 if (rc != PTS_SUCCESS) {
                     /* uuid file is missing */
-                    // TODO gen UUID?
-                    //  DEBUG("no UUID file %s\n", conf->uuid->filename);
                     conf->newrm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
                 } else {
                     conf->pts_flag[0] |= OPENPTS_FLAG0_NEWRM_EXIST;
@@ -961,7 +871,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                     conf->oldrm_uuid = newOpenptsUuid();
                 }
                 if (conf->oldrm_uuid->filename != NULL) {
-                    // DEBUG("realloc conf->oldrm_uuid->filename");  // TODO realloc happen
                     xfree(conf->oldrm_uuid->filename);
                 }
                 conf->oldrm_uuid->filename = getFullpathName(conf->config_dir, value);
@@ -969,11 +878,7 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 rc = readOpenptsUuidFile(conf->oldrm_uuid);
                 if (rc != PTS_SUCCESS) {
                     /* uuid file is missing */
-                    // TODO gen UUID?
-                    // DEBUG("no UUID file %s\n", conf->uuid->filename);
                     conf->oldrm_uuid->status = OPENPTS_UUID_FILENAME_ONLY;
-                } else {
-                    // DEBUG("read UUID from file %s, UUID=%s\n", conf->uuid->filename, conf->uuid->str);
                 }
                 DEBUG("conf->oldrm_uuid->str      : %s\n", conf->oldrm_uuid->str);
             }
@@ -981,7 +886,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             /* */
             if (!strncmp(name, "target.uuid", 11)) {
                 if (conf->target_uuid != NULL) {
-                    // DEBUG("realloc conf->target_uuid\n");  // TODO realloc happen
                     xfree(conf->target_uuid);
                 }
                 conf->target_uuid = getUuidFromString(value);
@@ -990,7 +894,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
                 } else {
                     // add string too
                     if (conf->str_target_uuid != NULL) {
-                        // DEBUG("realloc conf->str_target_uuid\n");  // TODO realloc happen
                         xfree(conf->str_target_uuid);
                     }
                     conf->str_target_uuid = getStringOfUuid(conf->target_uuid);
@@ -1035,7 +938,6 @@ int readPtsConfig(OPENPTS_CONFIG *conf, char *filename) {
             /* hostname */
             if (!strncmp(name, "hostname", 8)) {
                 if (conf->hostname != NULL) {
-                    // DEBUG("realloc conf->hostname\n");  // TODO realloc happen
                     xfree(conf->hostname);
                 }
                 conf->hostname = smalloc_assert(value);

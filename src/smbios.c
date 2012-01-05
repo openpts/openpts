@@ -26,7 +26,7 @@
  * \brief parse SMBIOS info
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-29
- * cleanup 2012-01-03 SM
+ * cleanup 2012-01-05 SM
  *
  * SMBIOS Info in BIOS IML -> platform properties
  *
@@ -53,7 +53,6 @@
 #include <dirent.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 #define SMBIOS_MAX_SIZE   4096
 #define SMBIOS_MAX_HANDLE 0x50
@@ -70,17 +69,16 @@ int genSmbiosFileByDmidecode(char * filename) {
 
     /* must be a root user */
     uid = getuid();
-    // DEBUG("UID %d\n",uid);
     if (uid != 0) {
         DEBUG("must be a root user to run dmidecode\n");
-        return -2;
+        return PTS_FATAL;
     }
 
     /* exec dmidecode */
     pid = fork();
     if (pid < 0) {
-        LOG(LOG_ERR, "\n");
-        return -1;
+        LOG(LOG_ERR, "fork() fail");
+        return  PTS_FATAL;
     }
     if (pid == 0) {
         /* child */
@@ -95,17 +93,17 @@ int genSmbiosFileByDmidecode(char * filename) {
         if (WIFEXITED(status)) {
             /* 1 : OK */
             LOG(LOG_TODO, "Exit status %d\n", WEXITSTATUS(status));
-            return 1;
+            return PTS_SUCCESS;  // 1
         } else if (WIFSIGNALED(status)) {
             LOG(LOG_ERR, "Signal status %d\n", WIFSIGNALED(status));
-            return -1;
+            return PTS_FATAL;
         } else {
             LOG(LOG_ERR, "Bad exit");
-            return -1;
+            return  PTS_FATAL;
         }
     }
 
-    return 0;
+    return PTS_SUCCESS;
 }
 
 
@@ -123,8 +121,16 @@ int readSmbiosFile(char * filename, BYTE **data, int *len) {
     BYTE *buf;
     int rc = PTS_SUCCESS;
 
-    buf = xmalloc(SMBIOS_MAX_SIZE);  // TODO check the filesize
+    /* check */
+    if (filename == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
+    // TODO(munetoh) check the file size
+    buf = xmalloc(SMBIOS_MAX_SIZE);
     if (buf == NULL) {
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
@@ -134,7 +140,7 @@ int readSmbiosFile(char * filename, BYTE **data, int *len) {
         goto error;
     }
 
-    size = fread(buf, 1, SMBIOS_MAX_SIZE, fp);  // TODO(munetoh) check the file size
+    size = fread(buf, 1, SMBIOS_MAX_SIZE, fp);
 
     fclose(fp);
 

@@ -26,7 +26,7 @@
  * \brief PTS context
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-07-06 SM
+ * cleanup 2012-01-05 SM
  *
  * OpenPTS main context
  *
@@ -51,6 +51,7 @@ OPENPTS_CONTEXT  * newPtsContext(OPENPTS_CONFIG *conf) {
 
     ctx = (OPENPTS_CONTEXT *) xmalloc(sizeof(OPENPTS_CONTEXT));
     if (ctx == NULL) {
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(OPENPTS_CONTEXT));
@@ -64,6 +65,7 @@ OPENPTS_CONTEXT  * newPtsContext(OPENPTS_CONFIG *conf) {
     /* IF-M nonce */
     ctx->nonce = newNonceContext();
     if (ctx->nonce == NULL) {
+        LOG(LOG_ERR, "newNonceContext() fail. no memory");
         goto error;
     }
 
@@ -86,9 +88,10 @@ int freePtsContext(OPENPTS_CONTEXT *ctx) {
     int i;
     DEBUG_CAL("freePtsContext - start\n");
 
+    /* check */
     if (ctx == NULL) {
-        DEBUG("freePtsContext - NULL\n");
-        return -1;
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
     }
 
     /* TPM emu - reset */
@@ -229,9 +232,7 @@ char * getAlgString(int type) {
  */
 int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
     int rc = PTS_SUCCESS;
-    OPENPTS_CONFIG *conf;
     FILE *fp;
-
     char buf[FSM_BUF_SIZE];
     char buf2[FSM_BUF_SIZE];
     char *eqp = NULL;
@@ -239,17 +240,29 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
     int level;
     char *model_filename = NULL;
     int len;
-
+    OPENPTS_CONFIG *conf;
     OPENPTS_FSM_CONTEXT *fsm = NULL;
     OPENPTS_SNAPSHOT *ss = NULL;
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     conf = ctx->conf;
+    if (conf == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
 
     /* new snapshot table */
     if (ctx->ss_table == NULL) {
         ctx->ss_table = newSnapshotTable();
     }
-
 
     /* Open prop file */
     if ((fp = fopen(filename, "r")) == NULL) {
@@ -285,7 +298,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
             if (strstr(buf, "platform.model.") != NULL) {
                 LOG(LOG_ERR, "ptsc.conf has old format <=v0.2.3 %s\n", filename);
                 LOG(LOG_ERR, "change platform.model to rm.model.0\n");
-                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file (v0.2.3)\n"));
                 rc = PTS_FATAL;
                 goto error;
             }
@@ -293,7 +306,7 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
             if (strstr(buf, "runtime.model.") != NULL) {
                 LOG(LOG_ERR, "ptsc.conf has old format <=v0.2.3 %s\n", filename);
                 LOG(LOG_ERR, "change runtime.model to rm.model.1\n");
-                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file\n"));
+                OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_BAD_CONFIG_FILE, "Bad configuration file (v0.2.3)\n"));
                 rc = PTS_FATAL;
                 goto error;
             }
@@ -320,7 +333,6 @@ int readFsmFromPropFile(OPENPTS_CONTEXT *ctx, char * filename) {
                     "%s/%s",
                     conf->model_dir, model_filename);
                 rc = readUmlModel(fsm, buf2);
-                // TODO(munetoh) cehck rc
                 if (rc != PTS_SUCCESS) {
                     LOG(LOG_ERR, "addFsmByPropFile -  [%s] / [%s] -> [%s] fail rc=%d, pwd = %s\n",
                         conf->model_dir, model_filename, buf2, rc,

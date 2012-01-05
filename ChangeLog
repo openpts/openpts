@@ -7,11 +7,13 @@ openpts (0.2.6) unstable; urgency=low
   * Locking to ensure only one instance of ptsc and openpts will run at the same time.
   * Added the doorbell ringer(ptsevt) and the listener (ptsevtd)
   * Added clear option. e.g. ptsc -e
-  * Improved error handling and messages
+  * Improved error handling and messages (console and logging)
   * Renew validation models (models/*uml), default ptsc.conf
   * Added UEFI BIOS validation models
+  * Refactoring Infineon v1.2 TPM workaround
+  * Bug fixes
 
- -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Fri, 16 Dec 2011 12:00:00 +0900
+ -- Seiji Munetoh <munetoh@users.sourceforge.jp>  Thu, 5 Jan 2012 14:40:00 +0900
 
 openpts (0.2.5.1) unstable; urgency=low
 

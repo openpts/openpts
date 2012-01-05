@@ -26,7 +26,7 @@
  * \brief UML2 State Diagram
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-01-21 SM
+ * cleanup 2012-01-05 SM
  *
  * UML State Diagram (XMI2.1, Eclipse MDT) -> DOT (Graphviz) Utility
  */
@@ -47,10 +47,8 @@
 #include <tss/tspi.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /*
-
 UML
       <subvertex xmi:type="uml:State" xmi:id="Kk02PKa3" name="CRTM_START" visibility="public">
         <doActivity xmi:type="uml:Activity" xmi:id="_OzCawRyrEd6jytZ7WXwL3w" name="resetPCR(0)"/>
@@ -82,11 +80,16 @@ DOT
 /**
  * startDocument of SAX parser
  */
-void    uml2sax_startDocument(void * fctx) {
+void uml2sax_startDocument(void * fctx) {
     OPENPTS_FSM_CONTEXT *ctx;
 
     DEBUG_CAL("startDocument - start\n");
 
+    /* check */
+    if (fctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
     ctx->error = 0;
 
@@ -99,9 +102,14 @@ void    uml2sax_startDocument(void * fctx) {
 /**
  * endDocument of SAX parser
  */
-void    uml2sax_endDocument(void * fctx) {
+void uml2sax_endDocument(void * fctx) {
     OPENPTS_FSM_CONTEXT *ctx;
 
+    /* check */
+    if (fctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
 
     /* set start state */
@@ -127,14 +135,23 @@ char doActivityName[FSM_BUF_SIZE]; /**<  move to ctx */
 /**
  * startElement of SAX parser
  */
-void    uml2sax_startElement(void* fctx, const xmlChar* name,
+void uml2sax_startElement(void* fctx, const xmlChar* name,
                              const xmlChar** atts) {
     OPENPTS_FSM_CONTEXT *ctx;
     int i;
     char *type;
     char *value;
 
+    /* check */
+    if (fctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
+    if (name == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
 
     // DEBUG_SAX("startElement - \n");
 
@@ -240,7 +257,16 @@ void    uml2sax_startElement(void* fctx, const xmlChar* name,
 void uml2sax_endElement(void * fctx, const xmlChar * name) {
     OPENPTS_FSM_CONTEXT *ctx;
 
+    /* check */
+    if (fctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
+    if (name == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
 
     if (!strcmp((char *)name, "subvertex")) {
         addFsmSubvertex(ctx, subvertexXmiType, subvertexXmiId, subvertexName, doActivityName);
@@ -268,7 +294,16 @@ void  uml2sax_characters(void* fctx, const xmlChar * ch, int len) {
     OPENPTS_FSM_CONTEXT *ctx;
     char buf[FSM_BUF_SIZE];
 
+    /* check */
+    if (fctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
     ctx = (OPENPTS_FSM_CONTEXT *)fctx;
+    if ((len > 0) && (ch == NULL)) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
 
     if (len < FSM_BUF_SIZE) {
         memcpy(buf, ch, len);
@@ -300,15 +335,23 @@ int readUmlModel(OPENPTS_FSM_CONTEXT * ctx, char *umlfile) {
     xmlSAXHandler  sax_handler;
     int rc;
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (umlfile == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
     memset(&sax_handler, 0, sizeof(xmlSAXHandler));
 
     sax_handler.startDocument = uml2sax_startDocument;
-    sax_handler.endDocument = uml2sax_endDocument;
-
-    sax_handler.startElement = uml2sax_startElement;
-    sax_handler.endElement = uml2sax_endElement;
-
-    sax_handler.characters = uml2sax_characters;
+    sax_handler.endDocument   = uml2sax_endDocument;
+    sax_handler.startElement  = uml2sax_startElement;
+    sax_handler.endElement    = uml2sax_endElement;
+    sax_handler.characters    = uml2sax_characters;
 
     /* read UML  */
 

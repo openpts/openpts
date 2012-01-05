@@ -26,7 +26,7 @@
  * \brief AIDE I/F APIs
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-06-13
- * cleanup 2011-07-06 SM
+ * cleanup 2012-01-05 SM
  *
  * 1) Integrity check with AIDE
  *
@@ -98,7 +98,11 @@ AIDE_METADATA * newAideMetadata() {
  * TODO(munetoh) sep. all and single
  */
 void freeAideMetadata(AIDE_METADATA *md) {
-    if (md == NULL) return;
+    /* check */
+    if (md == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
 
     if (md->next != NULL) {
         freeAideMetadata(md->next);
@@ -123,6 +127,16 @@ void freeAideMetadata(AIDE_METADATA *md) {
  */
 int addAideMetadata(AIDE_CONTEXT *ctx, AIDE_METADATA *md) {
     int rc = 0;
+
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (md == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
 
     /* update ctx*/
     if (ctx->start == NULL) {
@@ -158,10 +172,9 @@ AIDE_CONTEXT * newAideContext() {
     int rc;
     AIDE_CONTEXT *ctx;
 
-    // DEBUG("newAideContext()\n");
-
     ctx = xmalloc(sizeof(AIDE_CONTEXT));
     if (ctx == NULL) {
+        LOG(LOG_ERR, "no memory");
         return NULL;
     }
     memset(ctx, 0, sizeof(AIDE_CONTEXT));
@@ -179,7 +192,10 @@ AIDE_CONTEXT * newAideContext() {
     ctx->aide_md_table_size = 0;
 
     ctx->aide_in_table = xmalloc(sizeof(struct hsearch_data));
-    // TODO ck null
+    if (ctx->aide_in_table == NULL) {
+        LOG(LOG_ERR, "no memory");
+        goto error;
+    }
     memset(ctx->aide_in_table, 0, sizeof(struct hsearch_data));
     //  4096 full
     rc = hcreate_r(AIDE_HASH_TABLE_SIZE, ctx->aide_in_table);  // hash table for ignore name
@@ -201,7 +217,9 @@ AIDE_CONTEXT * newAideContext() {
  *
  */
 void freeAideIgnoreList(AIDE_LIST *list) {
+    /* check */
     if (list == NULL) {
+        LOG(LOG_ERR, "null input");
         return;
     }
 
@@ -325,6 +343,9 @@ int getAideItemIndex(char *buf) {
  * load AIDE database from file
  *
  *   filename base64(digest)
+ * Return
+ *   num of meatdata
+ *   -1 ERROR
  *
  * caller
  *  ir.c
@@ -347,8 +368,17 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
     int rc;
     char *sha1_b64_ptr;
 
+    DEBUG_CAL("loadAideDatabaseFile - start, filename=[%s]\n", filename);
 
-    DEBUG("loadAideDatabaseFile - start, filename=[%s]\n", filename);
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -1;
+    }
+    if (filename == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -1;
+    }
 
     fp = gzopen(filename, "r");
     if (fp == NULL) {
@@ -567,7 +597,7 @@ int loadAideDatabaseFile(AIDE_CONTEXT *ctx, char *filename) {
  close:
     gzclose(fp);
     DEBUG("loadAideDatabaseFile - has %d entries\n", ctx->metadata_num);
-    DEBUG("loadAideDatabaseFile - done\n");
+    DEBUG_CAL("loadAideDatabaseFile - done\n");
 
     return ctx->metadata_num;
 }
@@ -592,15 +622,24 @@ int readAideIgnoreNameFile(AIDE_CONTEXT *ctx, char *filename) {
     ENTRY e;  // htable
     ENTRY *ep;
 
-    DEBUG("readAideIgnoreNameFile - start, filename=[%s]\n", filename);
+    DEBUG_CAL("readAideIgnoreNameFile - start, filename=[%s]\n", filename);
+
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (filename == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
 
     /* Open file for read */
     fp = fopen(filename, "r");
     if (fp == NULL) {
         DEBUG("%s missing\n", filename);
-        return -1;
+        return PTS_FATAL;
     }
-
 
     /* parse */
     while (fgets(line, BUF_SIZE, fp) != NULL) {  // read line
@@ -658,7 +697,7 @@ int readAideIgnoreNameFile(AIDE_CONTEXT *ctx, char *filename) {
   error:
     fclose(fp);
 
-    DEBUG("readAideIgnoreNameFile - done, num = %d\n", cnt);
+    DEBUG_CAL("readAideIgnoreNameFile - done, num = %d\n", cnt);
 
     return rc;
 }
@@ -671,8 +710,14 @@ int printAideData(AIDE_CONTEXT *ctx) {
     AIDE_METADATA *md;
     int i;
 
-    DEBUG("printAideData - start\n");
+    DEBUG_CAL("printAideData - start\n");
     DEBUG("printAideData - num = %d\n", ctx->metadata_num);
+
+    /* check*/
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return  PTS_FATAL;
+    }
 
     md = ctx->start;
 
@@ -695,9 +740,9 @@ int printAideData(AIDE_CONTEXT *ctx) {
         md = md->next;
     }
 
-    DEBUG("printAideData - end\n");
+    DEBUG_CAL("printAideData - end\n");
 
-    return 0;
+    return PTS_SUCCESS;
 }
 
 #if 1
@@ -722,6 +767,7 @@ void copyAideMetadata(AIDE_METADATA *dst, AIDE_METADATA *src) {
     }
 }
 
+#if 0
 /**
  * check AIDE MD vs given MD (SHA1)
  *
@@ -759,20 +805,24 @@ int checkFileByAide(AIDE_CONTEXT *ctx, AIDE_METADATA *metadata) {
     DEBUG_FSM("checkFileByAide - MISS\n");
     return -2;
 }
-
+#endif
 
 /**
  *
  * return 
  *    -1: MISS
  *     0: HIT
- *
+ *    -2: ERROR
  */
 int checkIgnoreList(AIDE_CONTEXT *ctx, char *name) {
     AIDE_LIST *list;
     int len;
 
     /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -2;
+    }
     if (name == NULL) {
         LOG(LOG_ERR, "checkIgnoreList() - name is null\n");
         return -2;
@@ -993,11 +1043,13 @@ AIDE_METADATA *getMetadataFromAideByName(AIDE_CONTEXT *ctx, char *name) {
     AIDE_METADATA *md;
     int i;
 
+    /* check */
     if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
-
     if (name == NULL) {
+        LOG(LOG_ERR, "null input");
         return NULL;
     }
 
@@ -1043,11 +1095,17 @@ int escapeFilename(char **out, char *in) {
     int len;
     int i, j;
 
+    /* check */
+    if (in == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -1;
+    }
     len = strlen(in);
 
     /*  rough malloc new buffer */
     buf = xmalloc(len*3);
     if (buf == NULL) {
+        LOG(LOG_ERR, "no memory");
         return -1;
     }
 
@@ -1130,7 +1188,17 @@ int convertImlToAideDbFile(OPENPTS_CONTEXT *ctx, char *filename) {
     char *aide_filename = NULL;
     int len;
 
-    DEBUG("convertImlToAideDbFile %s\n", filename);
+    DEBUG_CAL("convertImlToAideDbFile %s\n", filename);
+
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -1;
+    }
+    if (filename == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -1;
+    }
 
     /* file open for write */
     fp = gzopen(filename, "wb");
@@ -1257,7 +1325,13 @@ int writeReducedAidbDatabase(AIDE_CONTEXT *ctx, char *filename) {
 
     DEBUG("writeReducedAidbDatabase %s\n", filename);
 
+    /* check */
     if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return -1;
+    }
+    if (filename == NULL) {
+        LOG(LOG_ERR, "null input");
         return -1;
     }
 
@@ -1455,20 +1529,15 @@ int verifyBySQLite(AIDE_CONTEXT *ctx, char * key) {
 
     sql = sqlite3_mprintf("SELECT * from sample where digest = '%s'", key);
     sqlite3_get_table(ctx->sqlite_db, sql, &result, &row, &col, &err);
-    // DEBUG("%2d %d %s\n",row,col, md->hash_key);
 
     if (row >= 1) {
         return OPENPTS_RESULT_VALID;
     }
 
-    // LOG(LOG_ERR, "row = %d\n",row);
-
     /* free */
     sqlite3_free(sql);
     sqlite3_free(err);
     sqlite3_free_table(result);
-
-
 
     return OPENPTS_RESULT_UNKNOWN;
 }

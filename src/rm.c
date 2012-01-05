@@ -26,7 +26,7 @@
  * \brief Reference Manifest (RM)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-12-31 SM
+ * cleanup 2012-01-05 SM
  *
  * IML + Model -> RM
  *
@@ -233,7 +233,6 @@ int writeCoreValues(xmlTextWriterPtr writer,
         int algtype,
         char *id,
         TSS_PCR_EVENT * event) {
-
     /* check */
     if (writer == NULL) {
         LOG(LOG_ERR, "null input");
@@ -479,7 +478,6 @@ int writeAllCoreValues(xmlTextWriterPtr writer, OPENPTS_SNAPSHOT * ss) {
  */
 int writeFsmSubvertex(xmlTextWriterPtr writer,
         OPENPTS_FSM_Subvertex * sub) {
-
     DEBUG_CAL("writeFsmSubvertex - start\n");
 
     /* check */
@@ -682,7 +680,6 @@ int writeFsmTransition(xmlTextWriterPtr writer,
 </uml:Model>
 */
 int writeFsmModel(xmlTextWriterPtr writer, OPENPTS_FSM_CONTEXT * fsm) {
-    //int rc =0;
     char id[BUF_SIZE];
     OPENPTS_FSM_Subvertex *sub;
     OPENPTS_FSM_Transition *trans;

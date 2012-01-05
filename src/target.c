@@ -26,7 +26,7 @@
  * \brief target(collector)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2011-06-22
- * cleanup 2011-10-07 SM
+ * cleanup 2012-01-04 SM
  *
  * branch from uuid.c
  *
@@ -130,10 +130,7 @@ static int selectUuidDir(const struct dirent *entry) {
 
     /* skip bad dir name - by length */
     len = strlen(entry->d_name);
-    // TODO ("UUID dirname len = %d, %s\n",len, entry->d_name);
     if (len != 36) return 0;
-
-    // TODO not enough?, add test cases for the bad dir name
 
     /* Dir HIT */
     // TODO check the format
@@ -187,16 +184,16 @@ int getRmList(OPENPTS_CONFIG *conf, char * config_dir) {
 
     /* move to config dir */
     if ((chdir(conf->config_dir)) != 0) {
-        ERROR(  // TODO NLS
-            "Accessing config directory %s\n", conf->config_dir);
+        ERROR(NLS(MS_OPENPTS, OPENPTS_TARGET_CONFDIR_MISSING,
+            "Accessing config directory %s fail\n"), conf->config_dir);
         return PTS_INTERNAL_ERROR;
     }
 
     /* scan dirs */
     dir_num = scandir(".", &dir_list, &selectUuidDir, NULL);
     if ( dir_num == -1 ) {
-        ERROR( // TODO NLS
-            "No target data.\n");
+        ERROR(NLS(MS_OPENPTS, OPENPTS_TARGET_NULL,
+            "No target data.\n"));
         return PTS_INTERNAL_ERROR;
     }
 
@@ -269,7 +266,6 @@ int getRmList(OPENPTS_CONFIG *conf, char * config_dir) {
                 rmset1->dir      = tmp_dir;
             }
         }
-        //  printRmList(conf);
     }
 
     /* set current_id */
@@ -319,8 +315,6 @@ int rmRmsetDir(char * dir) {
         return PTS_FATAL;
     }
 
-
-    // DEBUG("rm -r %s\n", dir);
     snprintf(buf, BUF_SIZE, "rm -r %s\n", dir);
     rc = system(buf);
     if (rc < 0) {
@@ -363,7 +357,6 @@ int purgeRenewedRm(OPENPTS_CONFIG *conf) {
         state = rmset->state;
 
         if (state == OPENPTS_RM_STATE_TRASH) {
-            // INFO(NLS(MS_OPENPTS, OPENPTS_PURGE_RENEWED_RM, "  purge %s\n"), rmset->str_uuid);
             LOG(LOG_INFO, "  purge %s\n", rmset->str_uuid);
             rc = rmRmsetDir(rmset->dir);
             if (rc != PTS_SUCCESS) {
@@ -750,6 +743,38 @@ static void printTargetInfo_CompID(OPENPTS_CONTEXT *ctx, FILE *fp, int cnt) {
 }
 #endif
 
+/**
+ * print one target
+ */
+void printTarget(
+    OPENPTS_TARGET *target_collector,
+    char *indent) {
+
+    OPENPTS_CONFIG *target_conf;
+
+    /* check */
+    if (target_collector == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
+    target_conf = (OPENPTS_CONFIG*)target_collector->target_conf;
+    if (target_conf == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
+
+    // WORK NEEDED: Please use NLS for i18n output
+    OUTPUT("%shostname     : %s\n", indent, target_conf->hostname);
+    OUTPUT("%sssh username : %s\n", indent, target_conf->ssh_username);
+    OUTPUT("%ssh port      : %s\n", indent, target_conf->ssh_port);
+    OUTPUT("%sUUID         : %s\n", indent, target_collector->str_uuid);
+    OUTPUT("%sState        : %d\n", indent, target_collector->state);
+    OUTPUT("%sDir          : %s\n", indent, target_collector->dir);
+    OUTPUT("%sManifests    :\n", indent);
+
+    getRmList(target_conf, target_conf->config_dir);
+    printRmList(target_conf, indent);
+}
 
 /**
  * print target list, target par line
@@ -775,8 +800,8 @@ void printTargetList(OPENPTS_CONFIG *conf, char *indent) {
     num = conf->target_list->target_num;
 
     if (num == 0) {
-        OUTPUT(  // TODO NLS
-            "There is no enrolled target platform.\n");
+        OUTPUT(NLS(MS_OPENPTS, OPENPTS_PRINT_TARGET_LIST_NULL,
+            "There is no enrolled target platform.\n"));
         return;
     }
 

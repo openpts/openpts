@@ -26,13 +26,12 @@
  * \brief policy
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-06-19
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-05 SM
  *
  * Security Policy
  * - load
  * - verify
  * - print
- *
  *
  */
 
@@ -42,7 +41,6 @@
 #include <string.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /**
  * Free policy chain
@@ -71,15 +69,15 @@ int freePolicyChain(OPENPTS_POLICY *pol) {
  *   policy number
  */
 int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
-    FILE *fp;
     char buf[BUF_SIZE];  // SMBIOS
     char *eq;
     char *name;
     char *value;
     int cnt = 1;
     int len;
-    OPENPTS_POLICY *pol;
     int line = 0;
+    FILE *fp;
+    OPENPTS_POLICY *pol;
 
     /* check */
     if (ctx == NULL) {
@@ -99,7 +97,6 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
     }
 
     /* parse */
-
     while (fgets(buf, BUF_SIZE, fp) != NULL) {  // read line
         /* ignore comment, null line */
         if (buf[0] == '#') {
@@ -143,7 +140,7 @@ int loadPolicyFile(OPENPTS_CONTEXT *ctx, char * filename) {
             }
             cnt++;
         } else {
-            //
+            // unknown eq
         }
         line++;
     }
@@ -243,7 +240,6 @@ int checkPolicy(OPENPTS_CONTEXT *ctx) {
 /**
  * print policy and properties
  *
- *
  */
 int printPolicy(OPENPTS_CONTEXT *ctx) {
     OPENPTS_POLICY *pol;
@@ -308,5 +304,3 @@ int printPolicy(OPENPTS_CONTEXT *ctx) {
 
     return 0;
 }
-
-

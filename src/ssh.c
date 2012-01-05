@@ -27,7 +27,7 @@
  * @author Olivier Valentin <olivier.valentin@us.ibm.com>
  * @author Alexandre Ratchov <alexandre.ratchov@bull.net>
  * @date 2010-03-31
- * cleanup 2011-12-31 SM
+ * cleanup 2012-01-05 SM
  *
  */
 
@@ -67,20 +67,19 @@ pid_t ssh_connect(char *host, char *ssh_username, char *ssh_port, char *key_file
         return -1;
     }
 
-
     /* socket */
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, socket_pair) == -1) {
         LOG(LOG_ERR, "socketpair() fail");
         goto err;
     }
 
+    /* fork */
     if ((pid = fork()) == -1) {
         LOG(LOG_ERR, "fork() fail");
         goto err_close;
     }
-
     if (pid == 0) {
-        // child process
+        /* child process */
         char *arguments[16];
         int arg_idx = 0;
         char identity_string[PATH_MAX + /* "IdentityFile " */ 13];
@@ -117,13 +116,14 @@ pid_t ssh_connect(char *host, char *ssh_username, char *ssh_port, char *key_file
         arguments[arg_idx++] = host;
         arguments[arg_idx++] = ptsc_command;
 #if 0
+        // TODO
         /* Sync verbose level between verifier and collector? */
-        // {
+        if (verbose_sync) {
            int verboseLevel;
             for ( verboseLevel = 0; (verboseLevel < getVerbosity()) && (arg_idx < 15); verboseLevel++ ) {
                 arguments[arg_idx++] = "-v";
             }
-        // }
+        }
 #endif
         arguments[arg_idx++] = NULL;
 

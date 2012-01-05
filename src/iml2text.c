@@ -24,7 +24,7 @@
  * \brief Convert binary IML file to plaintext
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-25
- * cleanup 2011-08-17 SM
+ * cleanup 2012-01-05 SM
  *
  * show eventlog (get though TSS)
  *
@@ -90,7 +90,6 @@
 #include <openssl/sha.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 #ifdef CONFIG_TBOOT
 #include <openpts_tboot.h>
@@ -99,14 +98,8 @@
 // Local TCSD
 #define SERVER    NULL
 
-
 // PCR
 BYTE pcr[24][20];
-
-// Verbose Counter
-//       0 no
-// -v    1 show event data contents
-// -v -v 2 DEBUG
 
 char *indent = "                                                              ";
 
@@ -1047,7 +1040,7 @@ void usage(void) {
         "  -V                    Verify\n"
         "  -D                    DRTM\n"
         "  -E                    Enable endian conversion (BE->LE or LE->BE)\n"
-        "  -P                    Show pcrs calculated from the IML" 
+        "  -P                    Show pcrs calculated from the IML"
         "  -h                    Show this help message\n"
         "\n"));
 }
@@ -1296,7 +1289,7 @@ int main(int argc, char *argv[]) {
         }
     }
     /* pcrs */
-    // PCR-00: 8F BF F3 EC EA 9C 54 C8 D1 C4 2C FE A9 3D 6B F0 1B F3 40 5B 
+    // PCR-00: 8F BF F3 EC EA 9C 54 C8 D1 C4 2C FE A9 3D 6B F0 1B F3 40 5B
     if (pcrs == 1) {
         for (i = 0; i < 24; i++) {
             fprintf(fp, "PCR-%02d: ", i);

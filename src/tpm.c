@@ -26,7 +26,7 @@
  * \brief emulate TPM
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-12-31 SM
+ * cleanup 2012-01-05 SM
  *
  *  Emulate TPM to validate IML and PCR
  */
@@ -46,8 +46,7 @@
 
 #include <openpts.h>
 
-
-/* TPM functions */
+/* TPM functions -------------------------------------------------------------*/
 
 /**
  * reset TPM
@@ -333,5 +332,3 @@ int getTpmPcrValue(OPENPTS_TPM_CONTEXT *tpm, int index, BYTE *digest) {
 
     return PTS_SUCCESS;
 }
-
-

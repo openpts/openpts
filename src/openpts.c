@@ -26,11 +26,9 @@
  * \brief main of openpts command
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-07-25
- * cleanup 2011-07-20 SM
+ * cleanup 2012-01-04 SM
  *
  * This is verifier and utility to maintain the collector/verifier
- *
- *
  *
  */
 
@@ -56,7 +54,6 @@
 // verifier.c
 void global_lock(int type);
 int getDefaultConfigfile(OPENPTS_CONFIG *conf);
-// log.c
 
 /* Well defined return values that can be interpreted by the GUI */
 #define RETVAL_OK_TRUSTED       0
@@ -67,7 +64,6 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf);
 #ifdef CONFIG_AUTO_RM_UPDATE
 #define RETVAL_OK_PENDINGUPDATE 5
 #endif
-
 
 #define LINE "--------------------------------------------------------------------"
 
@@ -115,8 +111,6 @@ void usage(void) {
 
 #define OPENPTS_LOG_FILENAME  "~/.openpts/openpts.log"
 
-
-
 /**
  * main of "openpts" command 
  *
@@ -129,7 +123,6 @@ int main(int argc, char *argv[]) {
     int rc = 0;       // temporary return code
     int retVal = -1;  // main() actual return value
     int opt;
-
     OPENPTS_CONFIG *conf = NULL;  // conf for openpts
     OPENPTS_CONTEXT *ctx = NULL;
     char * config_filename = NULL;
@@ -153,11 +146,11 @@ int main(int argc, char *argv[]) {
     char *ptsc_path = NULL;
     char *ptsc_conf = NULL;
 
+    /* Logging/NLS */
     initCatalog();
     setSyslogCommandName("openpts");
 
     /* args */
-    /* verbose level */
     while ((opt = getopt(argc, argv, "givruDVc:dfuyl:p:P:C:h")) != -1) {
         switch (opt) {
         case 'i':
@@ -180,11 +173,9 @@ int main(int argc, char *argv[]) {
                 command = DISPLAY;
                 break;
             }
-
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_ONE_COMMAND_ONLY, "Only one command may be given at a time."));
             usage();
             return -1;
-
         case 'V':
             incVerbosity();
             break;
@@ -239,11 +230,8 @@ int main(int argc, char *argv[]) {
     /* check */
     if ((ptsc_path != NULL) && (ptsc_conf != NULL)) {
         int len;
-        // char ptsc_command[PATH_MAX];
-        LOG(LOG_INFO, "ptsc debug mode\n");
-        // len = strlen(ptsc_path) + strlen(ptsc_conf) + 13;
-        // snprintf(ptsc_command, PATH_MAX - 1, "%s -m -v -c %s", ptsc_path, ptsc_conf);
 
+        LOG(LOG_INFO, "ptsc debug mode\n");
         len =  strlen(ptsc_path) + strlen(ptsc_conf) + 13;
         ptsc_command = xmalloc(len);
         snprintf(ptsc_command, len, "%s -m -v -c %s", ptsc_path, ptsc_conf);
@@ -286,8 +274,7 @@ int main(int argc, char *argv[]) {
         goto out_free;
     }
 
-    // setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
-
+    /* verbose msg */
     VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_VERIFIER_CONFIG_FILE,
         "Config file         : %s\n"), conf->config_file);
     VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_VERIFIER_VERBOSITY,
@@ -364,17 +351,9 @@ int main(int argc, char *argv[]) {
             /* given target (by hostname) */
             /* look up */
             if (target_collector != NULL) {
-                // WORK NEEDED: Please use NLS for i18n output
-                OUTPUT("hostname  : %s\n", target_hostname);
-                OUTPUT("UUID      : %s\n", target_collector->str_uuid);
-                OUTPUT("State     : %d\n", target_collector->state);
-                OUTPUT("Dir       : %s\n", target_collector->dir);
-                OUTPUT("Manifests :\n");
-
-                getRmList(target_conf, target_conf->config_dir);
-                printRmList(target_conf, "");
+                printTarget(target_collector, "");
             } else {
-                OUTPUT(NLS(MS_OPENPTS, OPENPTS_TARGET_NOT_INITIALIZED,
+                ERROR(NLS(MS_OPENPTS, OPENPTS_TARGET_NOT_INITIALIZED,
                        "The target %s is not initialized yet. Please enroll with '%s' first\n\n"),
                         target_hostname, target_hostname);
                 retVal = RETVAL_NOTENROLLED;
@@ -383,10 +362,12 @@ int main(int argc, char *argv[]) {
         } else {
             /* all target (simple) */
             printTargetList(conf, "");  // target.c
-            goto out_free;  // exit
+            goto out_free;
         }
-    } else if ( NULL == target_hostname ) {
+    } else if (target_hostname == NULL) {
         /* Other commands use Remote Access (SSH) */
+        ERROR(NLS(MS_OPENPTS, OPENPTS_TARGET_MISSING,
+               "Requires the target hostname\n\n")),
         usage();
         goto out_free;
     }
@@ -470,8 +451,8 @@ int main(int argc, char *argv[]) {
         DEBUG("conf->config_dir %s\n", conf->config_dir);
         rc = enroll(ctx, target_hostname, ssh_username, ssh_port, conf->config_dir, force);  // verifier.c
         if (rc != 0) {
-            ERROR(  // TODO NLS
-                "enroll was failed, rc = %d\n", rc);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_INIT_ENROLL_FAIL,
+                "enroll was failed, rc = %d\n"), rc);
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_NOTENROLLED;
             goto out_free;
@@ -481,8 +462,8 @@ int main(int argc, char *argv[]) {
         rc =  verifier(ctx, target_hostname, ssh_username, ssh_port, conf->config_dir, 1);  // init
         if (rc != OPENPTS_RESULT_VALID) {
             LOG(LOG_ERR, "initial verification was failed, rc = %d\n", rc);
-            ERROR(  // TODO NLS
-                "initial verification was failed, rc = %d\n", rc);
+            ERROR(NLS(MS_OPENPTS, OPENPTS_INIT_VERIFICATION_FAIL,
+                "initial verification was failed, rc = %d\n"), rc);
             printReason(ctx, print_pcr_hints);
             retVal = RETVAL_NOTTRUSTED;
             goto out_free;

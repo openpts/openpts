@@ -26,7 +26,7 @@
  * \brief FSM action
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-06-19
- * cleanup 2011-07-20 SM
+ * cleanup 2012-01-05 SM (remains 5 lint errors)
  *
  * FSM Action (UML2 doActivity)
  *
@@ -85,9 +85,20 @@ typedef struct {
  */
 int resetPCR(OPENPTS_CONTEXT *ctx, char *value) {
     int rc;
-    int pcr_index = atoi(value);
+    int pcr_index;
 
-    DEBUG_FSM("resetPCR(%d)\n", pcr_index);
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    pcr_index = atoi(value);
+
+    /* reset */
     rc = resetTpmPcr(&ctx->tpm, pcr_index);
     if (rc != PTS_SUCCESS) {
         LOG(LOG_ERR, "reset PCR[%d] was failed, check the model");
@@ -96,6 +107,8 @@ int resetPCR(OPENPTS_CONTEXT *ctx, char *value) {
 
     /* Also, reset the action counter */
     ctx->bios_action_count = 0;
+
+    DEBUG_FSM("resetPCR(%d)\n", pcr_index);
 
     return PTS_SUCCESS;
 }
@@ -118,21 +131,25 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
 
     /* check */
     if (eventWrapper == NULL) {
-        // TODO  do not care for dummy EW
-        DEBUG("null input\n");  // TODO is this OK?
-        // TODO define RC <-> fsm.c >> INFO:(TODO) fsm.c:986 updateFsm() - rc = 58, call updateFsm() again
+        // do not care for dummy EW, not a error.
+        DEBUG("null input");
         return PTS_INTERNAL_ERROR;
+    }
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
     }
 
     event = eventWrapper->event;
     if (event == NULL) {
-        LOG(LOG_ERR, "null input\n");
+        LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
     /* value = eventdata */
     value = snmalloc((char *)event->rgbEvent, event->ulEventLength);
     if (value == NULL) {
+        LOG(LOG_ERR, "no memory");
         return PTS_FATAL;
     }
 
@@ -141,11 +158,11 @@ int addBIOSAction(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper)
     snprintf(name, BUF_SIZE, "bios.pcr.%d.action.%d", event->ulPcrIndex, ctx->bios_action_count);
     ctx->bios_action_count++;
 
+    setProperty(ctx, name, value);
 
     DEBUG_FSM("[FSM] addBIOSAction() - '%s' = '%s'\n", name, value);
 
-    setProperty(ctx, name, value);
-
+    /* free */
     xfree(value);
 
     return PTS_SUCCESS;
@@ -173,20 +190,22 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
     UINT32 event_id;
     UINT32 event_length;
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
     /* event */
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "addBIOSSpecificProperty- eventWrapper is NULL\n");
         return PTS_INTERNAL_ERROR;  // -1
     }
     event = eventWrapper->event;
-
     if (event->eventType != 0x06) {
         LOG(LOG_ERR, "addBIOSSpecificProperty - bad event type 0x%x !- 0x06\n", event->eventType);
         return PTS_INTERNAL_ERROR;  // -1
     }
-
-    // DEBUG("event data size = %d\n", event->ulEventLength);
-    // printHex("", event->rgbEvent, event->ulEventLength, "\n");
 
     /* check EventData */
     if (event->ulEventLength == 0) {
@@ -198,11 +217,9 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
         return PTS_FATAL;
     }
 
-
+    /* event */
     event_id = byte2uint32(&event->rgbEvent[0]);
     event_length = byte2uint32(&event->rgbEvent[4]);
-
-    // DEBUG("event data size = %d, id = 0x%x, len %d,\n", event->ulEventLength, event_id, event_length);
 
     switch (event_id) {
         case 0x0001:
@@ -229,7 +246,6 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
                 } else {
                     setProperty(ctx, "bios.smbios", buf);
                 }
-                // rc = 0;
                 xfree(buf);
             }
             break;
@@ -239,7 +255,7 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
             break;
     }
 
-    return PTS_SUCCESS;  // -1;
+    return PTS_SUCCESS;
 }
 
 
@@ -253,16 +269,21 @@ int addBIOSSpecificProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
 int validateMBR(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     TSS_PCR_EVENT *event;
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "null input");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
 
     event = eventWrapper->event;
 
     if (event == NULL) {
         LOG(LOG_ERR, "event is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;  // -1;
     }
 
     // TODO
@@ -287,22 +308,25 @@ int validateMBR(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
 int validateEltoritoBootImage(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     TSS_PCR_EVENT *event;
 
-    // DEBUG("validateEltoritoBootImage - NA\n");
-
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "eventWrapper is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
-
     event = eventWrapper->event;
     if (event == NULL) {
         LOG(LOG_ERR, "event is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
 
+    /* set prop */
     setProperty(ctx, "ipl.eltorito.integrity", "unknown");
 
-    return PTS_SUCCESS;  // -1;
+    return PTS_SUCCESS;
 }
 
 /**
@@ -320,19 +344,19 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
     char *buf;
     int buf_len;
 
-    // DEBUG("setModuleProperty - NA\n");
-
     /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "eventWrapper is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
-
     event = eventWrapper->event;
-
     if (event == NULL) {
         LOG(LOG_ERR, "event is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
 
     /* kernel.initrd.digest = PCR => B64 digest */
@@ -342,7 +366,7 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
         &buf_len);
     if (buf == NULL) {
         LOG(LOG_ERR, "encodeBase64 fail");
-        return PTS_INTERNAL_ERROR;
+        return PTS_FATAL;
     }
     setProperty(ctx, "kernel.initrd.digest", buf);
     xfree(buf);
@@ -355,6 +379,9 @@ int setModuleProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrap
         buf[event->ulEventLength] = 0;
         setProperty(ctx, "kernel.initrd.filename", buf);
         xfree(buf);
+    } else {
+        LOG(LOG_ERR, "no memory");
+        return PTS_FATAL;
     }
 
     return PTS_SUCCESS;  // -1;
@@ -396,19 +423,20 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
 
     DEBUG_CAL("setLinuxKernelCmdlineAssertion - start\n");
 
-    /* input check */
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "eventWrapper is NULL\n");
         return PTS_FATAL;
     }
-
     event = eventWrapper->event;
-
     if (event == NULL) {
         LOG(LOG_ERR, "event is NULL\n");
         return PTS_FATAL;
     }
-
     if (event->rgbEvent == NULL) {
         LOG(LOG_ERR, "event->rgbEvent is NULL, BAD IML?\n");
         return PTS_FATAL;
@@ -420,6 +448,10 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
 
     /* copy(malloc) strings */
     cmdline = snmalloc((char *)event->rgbEvent, event->ulEventLength);
+    if (cmdline == NULL) {
+        LOG(LOG_ERR, "snmalloc() fail");
+        return PTS_FATAL;
+    }
 
     /* first string = kernel filename */
     tp = strtok_r(cmdline, " ", &saveptr);
@@ -443,8 +475,8 @@ int setLinuxKernelCmdlineAssertion(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPP
                         "Property %s=%s and %s=%s are conflicted. Drop them from the policy list.",
                         name, prop->value,
                         name, value);
-                    VERBOSE(2, // TODO NLS
-                        "Property %s=%s and %s=%s are conflicted. Drop them from the policy list.",
+                    VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_ACTION_PROP_CONFLICT,
+                        "Property %s=%s and %s=%s are conflicted. Drop them from the policy list."),
                         name, prop->value,
                         name, value);
                     prop->ignore = 1;
@@ -500,19 +532,23 @@ int validateImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventW
     SHA_CTX sha_ctx;
     BYTE digest[SHA1_DIGEST_SIZE];
 
-    // DEBUG("validateImaAggregate - NA\n");
-
     /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "null input\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
     }
-
     event = eventWrapper->event;
-
     if (event == NULL) {
         LOG(LOG_ERR, "event is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        return PTS_FATAL;
+    }
+    if (event->rgbEvent == NULL) {
+        LOG(LOG_ERR, "null input\n");
+        return PTS_FATAL;
     }
 
     /* init SHA1 */
@@ -589,18 +625,23 @@ int validateOldImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
     SHA_CTX sha_ctx;
     BYTE digest[SHA1_DIGEST_SIZE];
 
-    // DEBUG("validateOldImaAggregate - NA\n");
-
     /* check */
-    if (eventWrapper == NULL) {
-        LOG(LOG_ERR, "eventWrapper is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
     }
-
+    if (eventWrapper == NULL) {
+        LOG(LOG_ERR, "eventWrapper is NULL");
+        return PTS_FATAL;
+    }
     event = eventWrapper->event;
     if (event == NULL) {
-        LOG(LOG_ERR, "event is NULL\n");
-        return PTS_INTERNAL_ERROR;  // -1;
+        LOG(LOG_ERR, "event is NULL");
+        return PTS_FATAL;
+    }
+    if (event->rgbPcrValue == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
     }
 
     /* init SHA1 */
@@ -635,6 +676,24 @@ int validateOldImaAggregate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eve
  */
 int updateImaProperty(OPENPTS_CONTEXT *ctx, char* name, char* b64digest, char *integrity) {
     char prop_name[256];
+
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (name == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (b64digest == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (integrity == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
 
     /* integrity */
     snprintf(prop_name, sizeof(prop_name), "ima.%d.integrty", ctx->ima_count);
@@ -674,6 +733,11 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
 
     DEBUG_CAL("validateImaMeasurement - start\n");
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     if (eventWrapper == NULL) {
         /* Just ignore the NULL event */
         // TODO(munetoh) Detect LOOP
@@ -688,6 +752,12 @@ int validateImaMeasurement(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *even
 
 #ifdef CONFIG_AIDE
     event = eventWrapper->event;
+    /* check */
+    if (event == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
     if (ctx->conf->ima_validation_mode == OPENPTS_VALIDATION_MODE_AIDE) {
         int rc = 0;
         char *name;
@@ -801,6 +871,12 @@ int validateImaMeasurementNG(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
  *
  */
 int resetCounter(OPENPTS_CONTEXT *ctx) {
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
     ctx->count = 0;
 
     // DEBUG("[FSM] resetCounter()");
@@ -811,6 +887,12 @@ int resetCounter(OPENPTS_CONTEXT *ctx) {
  *
  */
 int incrementCounter(OPENPTS_CONTEXT *ctx) {
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
     ctx->count += 1;
 
     // DEBUG("[FSM] incrementCounter() %d => %d\n", ctx->count -1, ctx->count);
@@ -899,12 +981,21 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
 
     DEBUG_FSM("addIntelTxtTbootProperty - start\n");
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
     /* event */
     if (eventWrapper == NULL) {
         LOG(LOG_ERR, "addBIOSSpecificProperty- eventWrapper is NULL\n");
         return -1;
     }
     event = eventWrapper->event;
+    if (event == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
 
     switch (event->eventType) {
         case EV_TBOOT_SINIT_V6:
@@ -1029,7 +1120,6 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
     // TODO
     ctx->drtm = 1;
 
-    // setProperty(ctx, "kernel.commandline", "TBD");
     return PTS_SUCCESS;
 }
 #endif
@@ -1042,10 +1132,19 @@ int addIntelTxtTbootProperty(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *ev
 int saveCounter(OPENPTS_CONTEXT *ctx, char * name) {
     char buf[128];  // TODO
 
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (name == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+
     snprintf(buf, sizeof(buf), "%d", ctx->count);
     addProperty(ctx, name, buf);
 
-    // DEBUG("[FSM] saveCounter() %s = %s\n", name, buf);
 
     return PTS_SUCCESS;
 }
@@ -1247,7 +1346,7 @@ int doActivity(
     if (eventWrapper == NULL) {
         /* NULL event, skip evaluation */
         DEBUG_FSM("doActivity - eventWrapper is NULL, skip evaluation\n");
-        // return 1;  //OPENPTS_FSM_SUCCESS;
+        // check again by each func
     }
 
     /* copy */

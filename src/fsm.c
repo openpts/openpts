@@ -26,9 +26,9 @@
  * \brief Finite State Machine
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-01-21 SM
- * refactoring 2011-07-20 SM
- * 
+ * cleanup 2012-01-05 SM (remains one lint error)
+ *   src/fsm.c:416:  Use int16/int64/etc, rather than the C type long  [runtime/int] [4]
+ *
  * Input
  *   FSM Model
  *   IML
@@ -99,7 +99,6 @@ void freeFsmTransitionChain(OPENPTS_FSM_Transition *fsm_trans) {
  * Free OPENPTS_FSM_Subvertex chain
  */
 void freeFsmSubvertexChain(OPENPTS_FSM_Subvertex *fsm_sub) {
-
     /* check */
     if (fsm_sub == NULL) {
         LOG(LOG_ERR, "null input");
@@ -119,7 +118,6 @@ void freeFsmSubvertexChain(OPENPTS_FSM_Subvertex *fsm_sub) {
  * free FSM context
  */
 int freeFsmContext(OPENPTS_FSM_CONTEXT *ctx) {
-
     /* check */
     if (ctx == NULL) {
         LOG(LOG_ERR, "null input");
@@ -161,7 +159,12 @@ void resetFsmSubvertex(OPENPTS_FSM_CONTEXT *ctx) {
         return;
     }
 
-    // fsm_sub=NULL;
+    /* free subvertex chain */
+    if (ctx->fsm_sub != NULL) {
+        freeFsmSubvertexChain(ctx->fsm_sub);
+        ctx->fsm_sub = NULL;
+    }
+
     ctx->subvertex_num = 0;
 }
 
@@ -175,7 +178,12 @@ void resetFsmTransition(OPENPTS_FSM_CONTEXT *ctx) {
         return;
     }
 
-    // fsm_trans=NULL;
+    /* free transition chain */
+    if (ctx->fsm_trans != NULL) {
+        freeFsmTransitionChain(ctx->fsm_trans);
+        ctx->fsm_trans = NULL;
+    }
+
     ctx->transition_num = 0;
 }
 
@@ -471,13 +479,11 @@ int getTypeFlag(char * cond, UINT32 *eventtype /* out */) {
             if  ((loc[0] == '0') && (loc[1] == 'x')) {  // 0x HEX
                 val = strtoll(loc, NULL, 16);
                 *eventtype = (UINT32)val;
-                // DEBUG("strtol [%s] => %X => %X\n", loc,val,*eventtype);
                 return rc;
             }
         }
         val = strtoll(loc, NULL, 10);
         *eventtype = (UINT32)val;
-        // DEBUG("strtol [%s] => %X => %X\n", loc,val, *eventtype);
 
         return rc;
     }
@@ -628,7 +634,7 @@ int getCounterFlag(char *cond, char *name, char **flag /* out */) {
 
         loc = skipWhiteSpace(loc, &len);
         if (isEndOfString(loc)) {
-            goto error;  //return -1;
+            goto error;
         }
 
         /* operation, "&lt;" ">=" only */
@@ -666,12 +672,12 @@ int getCounterFlag(char *cond, char *name, char **flag /* out */) {
             len -=2;
         } else {
             LOG(LOG_ERR, "unknown operand [%s]", &loc[0]);
-            goto error;  //return -1;
+            goto error;
         }
 
         loc = skipWhiteSpace(loc, &len);
         if (isEndOfString(loc)) {
-            goto error;  //return -1;
+            goto error;
         }
 
         // TODO check the end, this code only support if counter is the last
@@ -680,14 +686,14 @@ int getCounterFlag(char *cond, char *name, char **flag /* out */) {
         param_len = loc2 - loc;
         if (0 == param_len) {
             /* we haven't moved along the string - no valid parameter found */
-            goto error;  //return -1;
+            goto error;
         }
 
         /* DEBUG_FSM("[%d][%s][%s]\n",len, loc, loc2); */
 
         *flag = xmalloc(param_len + 1);
         if (*flag == NULL) {
-            goto error;  //return -1;
+            goto error;
         }
         memset(*flag, 0, param_len + 1);
         memcpy(*flag, loc, param_len);
@@ -788,13 +794,8 @@ int getLastFlag(char * cond) {
         }
     }
 
-    // DEBUG("getLastFlag  %s #=> %d\n",cond, rc);
-
     return rc;
 }
-
-
-
 
 /**
  * add FSM transition
@@ -1011,9 +1012,6 @@ int updateFsm(
         OPENPTS_PCR_EVENT_WRAPPER *eventWrapper
     ) {
     int rc = OPENPTS_FSM_SUCCESS;
-    OPENPTS_FSM_Subvertex  *curr_state;
-    OPENPTS_FSM_Transition *trans;
-    TSS_PCR_EVENT *event;
     int type_check;
     int digest_check;
     int fatal_counter_check;
@@ -1021,7 +1019,10 @@ int updateFsm(
     int dont_care;
     int hit = 0;
     char *hex;
+    OPENPTS_FSM_Subvertex  *curr_state;
+    OPENPTS_FSM_Transition *trans;
     OPENPTS_FSM_Transition *hit_trans = NULL;
+    TSS_PCR_EVENT *event;
 
     DEBUG_CAL("updateFsm - start\n");
 
@@ -1511,12 +1512,10 @@ int updateFsm(
  *   called from rm.c
  */
 OPENPTS_FSM_CONTEXT *copyFsm(OPENPTS_FSM_CONTEXT *src_fsm) {
-    OPENPTS_FSM_CONTEXT * dst_fsm = NULL;
-
+    OPENPTS_FSM_CONTEXT    *dst_fsm = NULL;
     OPENPTS_FSM_Subvertex  *src_fsm_sub;
     OPENPTS_FSM_Subvertex  *dst_fsm_sub = NULL;
     OPENPTS_FSM_Subvertex  *dst_fsm_sub_prev = NULL;
-
     OPENPTS_FSM_Transition *src_fsm_trans;
     OPENPTS_FSM_Transition *dst_fsm_trans = NULL;
     OPENPTS_FSM_Transition *dst_fsm_trans_prev = NULL;
@@ -1664,8 +1663,8 @@ int changeTargetSubvertex(
         OPENPTS_FSM_Subvertex *old_sub,    // B
         OPENPTS_FSM_Subvertex *new_sub) {  // BN
     int rc = 0;
-    OPENPTS_FSM_Transition *fsm_trans;
     int count = 0;
+    OPENPTS_FSM_Transition *fsm_trans;
 
     /* check */
     if (fsm_ctx == NULL) {
@@ -1721,8 +1720,8 @@ int changeTransTargetSubvertex(
         OPENPTS_FSM_Subvertex *old_sub,    // B
         OPENPTS_FSM_Subvertex *new_sub) {  // BN
     int rc = 0;
-    OPENPTS_FSM_Transition *fsm_trans;
     int count = 0;
+    OPENPTS_FSM_Transition *fsm_trans;
 
     /* check */
     if (fsm_ctx == NULL) {
@@ -1813,9 +1812,9 @@ int insertFsmNew(
         OPENPTS_FSM_Transition *fsm_trans,  // target Trans
         OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     int rc =0;
-    OPENPTS_FSM_Subvertex *prev_sub;  // STRUCT LINK
-    OPENPTS_FSM_Subvertex *new_sub;
-    OPENPTS_FSM_Subvertex *dst_sub;
+    OPENPTS_FSM_Subvertex  *prev_sub;  // STRUCT LINK
+    OPENPTS_FSM_Subvertex  *new_sub;
+    OPENPTS_FSM_Subvertex  *dst_sub;
     OPENPTS_FSM_Transition *prev_trans;  // STRUCT LINK
     OPENPTS_FSM_Transition *new_trans;
     TSS_PCR_EVENT *event;
@@ -1851,7 +1850,6 @@ int insertFsmNew(
         return -1;
     }
 
-
     /* start */
     if (fsm_trans->source_subvertex == fsm_trans->target_subvertex) {
         /* OK, this is LOOP,  */
@@ -1862,7 +1860,6 @@ int insertFsmNew(
         dst_sub = fsm_trans->target_subvertex;
 
         /* Add new subvertex, BN (->B) */
-
         new_sub = (OPENPTS_FSM_Subvertex *)
             xmalloc(sizeof(OPENPTS_FSM_Subvertex));
         if (new_sub == NULL) {
@@ -2256,6 +2253,7 @@ int writeDotModel(OPENPTS_FSM_CONTEXT *ctx, char * filename) {
         return PTS_FATAL;
     }
 
+    /* check filename, open */
     if (filename == NULL) {
         fp = stdout;
     } else {

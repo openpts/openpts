@@ -26,7 +26,7 @@
  * \brief FSM action for Auto RM Update (ARU)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2011-01-11
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-05 SM
  *
  * 2011-02-28 SM
  *   ARU information is stored in conf instead of ctx since this is part of
@@ -190,7 +190,7 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     int update_type;
     int data_length;
 
-    DEBUG("startUpdate() - start\n");
+    DEBUG_CAL("startUpdate() - start\n");
 
     /* check input */
     if (ctx == NULL) {
@@ -237,9 +237,6 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     update = (OPENPTS_UPDATE_CONTEXT *) conf->update;
     start = (OPENPTS_EVENT_UPDATE_START *) event->rgbEvent;
 
-    // DEBUG("StartUpdate\n");
-    // printHex("UpdateEvent ", (BYTE*) start, sizeof(OPENPTS_EVENT_UPDATE_START), "\n");
-
     // Convert the Endian
     if (ctx->conf->iml_endian != 0) {
         target_pcr_index = b2l(start->target_pcr_index);
@@ -276,20 +273,17 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     update->target_pcr_index = target_pcr_index;
     update->target_snapshot_level = target_snapshot_level;
 
-
     /* setup OPENPTS_UPDATE_SNAPSHOT */
     if (update->snapshot
             [target_pcr_index]
             [target_snapshot_level] == NULL) {
         /* 1st update of this PCR/Level */
-        // OPENPTS_UPDATE_SNAPSHOT
         /* malloc OPENPTS_UPDATE_SNAPSHOT */
-        // uss = xmalloc(sizeof(OPENPTS_UPDATE_SNAPSHOT));
         uss = newUpdateSnapshot();
         if (uss == NULL) {
-            return PTS_INTERNAL_ERROR;
+            LOG(LOG_ERR, "newUpdateSnapshot() fail");
+            return PTS_FATAL;
         }
-        // memset(uss, 0, sizeof(OPENPTS_UPDATE_SNAPSHOT));
     } else {
         /* already exist => replace  */
         /* free Old SS */
@@ -310,7 +304,7 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         [target_snapshot_level] = uss;
 
     conf->update_exist = 1;
-    DEBUG("startUpdate() - update exit\n");
+    DEBUG_CAL("startUpdate() - update exit\n");
 
     return PTS_SUCCESS;
 }
@@ -319,9 +313,9 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
  * doAction - deputyEvent
  */
 int deputyEvent(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
+    int rc = PTS_SUCCESS;
     TSS_PCR_EVENT *event;
     OPENPTS_UPDATE_CONTEXT *update;
-    int rc = PTS_SUCCESS;
     OPENPTS_CONFIG *conf;
     OPENPTS_UPDATE_SNAPSHOT *uss;
 
@@ -394,7 +388,7 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     OPENPTS_EVENT_UPDATE_START *start;
     int event_num;
 
-    DEBUG("endUpdate() - start\n");
+    DEBUG_CAL("endUpdate() - start\n");
 
     /* check input */
     if (ctx == NULL) {
@@ -474,7 +468,6 @@ int endUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
  * doAction - updateCollector
  */
 int updateCollector(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
-    // int rc = PTS_SUCCESS;
     TSS_PCR_EVENT *event;
     OPENPTS_EVENT_COLLECTOR_UPDATE *update = NULL;
     OPENPTS_CONFIG *conf;
@@ -696,7 +689,6 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
 
             /* Move to next level (0->1) */
             incActiveSnapshotLevel(ctx->ss_table, target_pcr_index);
-            // goto end;
             break;
         } else if (rc == OPENPTS_FSM_FINISH_WO_HIT) {
             // TRANSIT, Skip update SS chain
@@ -705,7 +697,6 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
 
             /* Move to next level (0->1) */
             incActiveSnapshotLevel(ctx->ss_table, target_pcr_index);
-            // goto end;
             break;
         } else {
             LOG(LOG_ERR, "updateFsm rc=%d\n", rc);
@@ -723,12 +714,10 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
         }
 
         ss->event_num++;
-        // update->event_count++;
         rc = OPENPTS_FSM_MIGRATE_EVENT;
 
         eventWrapper = eventWrapper->next_pcr;
         count++;
-        // TODO count
     }
     // TODO check count
     // TODO cut EW <-> event link
@@ -775,7 +764,16 @@ int extendEvCollectorUpdate(OPENPTS_CONFIG *conf) {
 
     /* malloc eventlog */
     collector_update = xmalloc_assert(sizeof(OPENPTS_EVENT_COLLECTOR_UPDATE));
+    if (collector_update == NULL) {
+        LOG(LOG_ERR, "no memory\n");
+        return PTS_FATAL;
+    }
     event = xmalloc_assert(sizeof(TSS_PCR_EVENT));
+    if (event == NULL) {
+        LOG(LOG_ERR, "no memory\n");
+        xfree(collector_update);
+        return PTS_FATAL;
+    }
 
     /* fill collector_start */
     memcpy(&collector_update->pts_version, &conf->pts_version, 4);
@@ -1182,7 +1180,7 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
             if ( -1 == bytesRead ) {
                 LOG(LOG_ERR, "Failed to read from fd %d, errno %d\n", fd, errno);
                 break;
-            } else if ( bytesRead == 0) {
+            } else if (bytesRead == 0) {
                 if (totalBytesRead != len) {
                     LOG(LOG_ERR, "Finished reading from file prematurely, still expecting data.");
                     return PTS_FATAL;
@@ -1206,7 +1204,7 @@ static int diffFileAgainstCache(char *fileName, int len, BYTE *contents) {
         }
     }
 
-    if ( fd != -1) {
+    if (fd != -1) {
         close(fd);
     }
 
@@ -1582,7 +1580,6 @@ int updateNewRm(OPENPTS_CONTEXT *ctx, char *host, char *conf_dir) {
     if (target_conf_filename != NULL) xfree(target_conf_filename);
     if (target_conf != NULL) freePtsConfig(target_conf);
 
-    // DEBUG("error at verifier\n");
     return rc;
 }
 

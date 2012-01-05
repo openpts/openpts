@@ -26,7 +26,7 @@
  * \brief properties
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-06-19
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-05 SM
  *
  * Security Properties
  *
@@ -107,7 +107,7 @@ void freeProperty(OPENPTS_PROPERTY *prop) {
  * Free Property Chain
  */
 int freePropertyChain(OPENPTS_PROPERTY *prop) {
-
+    /* check */
     if (prop == NULL) {
         /* end of chain */
         return PTS_SUCCESS;
@@ -163,6 +163,20 @@ int addProperty(OPENPTS_CONTEXT *ctx, char *name, char *value) {
     OPENPTS_PROPERTY *start;
     OPENPTS_PROPERTY *end;
     OPENPTS_PROPERTY *prop;
+
+    /* check */
+    if (ctx == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (name == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
+    if (value == NULL) {
+        LOG(LOG_ERR, "null input");
+        return PTS_FATAL;
+    }
 
     start = ctx->prop_start;
     end   = ctx->prop_end;
@@ -265,15 +279,15 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
         /* check, missing event */
         if (eventWrapper == NULL) {
             LOG(LOG_ERR, "setEventProperty() - eventWrapper is NULL\n");
-            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+            return PTS_FATAL;
         }
         if (eventWrapper->event == NULL) {
             LOG(LOG_ERR, "setEventProperty() - event is NULL\n");
-            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+            return PTS_FATAL;
         }
         if (eventWrapper->event->rgbPcrValue == NULL) {
             LOG(LOG_ERR, "setEventProperty() - rgbPcrValue is NULL\n");
-            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+            return PTS_FATAL;
         }
 
         buf = encodeBase64(
@@ -303,18 +317,18 @@ int setEventProperty(OPENPTS_CONTEXT *ctx, char *name, char *value, OPENPTS_PCR_
         /* check, missing event */
         if (eventWrapper == NULL) {
             LOG(LOG_ERR, "setEventProperty() - eventWrapper is NULL\n");
-            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+            return PTS_FATAL;
         }
         event = eventWrapper->event;
         if (event == NULL) {
             LOG(LOG_ERR, "setEventProperty() - event is NULL\n");
-            return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+            return PTS_FATAL;
         }
         if (event->ulEventLength > 0) {
             char * str;
             if (event->rgbEvent == NULL) {
                 LOG(LOG_ERR, "setEventProperty() - rgbEvent is NULL\n");
-                return PTS_FATAL; // 0;  // PTS_INTERNAL_ERROR;
+                return PTS_FATAL;
             }
             /* get String */
 
@@ -493,7 +507,6 @@ int saveProperties(OPENPTS_CONTEXT *ctx, char * filename) {
 }
 
 int addPropertiesFromConfig(OPENPTS_CONFIG *conf, OPENPTS_CONTEXT *ctx) {
-
     /* check */
     if (conf == NULL) {
         LOG(LOG_ERR, "null input");

@@ -26,7 +26,7 @@
  * \brief convert IML to AIDE DB
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-08-24
- * cleanup 2011-07-06 SM
+ * cleanup 2012-01-05 SM
  *
  * create AIDE DB from IML (via securityfs)
  *

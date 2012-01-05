@@ -26,7 +26,7 @@
  * \brief Load TCG Integrity Measurement Log (IML)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-07-06 SM
+ * cleanup 2012-01-05 SM
  *
  * get IML/PCRS from filesystem
  * get IML/PCRS vis TSS
@@ -47,8 +47,8 @@ void printEventWrapper(OPENPTS_PCR_EVENT_WRAPPER *eventWrapper);
  *
  * TODO use ctx,
  * TODO reset level1 too
+ * TODO move to snapshot?
  */
-// TODO move to snapshot?
 int resetSnapshot(OPENPTS_SNAPSHOT * snapshots) {
     int i, j;
     OPENPTS_SNAPSHOT *ss;
@@ -81,14 +81,12 @@ int resetSnapshot(OPENPTS_SNAPSHOT * snapshots) {
             xfree(eventWrapper);
             eventWrapper = eventWrapper_next;
         }
-        // if (iml[i].eventList != NULL) xfree(iml[i].eventList);
         ss->pcrIndex = i;
         ss->event_num = 0;
         ss->level = 0;
     }
 
-
-    return 0;  // TODO(munetoh)
+    return PTS_SUCCESS;
 }
 
 
@@ -234,11 +232,15 @@ int addEventToSnapshotBhv(
             ss = getSnapshotFromTable(ctx->ss_table, index, 1);
             if (ss == NULL) {
                 LOG(LOG_ERR, "getSnapshotFromTable(%d,1) is null", index);
+                // ctx->conf->config_file != NULL
+                LOG(LOG_ERR, "index %d\n", index);
+                LOG(LOG_ERR, "ctx->conf->config_file %s\n", ctx->conf->config_file);
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING,
                     "[PCR%02d] Snapshot(FSM) is missing for PCR%d. "
                     "Please check the configuration file '%s'"),
                     index,
-                    index, ctx->conf->config_file);
+                    index,
+                    ctx->conf->config_file);
                 ctx->ss_table->error[index] = PTS_INTERNAL_ERROR;
                 return PTS_INTERNAL_ERROR;
             }
@@ -253,6 +255,8 @@ int addEventToSnapshotBhv(
             } else {
                 /* FSM is missing */
                 LOG(LOG_ERR, "getSnapshotFromTable(), FSM is null");
+                LOG(LOG_ERR, "index %d\n", index);
+                LOG(LOG_ERR, "ctx->conf->config_file %s\n", ctx->conf->config_file);
                 addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_FSM_MISSING,
                     "[RM01-PCR%02d] FSM is missing for PCR%d, Level 1. "
                     "Please check the configuration file '%s'"),
@@ -433,7 +437,6 @@ int addEventToSnapshotBhv(
  *   PTS_INVALID_SNAPSHOT   bad event (FSM fail)
  *   PTS_INTERNAL_ERROR     else
  *
- *
  */
 int addEventToSnapshotBin(
         OPENPTS_CONTEXT * ctx,
@@ -474,7 +477,7 @@ int addEventToSnapshotBin(
 
         /* check next level (1) */
         if (ss == NULL) {
-            LOG(LOG_ERR, "addEventToSnapshotBin() - pcr=%d Level=%d snapshots is missing\n",index, active_level);
+            LOG(LOG_ERR, "addEventToSnapshotBin() - pcr=%d Level=%d snapshots is missing\n", index, active_level);
             addReason(ctx, index, NLS(MS_OPENPTS, OPENPTS_IML_SNAPSHOT_MISSING_3, "[PCR%02d] Snapshot(FSM) is missing"),
                 index);
             ctx->ss_table->error[index] = PTS_INTERNAL_ERROR;
@@ -616,7 +619,6 @@ int flashSnapshot(
     int rc;
     OPENPTS_SNAPSHOT *ss;
     OPENPTS_SNAPSHOT *ss_lv0 = NULL;
-
 
     DEBUG_CAL("flashSnapshot - start\n");
 
@@ -996,21 +998,18 @@ int readBiosImlFile(OPENPTS_CONTEXT * ctx, const char *filename, int mode) {
     int rc = PTS_SUCCESS;
     int result;
     int i = 0;
+    int endian = 0;
+    int aligned = 0;
+    int error = 0;
     size_t size;
     FILE *fp = NULL;
     UINT32 pcrIndex;
     UINT32 eventType;
     UINT32 eventLength;
-    int endian = 0;
-    int aligned = 0;
-
     TSS_PCR_EVENT *event = NULL;
     OPENPTS_PCR_EVENT_WRAPPER *ew_new = NULL;
-    // OPENPTS_PCR_EVENT_WRAPPER *ew_last = NULL;
-    int error = 0;
 
     DEBUG_CAL("getBiosImlFile - start\n");
-    // DEBUG("read BIOS IML, file %s\n", filename);
 
     /* check */
     if (ctx == NULL) {

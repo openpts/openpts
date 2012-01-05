@@ -28,7 +28,7 @@
  * @author Olivier Valentin <olivier.valentin@us.ibm.com>
  * @author Alexandre Ratchov <alexandre.ratchov@bull.net>
  * @date 2010-04-04
- * cleanup 2011-07-06 SM
+ * cleanup 2012-01-04 SM
  *
  */
 
@@ -50,8 +50,6 @@
 #include <sys/stat.h>  // chmod
 
 #include <openpts.h>
-// #include <log.h>
-
 
 int prop_num = 0;
 OPENPTS_PROPERTY *start = NULL;
@@ -64,7 +62,7 @@ OPENPTS_PROPERTY *end = NULL;
  * TODO for multiple conenction, multiple ctxs are required. 
  * TODO disable remote connection
  */ 
-int collector2(OPENPTS_CONFIG *conf) {
+int collector(OPENPTS_CONFIG *conf) {
     int rc;
     int terminate = 0;
     OPENPTS_CONTEXT *ctx = NULL;
@@ -83,12 +81,10 @@ int collector2(OPENPTS_CONFIG *conf) {
         DEBUG("collector() - getNewRmSetDir() was failed - never mind\n");
     }
 
-
     LOG(LOG_INFO, "start collector (System UUID=%s, RM UUID = %s)\n",
         conf->uuid->str, conf->rm_uuid->str);
 
     /* Collector <-> Verifier - handshake loop */
-
     ctx = newPtsContext(conf);
 
     addPropertiesFromConfig(conf, ctx);
@@ -127,7 +123,6 @@ int collector2(OPENPTS_CONFIG *conf) {
         /* C->V responces */
         switch (read_tlv->type) {
             case OPENPTS_CAPABILITIES:
-                // TODO define CAPABILITIES structure
                 DEBUG("IF-M OPENPTS_CAPABILITIES\n");
                 /* check the UUID */
                 if (read_tlv->length != sizeof(OPENPTS_IF_M_Capability)) {  // TODO use defined name
@@ -415,6 +410,8 @@ OPENPTS_PROPERTY *getPropertyFromArg(char *arg) {
 
 /**
  * lock ptsc
+ * 
+ * check the log msg
  */
 void ptsc_lock(void) {
     int fd, oldmask, oldgrp = 0;
@@ -442,11 +439,11 @@ void ptsc_lock(void) {
 
         rc = getgrnam_r(PTSC_GROUP_NAME, &grp, buf, buf_len, &grpent);
         if (rc != 0) {
-            // TODO
+            LOG(LOG_ERR, "getgrnam_r() fail");
             exit(1);
         }
         if (grpent == NULL) {
-            // TODO
+            LOG(LOG_ERR, "grpent is null");
             exit(1);
         }
         oldgrp = getegid();
@@ -495,11 +492,6 @@ static int preparePriv() {
 #endif
 
     /* check GID */
-    // ptsc_grp = getgrnam(PTSC_GROUP_NAME);  // TODO use getgrnam_r
-    // if (ptsc_grp == NULL) {
-    //     LOG(LOG_ERR, "Looking up for group (name=%s) fail", PTSC_GROUP_NAME);
-    //     return PTS_FATAL;
-    // }
     buf_len = sysconf(_SC_GETGR_R_SIZE_MAX);
     if (buf_len < 0) {
         buf_len = 4096;
@@ -527,7 +519,6 @@ static int preparePriv() {
     if (rc < 0) {
         // TODO do not need for IF-M access (read only)
         LOG(LOG_INFO, "Switching group (gid=%d) fail. %s\n", grp.gr_gid, strerror(errno));
-        // TODO 20110927 FAIL
         rc = PTS_FATAL;
         goto free;
     }
@@ -539,7 +530,7 @@ static int preparePriv() {
     }
 #endif
 
-    /*  */
+    /* free  */
   free:
     if (buf != NULL) xfree(buf);
 
@@ -560,11 +551,6 @@ static int chmodDir(char *dirpath, int flag) {
 
 
     /* check GID */
-    // ptsc_grp = getgrnam(PTSC_GROUP_NAME);  // TODO use getgrnam_r
-    // if (ptsc_grp == NULL) {
-    //     LOG(LOG_ERR, "Looking up for group %s", PTSC_GROUP_NAME);
-    //     return PTS_FATAL;
-    // }
     buf_len = sysconf(_SC_GETGR_R_SIZE_MAX);
     if (buf_len < 0) {
         buf_len = 4096;
@@ -636,28 +622,11 @@ int main(int argc, char *argv[]) {
 #ifdef CONFIG_AUTO_RM_UPDATE
     int remove = 0;
 #endif
-    // extern int logLocation;
-    // void setLogLocation(int ll);
 
     /* properties by cmdline  */
     OPENPTS_PROPERTY *prop;
 
-#if 0
-    initCatalog();
-
-    // TODO chgrp
-    rc = preparePriv();
-    if (rc != PTS_SUCCESS) {
-        LOG(LOG_ERR, "preparePriv fail\n");
-    }
-
-    conf = newPtsConfig();
-    if (conf == NULL) {
-        LOG(LOG_ERR, "internal error\n");  // TODO(munetoh)
-        return -1;
-    }
-#endif
-
+    /* Logging/NLS */
     initCatalog();
     setSyslogCommandName("ptsc");
 
@@ -695,9 +664,6 @@ int main(int argc, char *argv[]) {
             /* not everything should go to syslog - on some systems
                this could go to a log file - let default behaviour
                in log.c decide this */
-            // setLogLocation(OPENPTS_LOG_SYSLOG, NULL);
-            // OK setLogLocation(OPENPTS_LOG_CONSOLE, NULL);  // OK
-            // setLogLocation(OPENPTS_LOG_FILE, "/var/log/ptsc.log");  // OK call this before any out
             break;
         case 'c':
             config_filename = optarg;
@@ -746,11 +712,10 @@ int main(int argc, char *argv[]) {
     if (command == COMMAND_IFM) {
         /* Set IF-M log location, syslog or file(for DEBUG) */
         setLogLocation(OPENPTS_LOG_SYSLOG, NULL);
-        // setVerbosity(0);  // no console out
     } else {
         /* Set logging (location,filename)  by ENV */
         determineLogLocationByEnv();
-        //setLogLocation(OPENPTS_LOG_CONSOLE, NULL);
+
         // TODO chgrp
         rc = preparePriv();
         if (rc != PTS_SUCCESS) {
@@ -766,7 +731,7 @@ int main(int argc, char *argv[]) {
 
     /* set the DEBUG level, 1,2,3 */
     if (getVerbosity() > 2) {
-        setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG | DEBUG_FSM_FLAG | DEBUG_CAL_FLAG );
+        setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG | DEBUG_FSM_FLAG | DEBUG_CAL_FLAG);
     } else if (getVerbosity() > 1) {
         setDebugFlags(DEBUG_FLAG | DEBUG_IFM_FLAG);
     } else if (getVerbosity() > 0) {
@@ -781,14 +746,16 @@ int main(int argc, char *argv[]) {
     /* load config, /etc/ptsc.conf */
     if (config_filename == NULL) {
         // this goto stdout and bad with "-m"
-        // VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE, "Config file: %s\n"), PTSC_CONFIG_FILE);
+        VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE,
+            "Config file: %s\n"), PTSC_CONFIG_FILE);
         rc = readPtsConfig(conf, PTSC_CONFIG_FILE);
         if (rc != PTS_SUCCESS) {
             DEBUG("readPtsConfig() failed\n");
             goto free;
         }
     } else {
-        // VERBOSE(1, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE, "Config file: %s\n"), config_filename);
+        VERBOSE(2, NLS(MS_OPENPTS, OPENPTS_COLLECTOR_CONFIG_FILE,
+            "Config file: %s\n"), config_filename);
         rc = readPtsConfig(conf, config_filename);
         if (rc != PTS_SUCCESS) {
             DEBUG("readPtsConfig() failed\n");
@@ -804,8 +771,8 @@ int main(int argc, char *argv[]) {
         if (checkFile(conf->uuid->filename) != OPENPTS_FILE_EXISTS) {
             // missing
             LOG(LOG_ERR, "ptsc is not initialized yet");
-            ERROR(  // TODO NLS
-                "ptsc is not initialized yet.\n\n");
+            ERROR(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_NOT_INITIALIZED,
+                "ptsc is not initialized yet.\n\n"));
             goto free;
         }
     }
@@ -851,7 +818,7 @@ int main(int argc, char *argv[]) {
     } else {
         rc = readOpenptsUuidFile(conf->rm_uuid);
         if (rc != PTS_SUCCESS) {
-            DEBUG("readOpenptsUuidFile(%s) failed\n",conf->rm_uuid->filename);
+            DEBUG("readOpenptsUuidFile(%s) failed\n", conf->rm_uuid->filename);
             OUTPUT(NLS(MS_OPENPTS, OPENPTS_COLLECTOR_FAILED_READ_RM_UUID,
                    "Failed to read the Reference Manifest UUID file '%s':\n"
                    "Please ensure on the target that:\n"
@@ -914,7 +881,6 @@ int main(int argc, char *argv[]) {
         case COMMAND_AUTO_UPDATE:
             /* update by command, but HUP is better */
             VERBOSE(1, "Updating Reference Manifest\n");
-            //addDebugFlags(DEBUG_CAL_FLAG);
             /* update RMs */
             rc = update(conf, prop_num, start, end, remove);
             if (rc != PTS_SUCCESS) {
@@ -1034,7 +1000,7 @@ int main(int argc, char *argv[]) {
             break;
         case COMMAND_IFM:
             /* run colelctor IF-M */
-            rc = collector2(conf);
+            rc = collector(conf);
             break;
         default:
             LOG(LOG_ERR, "bad command\n");
@@ -1044,5 +1010,8 @@ int main(int argc, char *argv[]) {
  free:
     freePtsConfig(conf);
 
+    if (rc != PTS_SUCCESS) {
+        LOG(LOG_ERR, "ptsc exit. rc = %d", rc);
+    }
     return rc;
 }

@@ -26,7 +26,7 @@
  * \brief Generate Integrity Report from IML
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-07-06 SM
+ * cleanup 2012-01-05 SM
  *
  *  TSS Event Struct -> IR
  *  IML and PCR may not match, since the read them is not an atmic operation
@@ -44,7 +44,7 @@
  *
  *  TOCTOU?
  *
- *
+ *  TODO refine XML error log
  */
 
 #include <sys/stat.h>
@@ -59,8 +59,8 @@
 #include <libxml/parser.h>
 
 #include <openpts.h>
-// #include <log.h>
 
+/* XML */
 enum {
     TEXT_WRITER_START_ELEMENT,
     TEXT_WRITER_WRITE_ATTR,
@@ -87,7 +87,7 @@ void displayXmlError(int errorIndex, int rc) {
 
     /* check */
     if (errorIndex >= XML_FUNC_END) {
-        LOG(LOG_ERR, "errorIndex(%d) > XML_FUNC_END(%d)",errorIndex, XML_FUNC_END);
+        LOG(LOG_ERR, "errorIndex(%d) > XML_FUNC_END(%d)", errorIndex, XML_FUNC_END);
         return;
     }
 
@@ -114,7 +114,7 @@ int freeAllFsm(OPENPTS_CONTEXT *ctx) {
     }
 
     if (ctx->ss_table == NULL) {
-        // DEBUG("resetFsm() - no SS table\n");
+        /* no SS table, skip */
         return PTS_SUCCESS;
     }
 
@@ -286,7 +286,7 @@ int writeComponentID(
     rc = xmlTextWriterWriteAttribute(
             writer,
             BAD_CAST "VersionBuild",
-            BAD_CAST "1250694000000"); // TODO(munetoh)
+            BAD_CAST "1250694000000");  // TODO(munetoh)
     if (rc < 0) {
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         goto error;
@@ -596,7 +596,6 @@ int writeStuffObjects(
  * @retval PTS_INTERNAL_ERROR
  *
  */
-
 int writePcrHash(
         xmlTextWriterPtr writer,
         int pcrIndex,
@@ -604,7 +603,6 @@ int writePcrHash(
         BYTE * startHash,
         BYTE * hash,
         int algtype) {
-    // int rc = PTS_SUCCESS;
     char id[256];  // TODO(munetoh) 11+1+1 = 12?
     int rc;
 
@@ -953,6 +951,7 @@ int writeQuote(
     /* Start an element named "QuoteData" as child of Report. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "QuoteData");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -960,6 +959,7 @@ int writeQuote(
     /* Add an attribute with name "ID" */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ID", BAD_CAST "TBD");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -967,6 +967,7 @@ int writeQuote(
     /* Start an element named "Quote" as child of QuoteData. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "Quote");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -974,6 +975,7 @@ int writeQuote(
     /* Start an element named "PcrComposit" as child of Quote. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrComposit");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1006,6 +1008,7 @@ int writeQuote(
     /* Start an element named "PcrSelection" as child of PcrComposit. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1014,6 +1017,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1029,7 +1033,7 @@ int writeQuote(
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1039,7 +1043,7 @@ int writeQuote(
     /* Close the element named "PcrSelection". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterEndElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1049,6 +1053,7 @@ int writeQuote(
     /* Write an element named "ValueSize" as child of PcrComposit */
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "ValueSize", "%d", ctx->pcrs->value_size);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1060,6 +1065,7 @@ int writeQuote(
             /* Start an element named "PcrValue" as child of PcrComposit. */
             rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrValue");
             if (rc < 0) {
+                LOG(LOG_ERR, "xmlTextWriterStartElement() fail");
                 displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1068,6 +1074,7 @@ int writeQuote(
             rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST tagbuf);
             // rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST "0");
             if (rc < 0) {
+                LOG(LOG_ERR, "xmlTextWriterWriteAttribute() fail");
                 displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1079,6 +1086,7 @@ int writeQuote(
                     0,
                     20);  // TODO add length to OPENPTS_PCRS
             if (rc < 0) {
+                LOG(LOG_ERR, "xmlTextWriterWriteBase64() fail");
                 displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1086,6 +1094,7 @@ int writeQuote(
             /* Close the element named "PcrValue" */
             rc = xmlTextWriterEndElement(writer);
             if (rc < 0) {
+                LOG(LOG_ERR, "xmlTextWriterEndElement() fail");
                 displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1095,6 +1104,7 @@ int writeQuote(
     /* Close the element named "PcrComposit". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlTextWriterEndElement() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1103,6 +1113,7 @@ int writeQuote(
     /* Start an element named "QuoteInfo" as child of Quote. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "QuoteInfo");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlTextWriterStartElement() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1111,7 +1122,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bMajor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionMajor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlTextWriterWriteAttribute() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1119,7 +1130,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bMinor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionMinor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1127,7 +1138,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bRevMajor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionRevMajor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1136,7 +1147,7 @@ int writeQuote(
     snprintf(tagbuf, sizeof(tagbuf), "%d", ctx->validation_data->versionInfo.bRevMinor);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "VersionRevMinor", BAD_CAST tagbuf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1144,7 +1155,7 @@ int writeQuote(
     /* Add an attribute with name "Fixed", int */
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Fixed", BAD_CAST "QUOT");
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return -1;
     }
@@ -1160,6 +1171,7 @@ int writeQuote(
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "DigestValue", BAD_CAST b64buf);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1179,7 +1191,7 @@ int writeQuote(
     }
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ExternalData", BAD_CAST b64buf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1189,7 +1201,7 @@ int writeQuote(
     /* Close the element named "QuoteInfo". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterEndElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1197,7 +1209,7 @@ int writeQuote(
     /* Close the element named "Quote". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterEndElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1207,6 +1219,7 @@ int writeQuote(
     /* Start an element named "TpmSignature" as child of QuoteData. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "TpmSignature");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1216,6 +1229,7 @@ int writeQuote(
     /* Start an element named "SignatureMethod" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureMethod");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1224,6 +1238,7 @@ int writeQuote(
             BAD_CAST "Algorithm",
             BAD_CAST "http://www.w3.org/2000/09/xmldsig#rsa-sha1");  // TODO
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1381,6 +1396,7 @@ int writeQuote2(
     snprintf(tagbuf, sizeof(tagbuf), "%d", tag);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Tag", BAD_CAST tagbuf);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1388,6 +1404,7 @@ int writeQuote2(
     DEBUG("fixed : %s", fixed);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "Fixed", BAD_CAST fixed);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1403,7 +1420,7 @@ int writeQuote2(
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ExternalData", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1411,7 +1428,7 @@ int writeQuote2(
     /* PcrInfoShort - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrInfoShort");
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1419,7 +1436,7 @@ int writeQuote2(
     /* PcrSelection - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1427,7 +1444,7 @@ int writeQuote2(
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1443,12 +1460,14 @@ int writeQuote2(
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* PcrSelection - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1457,6 +1476,7 @@ int writeQuote2(
     /* LocalityAtRelease - element */
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "LocalityAtRelease", "%d", locality);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1473,6 +1493,7 @@ int writeQuote2(
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "CompositeHash", "%s", b64buf);
     free(b64buf);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1481,7 +1502,7 @@ int writeQuote2(
     /* PcrComposite - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrComposit");
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1489,7 +1510,7 @@ int writeQuote2(
     /* PcrSelection - start */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrSelection");
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1497,7 +1518,7 @@ int writeQuote2(
     snprintf(tagbuf, sizeof(tagbuf), "%d", size_of_select);
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "SizeOfSelect", BAD_CAST tagbuf);
     if (rc < 0) {
-        // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1513,19 +1534,22 @@ int writeQuote2(
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrSelect", BAD_CAST b64buf);
     free(b64buf);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* PcrSelection - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* ValueSize - element */
     rc = xmlTextWriterWriteFormatElement(writer, BAD_CAST "ValueSize", "%d", ctx->pcrs->value_size);
     if (rc < 0) {
-         displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
+        LOG(LOG_ERR, "xmlX() fail");
+        displayXmlError(TEXT_WRITER_WRITE_FORMAT_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* PcrValue, loop */
@@ -1534,7 +1558,7 @@ int writeQuote2(
             /* PcrValue - start */
             rc = xmlTextWriterStartElement(writer, BAD_CAST "PcrValue");
             if (rc < 0) {
-                // LOG(LOG_ERR, "Error at xmlTextWriterStartElement\n");
+                LOG(LOG_ERR, "xmlX() fail");
                 displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1542,7 +1566,7 @@ int writeQuote2(
             snprintf(tagbuf, sizeof(tagbuf), "%d", i);
             rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "PcrNumber", BAD_CAST tagbuf);
             if (rc < 0) {
-                // LOG(LOG_ERR, "Error at xmlTextWriterWriteAttribute\n");
+                LOG(LOG_ERR, "xmlX() fail");
                 displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1555,6 +1579,7 @@ int writeQuote2(
                     0,
                     20);  // TODO add length to OPENPTS_PCRS
             if (rc < 0) {
+                LOG(LOG_ERR, "xmlX() fail");
                 displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1562,6 +1587,7 @@ int writeQuote2(
             /* PcrValue - end */
             rc = xmlTextWriterEndElement(writer);
             if (rc < 0) {
+                LOG(LOG_ERR, "xmlX() fail");
                 displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
                 return PTS_INTERNAL_ERROR;
             }
@@ -1570,6 +1596,7 @@ int writeQuote2(
     /* PcrComposite - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1577,6 +1604,7 @@ int writeQuote2(
     /* PcrInfoShort - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1584,6 +1612,7 @@ int writeQuote2(
     /* QuoteInfo2 - end  */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1591,6 +1620,7 @@ int writeQuote2(
     /* Quote2 - end */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1600,6 +1630,7 @@ int writeQuote2(
     /* Start an element named "TpmSignature" as child of QuoteData. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "TpmSignature");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1609,6 +1640,7 @@ int writeQuote2(
     /* Start an element named "SignatureMethod" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureMethod");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1617,12 +1649,14 @@ int writeQuote2(
             BAD_CAST "Algorithm",
             BAD_CAST "http://www.w3.org/2000/09/xmldsig#rsa-sha1");  // TODO
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Close the element named "SignatureMethod". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1632,6 +1666,7 @@ int writeQuote2(
     /* Start an element named "SignatureValue" as child of TpmSignature. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "SignatureValue");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1642,12 +1677,14 @@ int writeQuote2(
             0,
             ctx->validation_data->ulValidationDataLength);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_BASE64, rc);
         return PTS_INTERNAL_ERROR;
     }
     /* Close the element named "SignatureValue". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1655,6 +1692,7 @@ int writeQuote2(
     /* Close the element named "TpmSignature". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1662,6 +1700,7 @@ int writeQuote2(
     /* Close the element named "QuoteData". */
     rc = xmlTextWriterEndElement(writer);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_END_ELEMENT, rc);
         return PTS_INTERNAL_ERROR;
     }
@@ -1689,8 +1728,8 @@ int writeQuote2(
 int writeIr(
     OPENPTS_CONTEXT *ctx,
     const char *filenameDP,  // in  (set ctx->conf->ir_filename in normal operation)
-    int *savedFd)            // out
-{
+    int *savedFd) {          // out
+
     int rc = PTS_SUCCESS;
     int i;
     int irFd;
@@ -1778,6 +1817,7 @@ int writeIr(
     /* Start the document */
     rc = xmlTextWriterStartDocument(writer, "1.0", XML_ENCODING, "no");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_DOC, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1786,6 +1826,7 @@ int writeIr(
     /* Start an element named "Report", the root element of the document. */
     rc = xmlTextWriterStartElement(writer, BAD_CAST "Report");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_START_ELEMENT, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1799,6 +1840,7 @@ int writeIr(
             BAD_CAST "xmlns:core",
             BAD_CAST XMLNS_CORE);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1809,6 +1851,7 @@ int writeIr(
             BAD_CAST "xmlns:stuff",
             BAD_CAST XMLNS_STUFF);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1820,6 +1863,7 @@ int writeIr(
             BAD_CAST "xmlns:xsi",
             BAD_CAST "http://www.w3.org/2001/XMLSchema-instance");
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1830,6 +1874,7 @@ int writeIr(
             BAD_CAST "xmlns",
             BAD_CAST XMLNS_IR);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto freexml;
@@ -1856,6 +1901,7 @@ int writeIr(
 
     rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "ID", BAD_CAST id);
     if (rc < 0) {
+        LOG(LOG_ERR, "xmlX() fail");
         displayXmlError(TEXT_WRITER_WRITE_ATTR, rc);
         rc = PTS_INTERNAL_ERROR;
         goto free;
@@ -1973,8 +2019,7 @@ int writeIr(
         filenameDP = ctx->ir_filename;
     }
 
-    //filename = ctx->ir_filename;
-    DEBUG("Write Integrity Report (IR)  : %s\n", filenameDP);  //filename);
+    DEBUG("Write Integrity Report (IR)  : %s\n", filenameDP);
 
     /* write to file */
     xmlFreeTextWriter(writer);
@@ -2872,10 +2917,10 @@ void irCharacters(void* ctx, const xmlChar * ch, int len) {
         LOG(LOG_ERR, "null input");
         return;
     }
-    //if (ch == NULL) {
-    //    LOG(LOG_ERR, "null input");
-    //    return;
-    //}
+    if ((len > 0) && (ch == NULL)) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
 
 
     /* copy to buf at ir_ctx, but check length first, ensuring additional space
@@ -3348,12 +3393,9 @@ int genIrFromTss(
     if (ctx->conf->ir_filename != NULL) {
         LOG(LOG_ERR, "Redefining the IR file location %s", ctx->conf->ir_filename);
     }
-    //ctx->conf->ir_filename = tempnam(NULL, "ir_");
-    //DEBUG("ctx->conf->ir_filename : %s\n", ctx->conf->ir_filename);
 
     /* save IR (new file in tmp dir) */
     rc = writeIr(ctx, NULL, savedFd);
-    // rc = writeIr(ctx, ctx->ir_filename, savedFd);  // ir.c
     if (rc != 0) {
         LOG(LOG_ERR, "fail to write IR, rc = %d\n", rc);
         return PTS_INTERNAL_ERROR;

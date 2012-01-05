@@ -24,7 +24,7 @@
  * \brief Convert IR file to plaintext (or binary)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-12-01
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-05 SM
  *
  *  IR(XML) -> SAX -> ctx->snapshot -> print
  *
@@ -61,7 +61,6 @@
 #define SHA1_DIGEST_SIZE 20
 BYTE pcr[MAX_PCRNUM][SHA1_DIGEST_SIZE];
 
-
 /* Element tag */
 #define IR_SAX_STATE_IDOL       0
 #define IR_SAX_STATE_PCR_INDEX  1
@@ -75,7 +74,6 @@ typedef struct {
     int  sax_state;
     int  sax_error;
     int  char_size;
-    // char buf[EVENTDATA_BUF_SIZE];  // TODO(munetoh) fixed buffer
     char *buf;  /**< buffer for the text element */
     /* IML -> FSM */
     int  event_index;
@@ -520,7 +518,7 @@ void irEndElement(void * context, const xmlChar * name) {
         DEBUG("ignore QuoteData\n");
     } else {
         /* Else? */
-        DEBUG("END ELEMENT [%s] ",name);
+        DEBUG("END ELEMENT [%s] ", name);
     }
 
     ctx->sax_state = IR_SAX_STATE_IDOL;
@@ -722,7 +720,3 @@ int main(int argc, char *argv[]) {
     }
     return rc;
 }
-
-
-
-

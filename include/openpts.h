@@ -703,9 +703,9 @@ int writePtsTlv(OPENPTS_CONTEXT *ctx, int fd, int type);
 
 
 /* collector.c */
-int collector(
-    OPENPTS_CONFIG *conf,
-    int forground, int debug, const char* dirname);
+//int collector(
+//    OPENPTS_CONFIG *conf,
+//    int forground, int debug, const char* dirname);
 
 /* verifier.c */
 int verifier(
@@ -940,6 +940,7 @@ int getRmList(OPENPTS_CONFIG *conf, char * config_dir);
 int purgeRenewedRm(OPENPTS_CONFIG *conf);
 void printRmList(OPENPTS_CONFIG *conf, char *indent);
 int getTargetList(OPENPTS_CONFIG *conf, char * config_dir);
+void printTarget(OPENPTS_TARGET *target_collector, char *indent);
 void printTargetList(OPENPTS_CONFIG *conf, char *indent);
 char *getTargetConfDir(OPENPTS_CONFIG *conf);
 OPENPTS_TARGET *getTargetCollector(OPENPTS_CONFIG *conf);

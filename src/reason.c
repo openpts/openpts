@@ -26,7 +26,7 @@
  * \brief properties
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-11-26
- * cleanup 2011-01-22 SM
+ * cleanup 2012-01-05 SM
  *
  * Reason (Remidiation) of validation fail
  *
@@ -56,7 +56,7 @@ void freeReason(OPENPTS_REASON *reason) {
     xfree(reason->message);
     xfree(reason);
 
-    return;  // PTS_SUCCESS;
+    return;
 }
 
 /**
@@ -88,16 +88,13 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
     OPENPTS_REASON *reason;
     int len;
 
-    // DEBUG("addReason - [%s]\n", message);
-
     /* check */
     if (ctx == NULL) {
         LOG(LOG_ERR, "null input");
         return PTS_FATAL;
     }
 
-    len = strlen(message);
-
+    len   = strlen(message);
     start = ctx->reason_start;
     end   = ctx->reason_end;
 
@@ -132,8 +129,6 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
     reason->message[len] = 0;
     ctx->reason_count++;
 
-    // DEBUG("addReason - done %d [%s]\n", ctx->reason_count, reason->message);
-
     return PTS_SUCCESS;
 }
 
@@ -142,10 +137,9 @@ int addReason_old(OPENPTS_CONTEXT *ctx, int pcr, char *message) {
  */
 #define MAX_REASON_SIZE 2048
 int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...) {
-    char buf[MAX_REASON_SIZE +1];  // TODO size
     int rc;
+    char buf[MAX_REASON_SIZE +1];  // TODO size
     va_list list;
-    va_start(list, format);
 
     /* check */
     if (ctx == NULL) {
@@ -153,6 +147,7 @@ int addReason(OPENPTS_CONTEXT *ctx, int pcr, const char *format, ...) {
         return PTS_FATAL;
     }
 
+    va_start(list, format);
     vsnprintf(buf, MAX_REASON_SIZE, format, list);
 
     rc = addReason_old(ctx, pcr, (char *)buf);
@@ -178,7 +173,7 @@ char *reason_pcr_hints[] = {
     NULL, /* PCR9 Unused */
     "Trusted Execution Database"
 };
-#else // TPM v1.2, PC Linux, TODO add other type of platform?
+#else  // TPM v1.2, PC Linux, TODO add other type of platform?
 char *reason_pcr_hints[] = {
     "CRTM, BIOS and Platform Extensions",
     "Platform Configuration",
@@ -187,7 +182,7 @@ char *reason_pcr_hints[] = {
     "IPL Code (usually the MBR)",
     "IPL Code Configuration and Data (for use by the IPL code)",
     "State Transition and Wake Events",
-    "Host Platform Manufacturer Control",   // v1.1"Reserved for future usage. Do not use.", 
+    "Host Platform Manufacturer Control",   // v1.1"Reserved for future usage. Do not use.",
     "OS Kernels (GRUB-IMA)",
     NULL, /* PCR9 Unused */
     "Applications (LINUX-IMA)", /* PCR10 */
@@ -236,6 +231,3 @@ void printReason(OPENPTS_CONTEXT *ctx, int print_pcr_hints) {
         }
     }
 }
-
-
-// TODO add freeReason()

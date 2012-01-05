@@ -26,7 +26,7 @@
  * \brief Base64 Encode/Decode
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-12-31 SM
+ * cleanup 2012-01-05 SM
  *
  * http://en.wikipedia.org/wiki/Base64
  *
@@ -101,7 +101,6 @@ int _sizeofBase64Decode(int len) {
     return (len / 4 * 3) + 1;
 }
 
-
 /**
  * Encode BYTE[] to Base64 string
  * Return
@@ -141,7 +140,6 @@ int _encodeBase64(char *out, unsigned char * in, int len) {
     }
 
     /* Trans */
-
     while (1) {
         if ( len >= 3 ) {
             out[ptr2  ] = transTable[   in[ptr1  ] >>2];
@@ -216,7 +214,6 @@ char *encodeBase64(unsigned char * in, int inlen, int *outlen) {
     return out;
 }
 
-
 /**
   * trans (do not check the bad input)
   */
@@ -247,7 +244,7 @@ int _strippedlength(char * in, int len) {
     /* last char */
     i = len - 1;
 
-    while(i > 0) {
+    while (i > 0) {
         if (in[i] == '\n') {
             /* skip */
             skip++;
@@ -340,7 +337,7 @@ int _decodeBase64(unsigned char *out, char * in, int len) {
                            (_b64trans(inbuf[2]) >> 2);
             out[ptr2+2] = ((_b64trans(inbuf[2])&0x03) << 6) |
                             _b64trans(inbuf[3]);
-            len2 -= 4; // skip chars has been removed in len2
+            len2 -= 4;  // skip chars has been removed in len2
             ptr1 += 4 + skip;
             ptr2 += 3;
         } else if ( inbuf[1] == '=' ) {

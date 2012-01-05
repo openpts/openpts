@@ -26,9 +26,8 @@
  * \brief create pseudo IML of tboot, standalone tool
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2011-03-28
- * cleanup 2011-07-06 SM
- * refactoring
- *
+ * cleanup 2012-01-05 SM (remains 33 lint errors, ignore)
+ *   src/tboot2iml.c:184:  Tab found; better to use spaces  [whitespace/tab] [1]
  *
  *  Test
  * 
@@ -1158,7 +1157,7 @@ int generateEventlog(OPENPTS_TBOOT_CONTEXT *ctx, char *filename) {
 
 
 void usage(void) {
-    OUTPUT( // TODO NLS
+    OUTPUT(NLS(MS_OPENPTS, OPENPTS_TBOOT2IML_USAGE,
         "OpenPTS command\n\n"
         "Usage: tboot2iml [options]\n\n"
         "Options:\n"
@@ -1168,7 +1167,7 @@ void usage(void) {
         "  -o filename           Output to file (default is STDOUT)\n"
         "  -v                    Verbose message\n"
         "  -h                    Help\n"
-        "\n");
+        "\n"));
 }
 
 int main(int argc, char *argv[]) {
@@ -1209,8 +1208,8 @@ int main(int argc, char *argv[]) {
 
     /* check */
     if ((grub_conf_filename != NULL) && (grub_path == NULL)) {
-        ERROR(  // TODO NLS
-            "set the root path used by crub.conf\n");
+        ERROR(NLS(MS_OPENPTS, OPENPTS_TBOOT2IML_GRUBPATH_MISSING,
+            "set the root path used by grub.conf\n"));
         usage();
         goto close;
     }

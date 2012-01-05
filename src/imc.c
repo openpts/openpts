@@ -26,7 +26,7 @@
  * \brief TCG TNC IF-IMC v1.2 R8
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-05-07
- * cleanup 2011-12-31 SM
+ * cleanup 2012-01-05 SM
  *
  * http://www.trustedcomputinggroup.org/resources/tnc_ifimc_specification
  * http://www.trustedcomputinggroup.org/files/resource_files/8CB977E1-1D09-3519-AD48484530EF6639/TNC_IFIMC_v1_2_r8.pdf
@@ -71,11 +71,6 @@ static TNC_TNCC_SendMessagePointer           sendMessagePtr;
 
 static OPENPTS_CONFIG *conf = NULL;
 static OPENPTS_CONTEXT *ctx = NULL;
-
-// int verbose = 0;
-// int verbose = DEBUG_IFM_FLAG;
-// int verbose = DEBUG_FLAG | DEBUG_IFM_FLAG;
-
 
 static TNC_Result sendMessage(
     /*in*/ TNC_IMCID imcID,

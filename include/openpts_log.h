@@ -27,6 +27,7 @@
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @author David Sherwood <davidshe@uk.ibm.com>
  * @date 2011-05-05
+ * cleanup 2012-01-04
  *
  */
 
@@ -113,9 +114,7 @@ writeLog(LOG_DEBUG, "%s:%4d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #define getDebugFlags() (debugBits)
 #define addDebugFlags(x) (debugBits |= (x))
 
-
-
-
+/* functions */
 void writeLog(int priority, const char *format, ...);
 void initCatalog(void);
 void setLogLocation(int ll, char *filename);

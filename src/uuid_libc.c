@@ -50,9 +50,6 @@ void uuid_from_string(unsigned_char_t *string_uuid, uuid_t *uuid,
 #endif
 
 #include <openpts.h>
-#include <log.h>
-
-
 
 #if UUIDSIZE < 16
 #error Insufficient space in PTS_UUID
@@ -218,5 +215,3 @@ PTS_DateTime * getDateTimeOfUuid(PTS_UUID *uuid) {
 
     return pdt;
 }
-
-

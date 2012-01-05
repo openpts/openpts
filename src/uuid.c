@@ -26,7 +26,7 @@
  * \brief UUID wrapper (Generic part, OPENPTS_UUID)
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-11-29
- * cleanup 2011-10-07 SM
+ * cleanup 2012-01-05 SM
  *
  * Linux uses libuuid
  *

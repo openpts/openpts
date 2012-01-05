@@ -26,8 +26,8 @@
  * \brief misc functions
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-09-08
- * cleanup 2011-07-06 SM
- *
+ * cleanup 2012-01-05 SM (remains one lint error)
+ *  src/misc.c:448:  If you can, use sizeof(ptr) instead of 3 as the 2nd arg to snprintf.  [runtime/printf] [3]
  */
 
 #include <stdio.h>
@@ -66,9 +66,8 @@ void *xmalloc(size_t size) {
     char *result = malloc(size);
     if (NULL == result) {
         LOG(LOG_ERR, "Failed to allocate %d bytes of memory\n", size);
-        // if ( size > 0 ) {
-        //     LOG(LOG_ERR, "malloc");
-        // }
+        ERROR(NLS(MS_OPENPTS, OPENPTS_MALLOC_FAIL,
+            "No memory\n"));
     }
     return result;
 }
@@ -78,7 +77,8 @@ void *xmalloc_assert(size_t size) {
     char *result = malloc(size);
     if (NULL == result) {
         LOG(LOG_ERR, "Failed to allocate %d bytes of memory\n", size);
-        OUTPUT("About to return NULL pointer - cannot continue\n");
+        ERROR(NLS(MS_OPENPTS, OPENPTS_ABORT,
+            "Abort to return NULL pointer - cannot continue\n"));
         exit(1);
     }
     return result;
@@ -133,7 +133,8 @@ char *smalloc_assert(char *str) {
     out = strdup(str);
     if (NULL == out) {
         LOG(LOG_ERR, "Failed to duplicate string '%s'\n", str);
-        OUTPUT("About to return NULL pointer - cannot continue\n");
+        ERROR(NLS(MS_OPENPTS, OPENPTS_ABORT,
+            "Abort to return NULL pointer - cannot continue\n"));
         exit(1);
     }
 
@@ -184,7 +185,6 @@ char *snmalloc(char *str, int len) {
  * @param len
  */
 BYTE *snmalloc2(BYTE *buf, int offset, int len) {
-
     /* check */
     if (buf == NULL) {
         LOG(LOG_ERR, "null input");
@@ -216,6 +216,13 @@ BYTE *snmalloc2(BYTE *buf, int offset, int len) {
  * free string buffer
  */
 void sfree(char *str) {
+    /* check */
+    if (str == NULL) {
+        LOG(LOG_ERR, "null input");
+        return;
+    }
+
+    /* free*/
     xfree(str);
 }
 
@@ -353,7 +360,7 @@ char *getFullpathDir(char *filename) {
         }
     }
 
-    fullpath = xmalloc_assert(i+2);
+    fullpath = xmalloc_assert(i+2);  // check/abort
     memcpy(fullpath, filename, i+1);
     fullpath[i+1] = 0;
     return fullpath;
@@ -442,7 +449,7 @@ char *getHexString(BYTE *bin, int size) {
         return NULL;
     }
 
-    buf = xmalloc_assert(size * 2 + 1);
+    buf = xmalloc_assert(size * 2 + 1);  // check/abort
     ptr = buf;
     for (i = 0; i < size; i++) {
         // len = snprintf(ptr, sizeof(ptr), "%02x", bin[i]);

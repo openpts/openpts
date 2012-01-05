@@ -26,6 +26,7 @@
  * \brief Utility, generate dot file from UML2 state siagram
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
+ * cleanup 2012-01-05 SM
  *
  *  UML State Diagram -> DOT --(graphviz)--> Graph(PNG,JPG etc)
  *
@@ -44,17 +45,16 @@
 #include <fcntl.h>
 
 #include <openpts.h>
-// #include <log.h>
 
 /**
  * usage
  */
 void usage(void) {
     OUTPUT(NLS(MS_OPENPTS, OPENPTS_UML2DOT_USAGE,
-            "usage: uml2dot [options] UMLfile \n"
-            "\t-o output\tset output file (default is stdout)\n"
-            "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n"
-            "\n"));
+        "usage: uml2dot [options] UMLfile \n"
+        "\t-o output\tset output file (default is stdout)\n"
+        "\t$ dot -Tpng foo.dot -o foo.png; eog foo.png\n"
+        "\n"));
 }
 
 /**
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     char *input_filename = NULL;
     char *output_filename = NULL;
 
+    /* logging/NLS */
     initCatalog();
 
     while ((c = getopt(argc, argv, "do:h")) != EOF) {
@@ -89,7 +90,6 @@ int main(int argc, char *argv[]) {
     input_filename = argv[0];
 
     /* Read UML(XML) file */
-
     if (input_filename == NULL) {
         ERROR(NLS(MS_OPENPTS, OPENPTS_UML2DOT_MISSING_XML_FILE, "ERROR missing XMLfile\n"));
         usage();
@@ -114,7 +114,6 @@ int main(int argc, char *argv[]) {
     }
 
   error:
-
     freeFsmContext(ctx);
 
     return rc;

@@ -26,7 +26,7 @@
  * \brief TCG IF-M Verifier
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-06
- * cleanup 2011-07-20 SM
+ * cleanup 2012-01-04 SM
  *
  */
 
@@ -49,7 +49,6 @@
 #include <limits.h>
 
 #include <openpts.h>
-
 
 /**
  * Lock (POSIX 1003.1)
@@ -85,17 +84,16 @@ void global_lock(int type) {
         exit(1);
     }
 
-    fl.l_start = 0;
-    fl.l_len = 0;
+    fl.l_start  = 0;
+    fl.l_len    = 0;
     fl.l_whence = SEEK_SET;
-    fl.l_type = type;
-    fl.l_pid = getpid();
-    //if (fcntl(fd, F_SETLKW, &fl) < 0) {
+    fl.l_type   = type;
+    fl.l_pid    = getpid();
     if (fcntl(fd, F_SETLK, &fl) < 0) {
         // get PID of the process holding that lock
         fcntl(fd, F_GETLK, &fl);
-        ERROR(  // TODO NLS
-            "Openpts configulation is locked by other(pid=%d)\n", fl.l_pid);
+        ERROR(NLS(MS_OPENPTS, OPENPTS_VERIFIER_LOCKED,
+            "Openpts configulation is locked by other(pid=%d)\n"), fl.l_pid);
         exit(1);
     }
 }
@@ -138,7 +136,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         rc = mkdir(dirpath, S_IRUSR | S_IWUSR | S_IXUSR);
         if (rc != 0) {
             LOG(LOG_ERR, "mkdir on %s failed (errno=%d)", dirpath, errno);
-            rc=PTS_FATAL;
+            rc = PTS_FATAL;
             goto error;
         }
         configDirExists = 1;
@@ -156,7 +154,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         rc = writeOpenptsUuidFile(conf->uuid, 1);
         if (rc != PTS_SUCCESS) {
             LOG(LOG_ERR, "Can't create UUID file, %s", uuid_file);
-            rc=PTS_FATAL;
+            rc = PTS_FATAL;
             goto error;
         }
 
@@ -164,7 +162,7 @@ int getDefaultConfigfile(OPENPTS_CONFIG *conf) {
         rc = writeOpenptsConf(conf, conf_file);
         if (rc != PTS_SUCCESS) {
             LOG(LOG_ERR, "Can't create config file, %s", conf_file);
-            rc=PTS_FATAL;
+            rc = PTS_FATAL;
             goto error;
         }
     }
@@ -574,8 +572,8 @@ int verifierHandleCapability(
  */
 int verifierHandleRimmSet(
     OPENPTS_CONTEXT *ctx,
-    BYTE *value)
-{
+    BYTE *value) {
+
     int rc = PTS_SUCCESS;
     OPENPTS_CONFIG *target_conf;
     int i;
@@ -716,8 +714,7 @@ int  writePolicyConf(OPENPTS_CONTEXT *ctx, char *filename) {
         } else if (!strncmp(prop->name, "disable.", 8)) {
             /* Indicates a disabled tpm quote - SKIP */
         } else if (prop->ignore == 1) {
-            ERROR( // TODO NLS
-                "The property %s is conflicted and excluded from the policy.\n", prop->name);
+            DEBUG("The property %s is conflicted and excluded from the policy.\n", prop->name);
         } else {
             fprintf(fp, "%s=%s\n", prop->name, prop->value);
             i++;
@@ -1469,7 +1466,6 @@ int verifier(
         rc = PTS_INTERNAL_ERROR;
         goto close;
     }
-    // DEBUG("new read_tlv %p\n",read_tlv);
 
     /* res -> fin */
     ctx->nonce->res->reserved[0]         = read_tlv->value[0];

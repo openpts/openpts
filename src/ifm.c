@@ -26,7 +26,7 @@
  * \brief TCG IF-M protocol
  * @author Seiji Munetoh <munetoh@users.sourceforge.jp>
  * @date 2010-04-01
- * cleanup 2011-04-26 SM
+ * cleanup 2012-01-05 SM
  *
  * 2011-06-20 SM - do not use sendfile()
  *  IF-M did not work with endfile.
@@ -53,7 +53,6 @@
 #endif
 
 #include <openpts.h>
-// #include <log.h>
 
 // TODO
 #define MAX_TLV_MESSAGE_LENGTH 5120000
@@ -210,18 +209,11 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
         goto error;
     }
 
-    // copy buf to PTS_IF_M_Attribute (NBO)
+    /* copy buf to PTS_IF_M_Attribute (NBO) */
     memcpy(read_tlv, head, 12);
-    // Convert NBO to Host byte order
+    /* Convert NBO to Host byte order */
     read_tlv->type = ntohl(read_tlv->type);
     read_tlv->length = ntohl(read_tlv->length);
-
-#if 0
-    TODO("IF-M type  : 0x%02x%02x%02x%02x (NBO)",
-        head[4], head[5], head[6], head[7]);
-    TODO("IF-M length: 0x%02x%02x%02x%02x (NBO) %d",
-        head[8], head[9], head[10], head[11], read_tlv->length);
-#endif
 
     /* check the length */
     if (read_tlv->length > MAX_TLV_MESSAGE_LENGTH) {
@@ -267,7 +259,6 @@ PTS_IF_M_Attribute *readPtsTlv(int fdin) {
     return read_tlv;
 
   error:
-    // if (read_msg != NULL) free(read_msg);
     if (read_tlv != NULL) {
         freePtsTlv(read_tlv);
     }
@@ -293,10 +284,7 @@ void freePtsTlv(PTS_IF_M_Attribute *tlv) {
 }
 
 
-
-
-
-/* TNC, libtnc */
+/* TNC, libtnc ---------------------------------------------------------------*/
 
 /**
  *  malloc TLV buffer and fill the header
@@ -424,8 +412,6 @@ BYTE* getPtsTlvMessage(OPENPTS_CONTEXT *ctx, int type, int *len) {
 
         break;
     }
-
-
 
     /* Collector --> Verifier */
     case TPM_PUBKEY:
@@ -939,6 +925,3 @@ int writePtsTlv(OPENPTS_CONTEXT *ctx, int fdout, int type) {
 
     return -1;
 }
-
-
-
