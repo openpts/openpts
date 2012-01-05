@@ -15,9 +15,16 @@ openpts.version=@VERSION@
 
 #
 # Logging&Debug
-# logging.file=./openpts.log
-logging.location=syslog
+# 
+# Normal
+#  debug.mode=0x0
+#  logging.location=syslog
+# With debug msg. (syslog does not show debug messages by default. use log file)
+#  debug.mode=0x09
+#  logging.file=/tmp/openpts.log
+#
 debug.mode=0x0
+logging.location=syslog
 
 #
 # Platform metadata (SMBIOS) - TBD
