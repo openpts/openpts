@@ -187,8 +187,8 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
     int target_pcr_index;
     int target_snapshot_level;
     int event_num;
-    int update_type;
-    int data_length;
+    // int update_type;
+    // int data_length;
 
     DEBUG_CAL("startUpdate() - start\n");
 
@@ -242,14 +242,14 @@ int startUpdate(OPENPTS_CONTEXT *ctx, OPENPTS_PCR_EVENT_WRAPPER *eventWrapper) {
         target_pcr_index = b2l(start->target_pcr_index);
         target_snapshot_level = b2l(start->target_snapshot_level);
         event_num = b2l(start->event_num);
-        update_type = b2l(start->update_type);
-        data_length = b2l(start->data_length);
+        // update_type = b2l(start->update_type);
+        // data_length = b2l(start->data_length);
     } else {
         target_pcr_index = start->target_pcr_index;
         target_snapshot_level = start->target_snapshot_level;
         event_num = start->event_num;
-        update_type = start->update_type;
-        data_length = start->data_length;
+        // update_type = start->update_type;
+        // data_length = start->data_length;
     }
 
     DEBUG("Update pcr=%08x level=%08x count=%d endian=%d",
@@ -576,9 +576,9 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
     int rc = 0;
     int target_pcr_index;
     int target_snapshot_level;
-    int event_num;
+    // int event_num;
     int update_type;
-    int data_length;
+    // int data_length;
 
     DEBUG_CAL("updateSnapshot() - start, pcr=%d level=%d  %d events exist!!!\n", i, j, uss->event_count);
 
@@ -599,15 +599,15 @@ int updateSnapshot(OPENPTS_CONTEXT *ctx, OPENPTS_UPDATE_SNAPSHOT *uss, int i, in
     if (ctx->conf->iml_endian != 0) {
         target_pcr_index = b2l(start->target_pcr_index);
         target_snapshot_level = b2l(start->target_snapshot_level);
-        event_num = b2l(start->event_num);
+        // event_num = b2l(start->event_num);
         update_type = b2l(start->update_type);
-        data_length = b2l(start->data_length);
+        // data_length = b2l(start->data_length);
     } else {
         target_pcr_index = start->target_pcr_index;
         target_snapshot_level = start->target_snapshot_level;
-        event_num = start->event_num;
+        // event_num = start->event_num;
         update_type = start->update_type;
-        data_length = start->data_length;
+        // data_length = start->data_length;
     }
 
     /* update target snaposhot */

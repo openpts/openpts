@@ -167,16 +167,16 @@ int printSmbios(BYTE *data, int length) {
     int handle;
     int handle_old = -1;
     BYTE *ptr = data;
-    BYTE *strings;
+    // BYTE *strings;
     BYTE *eod = data + length;
     int str_length;
-    int str_num;
+    // int str_num;
     int cnt = 0;
 
     if ((ptr[0] == 0x5f) && (ptr[1] == 0x53) && (ptr[2] == 0x4d) && (ptr[3] == 0x5f)) {
         /* */
         str_length = ptr[0x16] + (ptr[0x17]<<8);
-        str_num = ptr[0x1C] + (ptr[0x1D]<<8);
+        // str_num = ptr[0x1C] + (ptr[0x1D]<<8);
         eod = ptr + str_length + 32;
         // SKIP Head
         ptr += 32;
@@ -193,7 +193,7 @@ int printSmbios(BYTE *data, int length) {
         }
 
         ptr += len;
-        strings = ptr;
+        // strings = ptr;
 
         if (handle != handle_old +1) {
             break;
