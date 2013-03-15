@@ -13,5 +13,4 @@ Architecture: any
 # Canonical repo
 # Self build
 Depends: ${shlibs:Depends}, ${misc:Depends}, trousers, tpm-tools, libxml2, uuid
-Description: An open source TCG Platform Trust Services.
-The package include openpts collector and verifier
+Description: An open source TCG Platform Trust Services. The package include openpts collector and verifier

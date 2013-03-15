@@ -30,7 +30,7 @@ localedir = $(datadir)/locale
 
 
 AM_CPPFLAGS = -I$(top_srcdir)/include $(LIBXML2_CFLAGS) $(TSS_CFLAGS) -I../include -DLOCALEDIR=\"$(localedir)\"
-AM_LDFLAGS = $(LIBXML2_LIBS) $(LIBCRYPTO_LIBS) $(TSS_LIBS) -lopenpts
+AM_LDFLAGS = -lopenpts $(LIBXML2_LIBS) $(LIBCRYPTO_LIBS) $(TSS_LIBS) 
 # $(LIBINTL) -lopenpts
 
 if HAVE_LIBUUID
