@@ -457,7 +457,11 @@ void ptsc_lock(void) {
             exit(1);
         }
         oldgrp = getegid();
-        setegid(grp.gr_gid);
+        rc = setegid(grp.gr_gid);
+        if (rc != 0) {
+            LOG(LOG_ERR, "setegid() fail");
+            exit(1);
+        }
     }
 
     oldmask = umask(0);
@@ -467,7 +471,11 @@ void ptsc_lock(void) {
     }
     if (grpent) {
         chmod(LOCK_DIR, 02775);
-        setegid(oldgrp);
+        rc = setegid(oldgrp);
+        if (rc != 0) {
+            LOG(LOG_ERR, "setegid() fail");
+            exit(1);
+        }
     }
     fd = open(LOCK_FILE, O_RDWR | O_CREAT | O_TRUNC, 0660);
     if (fd < 0) {
